@@ -1,0 +1,16 @@
+export function Logo({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="J.A. Caero" className={className}>
+      <g transform="translate(0 30)">
+        <path
+          d="M 235.00 187.50 L 170.00 187.50 L 141.00 164.50 L 136.50 160.00 L 89.50 66.00 L 295.00 65.50 L 295.50 67.00 L 272.00 113.50 L 231.00 113.50 L 235.50 104.00 L 235.00 102.50 L 150.50 103.00 L 166.50 136.00 L 182.00 149.50 L 212.00 149.50 L 217.00 140.50 L 258.00 140.50 Z"
+          fill="currentColor"
+        />
+        <path
+          d="M 193.00 270.50 L 191.50 270.00 L 159.50 206.00 L 159.00 200.50 L 227.50 201.00 Z"
+          fill="#E9BD27"
+        />
+      </g>
+    </svg>
+  )
+}

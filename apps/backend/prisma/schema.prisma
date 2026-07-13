@@ -1,0 +1,348 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Identity and access
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  roleId       String?
+  role         Role?      @relation(fields: [roleId], references: [id])
+  jobTitle     String?
+  status       UserStatus @default(ACTIVE)
+  avatarUrl    String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  profile        EmployeeProfile?
+  refreshTokens  RefreshToken[]
+  timeEntries    TimeEntry[]
+  notes          Note[]
+  calendarEvents CalendarEventAssignee[]
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Role {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  isSystem Boolean @default(false)
+
+  permissions RolePermission[]
+  users       User[]
+  invitations Invitation[]
+}
+
+model Permission {
+  id  String @id @default(cuid())
+  key String @unique
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Invitation {
+  id         String    @id @default(cuid())
+  email      String
+  roleId     String
+  role       Role      @relation(fields: [roleId], references: [id])
+  tokenHash  String
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+// Legal data
+
+model EmployeeProfile {
+  id               String      @id @default(cuid())
+  userId           String      @unique
+  user             User        @relation(fields: [userId], references: [id])
+  dniNif           String?
+  address          String?
+  city             String?
+  postalCode       String?
+  phone            String?
+  birthDate        DateTime?
+  iban             String?
+  emergencyContact String?
+  workerType       WorkerType?
+  updatedAt        DateTime    @updatedAt
+}
+
+enum WorkerType {
+  FREELANCE
+  EMPLOYEE_CONTRACT
+}
+
+model CompanyProfile {
+  id         String   @id @default(cuid())
+  legalName  String
+  taxId      String
+  address    String
+  city       String
+  postalCode String
+  country    String   @default("ES")
+  phone      String?
+  email      String?
+  logoUrl    String?
+  updatedAt  DateTime @updatedAt
+}
+
+// Client, locations, contacts and contracts
+
+model Client {
+  id        String       @id @default(cuid())
+  name      String
+  taxId     String?
+  email     String?
+  phone     String?
+  status    ClientStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+
+  locations   ClientLocation[]
+  contacts    ClientContact[]
+  contracts   ClientContract[]
+  timeEntries TimeEntry[]
+  emailOrders EmailOrder[]
+  albaranes   MonthlyAlbaran[]
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model ClientLocation {
+  id         String  @id @default(cuid())
+  clientId   String
+  client     Client  @relation(fields: [clientId], references: [id])
+  name       String
+  address    String?
+  city       String?
+  postalCode String?
+
+  timeEntries TimeEntry[]
+}
+
+model ClientContact {
+  id       String  @id @default(cuid())
+  clientId String
+  client   Client  @relation(fields: [clientId], references: [id])
+  fullName String
+  email    String
+  phone    String?
+  jobTitle String?
+}
+
+model ClientContract {
+  id        String         @id @default(cuid())
+  clientId  String
+  client    Client         @relation(fields: [clientId], references: [id])
+  label     String
+  startDate DateTime
+  endDate   DateTime
+  status    ContractStatus @default(ACTIVE)
+
+  resources     ContractResource[]
+  overtimeRates ContractOvertimeRate[]
+  albaranes     MonthlyAlbaran[]
+}
+
+enum ContractStatus {
+  ACTIVE
+  EXPIRED
+}
+
+model ContractResource {
+  id         String         @id @default(cuid())
+  contractId String
+  contract   ClientContract @relation(fields: [contractId], references: [id])
+  name       String
+
+  rates        ContractResourceRate[]
+  timeEntries  TimeEntry[]
+  albaranLines MonthlyAlbaranLine[]
+}
+
+model ContractResourceRate {
+  id                 String           @id @default(cuid())
+  contractResourceId String
+  contractResource   ContractResource @relation(fields: [contractResourceId], references: [id])
+  period             DateTime
+  hourlyRate         Decimal          @db.Decimal(10, 2)
+
+  @@unique([contractResourceId, period])
+}
+
+model ContractOvertimeRate {
+  id         String         @id @default(cuid())
+  contractId String
+  contract   ClientContract @relation(fields: [contractId], references: [id])
+  period     DateTime
+  rate       Decimal        @db.Decimal(10, 2)
+
+  @@unique([contractId, period])
+}
+
+// Time entries
+
+model TimeEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  date        DateTime
+  hours       Decimal  @db.Decimal(5, 2)
+  description String?
+  isOvertime  Boolean  @default(false)
+
+  clientId           String?
+  client             Client?           @relation(fields: [clientId], references: [id])
+  clientLocationId   String?
+  clientLocation     ClientLocation?   @relation(fields: [clientLocationId], references: [id])
+  contractResourceId String?
+  contractResource   ContractResource? @relation(fields: [contractResourceId], references: [id])
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+}
+
+// Audit log
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  action      String
+  entityType  String
+  entityId    String
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+// Notes and calendar
+
+model Note {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model CalendarEvent {
+  id                 String          @id @default(cuid())
+  title              String
+  date               DateTime
+  createdBy          String
+  visibility         EventVisibility @default(COMPANY)
+  color              String?
+  reminderDaysBefore Int?
+  createdAt          DateTime        @default(now())
+
+  assignees CalendarEventAssignee[]
+}
+
+enum EventVisibility {
+  PERSONAL
+  COMPANY
+}
+
+model CalendarEventAssignee {
+  eventId String
+  event   CalendarEvent @relation(fields: [eventId], references: [id])
+  userId  String
+  user    User          @relation(fields: [userId], references: [id])
+
+  @@id([eventId, userId])
+}
+
+// Phase 2: email orders (modeled, not built yet)
+
+model EmailOrder {
+  id          String           @id @default(cuid())
+  clientId    String?
+  client      Client?          @relation(fields: [clientId], references: [id])
+  orderNumber String?
+  subject     String
+  rawContent  String
+  summary     String?
+  status      EmailOrderStatus @default(NEW)
+  receivedAt  DateTime
+  createdAt   DateTime         @default(now())
+}
+
+enum EmailOrderStatus {
+  NEW
+  PROCESSED
+  IGNORED
+}
+
+// Phase 2: monthly delivery note / albaran (modeled, not built yet)
+
+model MonthlyAlbaran {
+  id          String         @id @default(cuid())
+  clientId    String
+  client      Client         @relation(fields: [clientId], references: [id])
+  contractId  String
+  contract    ClientContract @relation(fields: [contractId], references: [id])
+  period      DateTime
+  generatedBy String
+  generatedAt DateTime       @default(now())
+  totalAmount Decimal        @db.Decimal(12, 2)
+  pdfUrl      String?
+  status      AlbaranStatus  @default(DRAFT)
+
+  lines MonthlyAlbaranLine[]
+}
+
+enum AlbaranStatus {
+  DRAFT
+  SENT
+}
+
+model MonthlyAlbaranLine {
+  id                 String           @id @default(cuid())
+  albaranId          String
+  albaran            MonthlyAlbaran   @relation(fields: [albaranId], references: [id])
+  contractResourceId String
+  contractResource   ContractResource @relation(fields: [contractResourceId], references: [id])
+  regularHours       Decimal          @db.Decimal(6, 2)
+  regularRate        Decimal          @db.Decimal(10, 2)
+  overtimeHours      Decimal          @db.Decimal(6, 2)
+  overtimeRate       Decimal          @db.Decimal(10, 2)
+  subtotal           Decimal          @db.Decimal(12, 2)
+}
