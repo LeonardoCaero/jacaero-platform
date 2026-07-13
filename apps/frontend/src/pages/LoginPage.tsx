@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import logo from '../assets/logo.svg'
+import { useLanguage } from '../contexts/LanguageContext'
+import { Logo } from '../components/Logo'
+import { SettingsMenu } from '../components/SettingsMenu'
 
 export function LoginPage() {
   const { user, login } = useAuth()
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -21,37 +24,34 @@ export function LoginPage() {
       await login(email, password)
       navigate('/')
     } catch {
-      setError('Invalid email or password')
+      setError(t.login.invalidCredentials)
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-paper px-4 dark:bg-paper-dark">
+    <div className="relative flex min-h-dvh items-center justify-center bg-paper px-4 dark:bg-paper-dark">
+      <div className="absolute top-4 right-4">
+        <SettingsMenu />
+      </div>
+
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-cream ring-1 ring-yellow">
-            <img src={logo} alt="" className="h-9 w-9" />
-          </span>
-          <h1 className="font-display text-2xl font-semibold tracking-wide text-ink uppercase dark:text-cream">
+          <Logo className="mb-4 h-28 w-28 text-ink dark:text-cream" />
+          <h1 className="font-display text-3xl font-semibold tracking-wide text-ink dark:text-cream">
             J.A. Caero
           </h1>
-          <p className="mt-1 font-mono text-xs tracking-wide text-graphite uppercase dark:text-graphite-dark">
-            Sign in to your account
-          </p>
+          <p className="mt-1.5 text-sm text-graphite dark:text-graphite-dark">{t.login.subtitle}</p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-4 rounded-md border border-line bg-paper p-6 dark:border-line-dark dark:bg-paper-dark"
+          className="space-y-4 rounded-2xl border border-line bg-surface p-6 shadow-sm dark:border-line-dark dark:bg-surface-dark"
         >
           <div>
-            <label
-              htmlFor="email"
-              className="font-mono text-xs tracking-wide text-graphite uppercase dark:text-graphite-dark"
-            >
-              Email
+            <label htmlFor="email" className="text-sm font-medium text-ink dark:text-cream">
+              {t.login.email}
             </label>
             <input
               id="email"
@@ -60,16 +60,13 @@ export function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 h-11 w-full rounded-md border border-line bg-paper px-3 text-base text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+              className="mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="font-mono text-xs tracking-wide text-graphite uppercase dark:text-graphite-dark"
-            >
-              Password
+            <label htmlFor="password" className="text-sm font-medium text-ink dark:text-cream">
+              {t.login.password}
             </label>
             <input
               id="password"
@@ -78,18 +75,18 @@ export function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 h-11 w-full rounded-md border border-line bg-paper px-3 text-base text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+              className="mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream"
             />
           </div>
 
-          {error && <p className="font-mono text-xs text-rust dark:text-rust-dark">{error}</p>}
+          {error && <p className="text-sm text-rust dark:text-rust-dark">{error}</p>}
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="h-11 w-full rounded-md bg-ink font-display text-sm font-semibold tracking-wide text-cream uppercase transition hover:bg-ink/90 disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
+            className="h-11 w-full rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
           >
-            {isSubmitting ? 'Signing in…' : 'Sign in'}
+            {isSubmitting ? t.login.signingIn : t.login.signIn}
           </button>
         </form>
       </div>
