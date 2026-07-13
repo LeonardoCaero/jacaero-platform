@@ -1,4 +1,4 @@
-import { Outlet, Link } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { Logo } from './Logo'
@@ -8,6 +8,7 @@ import { Avatar } from './Avatar'
 export function AppLayout() {
   const { user, logout } = useAuth()
   const { t } = useLanguage()
+  const location = useLocation()
 
   return (
     <div className="min-h-dvh bg-paper dark:bg-paper-dark">
@@ -38,7 +39,9 @@ export function AppLayout() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
-        <Outlet />
+        <div key={location.pathname} className="animate-fade-up">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

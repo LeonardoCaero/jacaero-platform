@@ -37,7 +37,7 @@ export function LoginPage() {
       </div>
 
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center text-center">
+        <div className="animate-fade-up mb-8 flex flex-col items-center text-center">
           <Logo className="mb-4 h-28 w-28 text-ink dark:text-cream" />
           <h1 className="font-display text-3xl font-semibold tracking-wide text-ink dark:text-cream">
             J.A. Caero
@@ -47,7 +47,8 @@ export function LoginPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-4 rounded-2xl border border-line bg-surface p-6 shadow-sm dark:border-line-dark dark:bg-surface-dark"
+          style={{ animationDelay: '80ms' }}
+          className="animate-fade-up space-y-4 rounded-2xl border border-line bg-surface p-6 shadow-sm dark:border-line-dark dark:bg-surface-dark"
         >
           <div>
             <label htmlFor="email" className="text-sm font-medium text-ink dark:text-cream">
@@ -84,7 +85,7 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="h-11 w-full rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
+            className="h-11 w-full rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
           >
             {isSubmitting ? t.login.signingIn : t.login.signIn}
           </button>

@@ -28,7 +28,7 @@ export function HomePage() {
         {primary && (
           <Link
             to={primary.path}
-            className="relative col-span-2 flex h-36 flex-col justify-between overflow-hidden rounded-2xl bg-ink p-5 text-cream shadow-sm transition hover:shadow-md"
+            className="animate-fade-up relative col-span-2 flex h-36 flex-col justify-between overflow-hidden rounded-2xl bg-ink p-5 text-cream shadow-sm transition hover:shadow-md active:scale-[0.98]"
           >
             <Logo className="pointer-events-none absolute -right-6 -bottom-8 h-40 w-40 opacity-10" />
             <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-yellow">
@@ -41,11 +41,12 @@ export function HomePage() {
           </Link>
         )}
 
-        {secondary.map((m) => (
+        {secondary.map((m, i) => (
           <Link
             key={m.path}
             to={m.path}
-            className="flex min-h-[112px] flex-col justify-between rounded-2xl border border-line bg-surface p-4 shadow-sm transition hover:border-yellow hover:shadow-md dark:border-line-dark dark:bg-surface-dark"
+            style={{ animationDelay: `${(i + 1) * 60}ms` }}
+            className="animate-fade-up flex min-h-[112px] flex-col justify-between rounded-2xl border border-line bg-surface p-4 shadow-sm transition hover:border-yellow hover:shadow-md active:scale-[0.98] dark:border-line-dark dark:bg-surface-dark"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-yellow/15">
               <m.icon className="h-4.5 w-4.5 text-ink dark:text-cream" />

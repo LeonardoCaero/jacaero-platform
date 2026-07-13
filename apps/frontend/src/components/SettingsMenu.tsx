@@ -37,7 +37,7 @@ export function SettingsMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-10 mt-2 w-52 rounded-xl border border-line bg-surface p-3 shadow-lg dark:border-line-dark dark:bg-surface-dark">
+        <div className="animate-scale-in absolute right-0 z-10 mt-2 w-52 origin-top-right rounded-xl border border-line bg-surface p-3 shadow-lg dark:border-line-dark dark:bg-surface-dark">
           <p className="px-1 text-xs font-medium text-graphite dark:text-graphite-dark">{t.settings.theme}</p>
           <div className="mt-1.5 flex flex-col">
             {themeOptions.map((opt) => (
