@@ -55,14 +55,15 @@ async function main() {
   }
 
   const passwordHash = await bcrypt.hash(adminPassword, 12);
+  const fullName = process.env.SEED_ADMIN_FULLNAME ?? "Admin";
 
   await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: { passwordHash, fullName, roleId: adminRole.id, jobTitle: "Admin" },
     create: {
       email: adminEmail,
       passwordHash,
-      fullName: process.env.SEED_ADMIN_FULLNAME ?? "Admin",
+      fullName,
       roleId: adminRole.id,
       jobTitle: "Admin",
     },
