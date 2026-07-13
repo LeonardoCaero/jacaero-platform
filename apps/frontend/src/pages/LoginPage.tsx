@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import logo from '../assets/logo.svg'
 
 export function LoginPage() {
   const { user, login } = useAuth()
@@ -27,19 +28,29 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-neutral-50 px-4 dark:bg-neutral-950">
+    <div className="flex min-h-dvh items-center justify-center bg-paper px-4 dark:bg-paper-dark">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">J.A. CAERO</h1>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Sign in to your account</p>
+        <div className="mb-8 flex flex-col items-center text-center">
+          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-cream ring-1 ring-yellow">
+            <img src={logo} alt="" className="h-9 w-9" />
+          </span>
+          <h1 className="font-display text-2xl font-semibold tracking-wide text-ink uppercase dark:text-cream">
+            J.A. Caero
+          </h1>
+          <p className="mt-1 font-mono text-xs tracking-wide text-graphite uppercase dark:text-graphite-dark">
+            Sign in to your account
+          </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
+          className="space-y-4 rounded-md border border-line bg-paper p-6 dark:border-line-dark dark:bg-paper-dark"
         >
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+            <label
+              htmlFor="email"
+              className="font-mono text-xs tracking-wide text-graphite uppercase dark:text-graphite-dark"
+            >
               Email
             </label>
             <input
@@ -49,12 +60,15 @@ export function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 h-11 w-full rounded-lg border border-neutral-300 px-3 text-base text-neutral-900 outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white dark:focus:border-white"
+              className="mt-1 h-11 w-full rounded-md border border-line bg-paper px-3 text-base text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+            <label
+              htmlFor="password"
+              className="font-mono text-xs tracking-wide text-graphite uppercase dark:text-graphite-dark"
+            >
               Password
             </label>
             <input
@@ -64,16 +78,16 @@ export function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 h-11 w-full rounded-lg border border-neutral-300 px-3 text-base text-neutral-900 outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white dark:focus:border-white"
+              className="mt-1 h-11 w-full rounded-md border border-line bg-paper px-3 text-base text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
             />
           </div>
 
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="font-mono text-xs text-rust dark:text-rust-dark">{error}</p>}
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="h-11 w-full rounded-lg bg-neutral-900 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+            className="h-11 w-full rounded-md bg-ink font-display text-sm font-semibold tracking-wide text-cream uppercase transition hover:bg-ink/90 disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
           >
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </button>

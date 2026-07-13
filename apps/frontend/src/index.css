@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+@theme {
+  --font-display: "Barlow Condensed", sans-serif;
+  --font-sans: "Barlow", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-ink: #18140d;
+  --color-paper: #f5f1e7;
+  --color-paper-dark: #15130e;
+  --color-cream: #f2eee1;
+  --color-yellow: #e9bd27;
+  --color-graphite: #6e6656;
+  --color-graphite-dark: #a79c82;
+  --color-line: #dedacb;
+  --color-line-dark: #322d22;
+  --color-rust: #b3401e;
+  --color-rust-dark: #e2603a;
+}
+
 :root {
   color-scheme: light dark;
 }
@@ -7,4 +25,65 @@
 body {
   margin: 0;
   min-height: 100dvh;
+}
+
+/* Signature: ticket-stub perforation on the primary tile, corner marks on the rest. */
+
+.tile-corners {
+  position: relative;
+}
+
+.tile-corners::before,
+.tile-corners::after {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-color: var(--color-line);
+  @media (prefers-color-scheme: dark) {
+    border-color: var(--color-line-dark);
+  }
+}
+
+.tile-corners::before {
+  top: 6px;
+  left: 6px;
+  border-top: 1.5px solid;
+  border-left: 1.5px solid;
+}
+
+.tile-corners::after {
+  bottom: 6px;
+  right: 6px;
+  border-bottom: 1.5px solid;
+  border-right: 1.5px solid;
+}
+
+.ticket-stub {
+  position: relative;
+}
+
+.ticket-stub::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 76px;
+  border-right: 2px dashed rgba(245, 241, 231, 0.25);
+}
+
+.ticket-stub::after {
+  content: "";
+  position: absolute;
+  top: -7px;
+  right: 68px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-paper);
+  box-shadow: 0 140px 0 var(--color-paper);
+  @media (prefers-color-scheme: dark) {
+    background: var(--color-paper-dark);
+    box-shadow: 0 140px 0 var(--color-paper-dark);
+  }
 }
