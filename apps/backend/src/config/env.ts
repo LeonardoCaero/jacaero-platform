@@ -6,6 +6,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default("15m"),
   REFRESH_TOKEN_EXPIRES_IN_DAYS: z.coerce.number().default(30),
+  CORS_ORIGIN: z.string().default("http://localhost:5173"),
 });
 
 export const env = envSchema.parse(process.env);
