@@ -1,8 +1,21 @@
+import { Route, Routes } from 'react-router-dom'
+import { LoginPage } from './pages/LoginPage'
+import { DashboardPage } from './pages/DashboardPage'
+import { ProtectedRoute } from './components/ProtectedRoute'
+
 function App() {
   return (
-    <div className="flex min-h-dvh items-center justify-center">
-      <p className="text-neutral-500">jacaero-platform</p>
-    </div>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   )
 }
 
