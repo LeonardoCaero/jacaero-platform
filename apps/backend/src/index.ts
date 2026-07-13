@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { env } from "./config/env.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
+import { timeEntriesRoutes } from "./modules/time-entries/time-entries.routes.js";
 import { errorHandler } from "./common/middlewares/error-handler.middleware.js";
 
 const app = express();
@@ -14,6 +15,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/auth", authRoutes);
+app.use("/time-entries", timeEntriesRoutes);
 
 app.use(errorHandler);
 

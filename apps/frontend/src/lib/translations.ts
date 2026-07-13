@@ -37,6 +37,19 @@ const en = {
     system: 'System',
     language: 'Language',
   },
+  timeTracker: {
+    jumpToday: 'Jump to today',
+    fullDay: 'Full day',
+    halfDay: 'Half day',
+    hours: 'Hours',
+    descriptionPlaceholder: 'What did you work on? (optional)',
+    overtime: 'Overtime',
+    save: 'Save',
+    update: 'Update',
+    cancel: 'Cancel',
+    empty: 'No entries yet this month. Tap a day above to log one.',
+    confirmDelete: 'Delete this entry?',
+  },
 }
 
 const es = {
@@ -77,6 +90,19 @@ const es = {
     dark: 'Oscuro',
     system: 'Sistema',
     language: 'Idioma',
+  },
+  timeTracker: {
+    jumpToday: 'Ir a hoy',
+    fullDay: 'Jornada completa',
+    halfDay: 'Media jornada',
+    hours: 'Horas',
+    descriptionPlaceholder: '¿En qué trabajaste? (opcional)',
+    overtime: 'Horas extra',
+    save: 'Guardar',
+    update: 'Actualizar',
+    cancel: 'Cancelar',
+    empty: 'No hay registros este mes. Toca un día arriba para cargar uno.',
+    confirmDelete: '¿Eliminar este registro?',
   },
 } satisfies typeof en
 
