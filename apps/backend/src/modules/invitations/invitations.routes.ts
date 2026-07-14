@@ -7,6 +7,8 @@ import {
   getByTokenHandler,
   acceptHandler,
   deleteHandler,
+  resendHandler,
+  previewHandler,
 } from "./invitations.controller.js";
 
 export const invitationsRoutes = Router();
@@ -19,3 +21,5 @@ invitationsRoutes.post("/:token/accept", acceptHandler);
 invitationsRoutes.get("/", authMiddleware, requirePermission("USERS:MANAGE"), listHandler);
 invitationsRoutes.post("/", authMiddleware, requirePermission("USERS:MANAGE"), createHandler);
 invitationsRoutes.delete("/:id", authMiddleware, requirePermission("USERS:MANAGE"), deleteHandler);
+invitationsRoutes.post("/:id/resend", authMiddleware, requirePermission("USERS:MANAGE"), resendHandler);
+invitationsRoutes.get("/:id/preview", authMiddleware, requirePermission("USERS:MANAGE"), previewHandler);

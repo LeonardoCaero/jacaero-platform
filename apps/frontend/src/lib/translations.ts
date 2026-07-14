@@ -74,6 +74,8 @@ const en = {
     systemRole: 'System',
     usersCount: 'users',
     confirmDeleteInvite: 'Cancel this invitation?',
+    previewInvite: 'Preview email',
+    resendInvite: 'Resend invitation',
   },
   acceptInvite: {
     invitedAs: 'Invited as',
@@ -163,6 +165,8 @@ const es = {
     systemRole: 'Sistema',
     usersCount: 'usuarios',
     confirmDeleteInvite: '¿Cancelar esta invitación?',
+    previewInvite: 'Vista previa del correo',
+    resendInvite: 'Reenviar invitación',
   },
   acceptInvite: {
     invitedAs: 'Invitado como',

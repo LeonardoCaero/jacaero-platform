@@ -3,7 +3,7 @@ import { prisma } from "../../db/prisma.js";
 import { ApiError } from "../../common/errors/api-error.js";
 import { generateRefreshToken, hashToken } from "../../common/utils/tokens.util.js";
 import { env } from "../../config/env.js";
-import { sendInvitationEmail } from "../../common/services/email.service.js";
+import { sendInvitationEmail, buildInvitationEmail } from "../../common/services/email.service.js";
 import { issueTokens, getMe } from "../auth/auth.service.js";
 import type { createInvitationSchema, acceptInvitationSchema } from "./invitations.schema.js";
 import type { z } from "zod";
@@ -71,6 +71,36 @@ export async function accept(token: string, data: AcceptInput) {
 
   const tokens = await issueTokens(user.id, user.email);
   return { ...tokens, user: await getMe(user.id) };
+}
+
+async function findPending(id: string) {
+  const invitation = await prisma.invitation.findUnique({
+    where: { id },
+    include: { role: { select: { name: true } } },
+  });
+  if (!invitation || invitation.acceptedAt) {
+    throw new ApiError(404, "Invitation not found");
+  }
+  return invitation;
+}
+
+export async function resend(id: string) {
+  const invitation = await findPending(id);
+
+  const rawToken = generateRefreshToken();
+  const expiresAt = new Date(Date.now() + env.INVITATION_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000);
+  await prisma.invitation.update({ where: { id }, data: { tokenHash: hashToken(rawToken), expiresAt } });
+
+  const inviteUrl = `${env.FRONTEND_URL}/accept-invite?token=${rawToken}`;
+  await sendInvitationEmail(invitation.email, inviteUrl, invitation.role.name);
+
+  return { id: invitation.id, email: invitation.email, expiresAt };
+}
+
+export async function preview(id: string) {
+  const invitation = await findPending(id);
+  const previewUrl = `${env.FRONTEND_URL}/accept-invite?token=preview`;
+  return buildInvitationEmail(previewUrl, invitation.role.name);
 }
 
 export async function remove(id: string) {

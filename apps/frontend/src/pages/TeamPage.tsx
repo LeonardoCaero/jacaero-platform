@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Pencil, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Eye, Pencil, Send, Trash2, X } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 
@@ -128,6 +129,18 @@ function UsersTab() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invitations'] }),
   })
 
+  const resendInviteMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/invitations/${id}/resend`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invitations'] }),
+  })
+
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null)
+
+  async function handlePreviewInvite(id: string) {
+    const { data } = await api.get<{ html: string }>(`/invitations/${id}/preview`)
+    setPreviewHtml(data.html)
+  }
+
   const updateUserMutation = useMutation({
     mutationFn: (id: string) =>
       api.patch(`/users/${id}`, {
@@ -205,17 +218,37 @@ function UsersTab() {
           <p className="text-sm font-semibold text-ink dark:text-cream">{t.team.pendingInvitations}</p>
           <div className="mt-2 space-y-2">
             {invitations.map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between text-sm">
-                <span className="text-graphite dark:text-graphite-dark">
+              <div key={inv.id} className="flex items-center justify-between">
+                <p className="min-w-0 truncate text-sm text-graphite dark:text-graphite-dark">
                   {inv.email} · {inv.role.name}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCancelInvite(inv.id)}
-                  className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                </p>
+                <div className="flex shrink-0 items-center gap-3">
+                  <button
+                    type="button"
+                    title={t.team.previewInvite}
+                    onClick={() => handlePreviewInvite(inv.id)}
+                    className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    title={t.team.resendInvite}
+                    disabled={resendInviteMutation.isPending}
+                    onClick={() => resendInviteMutation.mutate(inv.id)}
+                    className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    title={t.team.cancel}
+                    onClick={() => handleCancelInvite(inv.id)}
+                    className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -295,6 +328,29 @@ function UsersTab() {
           </div>
         ))}
       </div>
+
+      {previewHtml &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
+            onClick={() => setPreviewHtml(null)}
+          >
+            <div
+              className="relative max-h-[85vh] w-full max-w-lg overflow-hidden rounded-2xl bg-surface shadow-xl dark:bg-surface-dark"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setPreviewHtml(null)}
+                className="absolute right-3 top-3 z-10 rounded-full bg-ink p-1.5 text-cream shadow-sm hover:bg-ink/90 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <iframe title="email-preview" srcDoc={previewHtml} className="h-[80vh] w-full bg-white" />
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

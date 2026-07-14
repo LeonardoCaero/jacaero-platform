@@ -25,3 +25,12 @@ export async function deleteHandler(req: Request<{ id: string }>, res: Response)
   await invitationsService.remove(req.params.id);
   res.status(204).send();
 }
+
+export async function resendHandler(req: Request<{ id: string }>, res: Response) {
+  res.json(await invitationsService.resend(req.params.id));
+}
+
+export async function previewHandler(req: Request<{ id: string }>, res: Response) {
+  const { html } = await invitationsService.preview(req.params.id);
+  res.json({ html });
+}
