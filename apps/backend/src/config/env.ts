@@ -9,7 +9,7 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   FRONTEND_URL: z.string().default("http://localhost:5173"),
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("J.A. Caero <onboarding@resend.dev>"),
+  EMAIL_FROM: z.string().default("J.A. Caero <notificaciones@caero.group>"),
   INVITATION_EXPIRES_IN_DAYS: z.coerce.number().default(7),
 });
 
