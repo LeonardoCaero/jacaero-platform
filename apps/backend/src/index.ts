@@ -3,6 +3,9 @@ import cors from "cors";
 import { env } from "./config/env.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { timeEntriesRoutes } from "./modules/time-entries/time-entries.routes.js";
+import { rolesRoutes } from "./modules/roles/roles.routes.js";
+import { usersRoutes } from "./modules/users/users.routes.js";
+import { invitationsRoutes } from "./modules/invitations/invitations.routes.js";
 import { errorHandler } from "./common/middlewares/error-handler.middleware.js";
 
 const app = express();
@@ -16,6 +19,9 @@ app.get("/health", (_req, res) => {
 
 app.use("/auth", authRoutes);
 app.use("/time-entries", timeEntriesRoutes);
+app.use("/roles", rolesRoutes);
+app.use("/users", usersRoutes);
+app.use("/invitations", invitationsRoutes);
 
 app.use(errorHandler);
 
