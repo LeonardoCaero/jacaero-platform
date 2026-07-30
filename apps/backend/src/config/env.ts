@@ -11,6 +11,12 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("J.A. Caero <notificaciones@caero.group>"),
   INVITATION_EXPIRES_IN_DAYS: z.coerce.number().default(7),
+  ORDERS_IMAP_HOST: z.string().default("imap.gmail.com"),
+  ORDERS_EMAIL_ADDRESS: z.string().optional(),
+  ORDERS_EMAIL_APP_PASSWORD: z.string().optional(),
+  ORDERS_SENDER_ALLOWLIST: z.string().optional(),
+  ORDERS_POLL_MINUTES: z.coerce.number().default(15),
+  DOCS_ROOT_PATH: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
