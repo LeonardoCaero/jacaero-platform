@@ -290,24 +290,51 @@ model CalendarEventAssignee {
   @@id([eventId, userId])
 }
 
-// Phase 2: email orders (modeled, not built yet)
+// Email orders: purchase orders captured from incoming email
 
 model EmailOrder {
-  id          String           @id @default(cuid())
-  clientId    String?
-  client      Client?          @relation(fields: [clientId], references: [id])
-  orderNumber String?
-  subject     String
-  rawContent  String
-  summary     String?
-  status      EmailOrderStatus @default(NEW)
-  receivedAt  DateTime
-  createdAt   DateTime         @default(now())
+  id              String           @id @default(cuid())
+  clientId        String?
+  client          Client?          @relation(fields: [clientId], references: [id])
+  orderNumber     String?
+  quoteRef        String?
+  orderDate       DateTime?
+  subject         String
+  senderEmail     String
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  deliveryAddress String?
+  notes           String?
+  totalAmount     Decimal?         @db.Decimal(12, 2)
+  rawContent      String
+  pdfAttachment   Bytes?
+  status          EmailOrderStatus @default(NEW)
+  quotedAt        DateTime?
+  deliveryNoteAt  DateTime?
+  invoicedAt      DateTime?
+  receivedAt      DateTime
+  createdAt       DateTime         @default(now())
+
+  lines EmailOrderLine[]
+}
+
+model EmailOrderLine {
+  id           String     @id @default(cuid())
+  emailOrderId String
+  emailOrder   EmailOrder @relation(fields: [emailOrderId], references: [id])
+  lineNumber   String?
+  description  String
+  quantity     Decimal    @db.Decimal(10, 2)
+  unit         String?
+  unitPrice    Decimal    @db.Decimal(10, 2)
+  amount       Decimal    @db.Decimal(12, 2)
+  deliveryDate DateTime?
 }
 
 enum EmailOrderStatus {
   NEW
-  PROCESSED
+  REVIEWED
   IGNORED
 }
 
