@@ -11,4 +11,9 @@ export const updateTimeEntrySchema = createTimeEntrySchema.partial();
 
 export const listTimeEntriesSchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
+  userId: z.string().optional(),
+});
+
+export const teamSummarySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/),
 });
