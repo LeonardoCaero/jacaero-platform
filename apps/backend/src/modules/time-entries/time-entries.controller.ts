@@ -1,11 +1,21 @@
 import type { Request, Response } from "express";
-import { createTimeEntrySchema, updateTimeEntrySchema, listTimeEntriesSchema } from "./time-entries.schema.js";
+import {
+  createTimeEntrySchema,
+  updateTimeEntrySchema,
+  listTimeEntriesSchema,
+  teamSummarySchema,
+} from "./time-entries.schema.js";
 import * as timeEntriesService from "./time-entries.service.js";
 
 export async function listHandler(req: Request, res: Response) {
-  const { month } = listTimeEntriesSchema.parse(req.query);
-  const entries = await timeEntriesService.list(req.user!.userId, month);
+  const { month, userId } = listTimeEntriesSchema.parse(req.query);
+  const entries = await timeEntriesService.list(req.user!.userId, month, userId);
   res.json(entries);
+}
+
+export async function teamSummaryHandler(req: Request, res: Response) {
+  const { month } = teamSummarySchema.parse(req.query);
+  res.json(await timeEntriesService.teamSummary(month));
 }
 
 export async function createHandler(req: Request, res: Response) {
