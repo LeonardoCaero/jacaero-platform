@@ -8,5 +8,6 @@ export default defineConfig({
   server: {
     port: 5175,
     strictPort: true,
+    host: true, // listen on the LAN too, not just localhost
   },
 })
