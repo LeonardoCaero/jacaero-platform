@@ -1,0 +1,2 @@
+ALTER TABLE "EmailOrder" DROP COLUMN "tag";
+ALTER TABLE "EmailOrder" ADD COLUMN "favorite" BOOLEAN NOT NULL DEFAULT false;
