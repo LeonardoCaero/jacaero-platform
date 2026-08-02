@@ -1,0 +1,1 @@
+ALTER TABLE "EmailOrder" ADD COLUMN "tag" TEXT;
