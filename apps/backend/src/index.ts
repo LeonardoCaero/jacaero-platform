@@ -8,6 +8,7 @@ import { usersRoutes } from "./modules/users/users.routes.js";
 import { invitationsRoutes } from "./modules/invitations/invitations.routes.js";
 import { emailOrdersRoutes } from "./modules/email-orders/email-orders.routes.js";
 import { syncOrders } from "./modules/email-orders/email-orders.service.js";
+import { documentsRoutes } from "./modules/documents/documents.routes.js";
 import { errorHandler } from "./common/middlewares/error-handler.middleware.js";
 
 const app = express();
@@ -25,6 +26,7 @@ app.use("/roles", rolesRoutes);
 app.use("/users", usersRoutes);
 app.use("/invitations", invitationsRoutes);
 app.use("/email-orders", emailOrdersRoutes);
+app.use("/documents", documentsRoutes);
 
 app.use(errorHandler);
 

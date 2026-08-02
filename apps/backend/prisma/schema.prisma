@@ -296,7 +296,7 @@ model EmailOrder {
   id              String           @id @default(cuid())
   clientId        String?
   client          Client?          @relation(fields: [clientId], references: [id])
-  orderNumber     String?
+  orderNumber     String?          @unique
   quoteRef        String?
   orderDate       DateTime?
   subject         String
@@ -311,8 +311,12 @@ model EmailOrder {
   pdfAttachment   Bytes?
   status          EmailOrderStatus @default(NEW)
   quotedAt        DateTime?
+  quoteCategory   QuoteCategory?
   deliveryNoteAt  DateTime?
+  albaranNumber   String?
   invoicedAt      DateTime?
+  facturaNumber   String?
+  favorite        Boolean          @default(false)
   receivedAt      DateTime
   createdAt       DateTime         @default(now())
 
@@ -336,6 +340,12 @@ enum EmailOrderStatus {
   NEW
   REVIEWED
   IGNORED
+}
+
+enum QuoteCategory {
+  PRESUPUESTO
+  HORAS
+  MATERIAL
 }
 
 // Phase 2: monthly delivery note / albaran (modeled, not built yet)
