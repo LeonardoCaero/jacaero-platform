@@ -84,6 +84,9 @@ const en = {
     dark: 'Dark',
     system: 'System',
     language: 'Language',
+    notifications: 'Notifications',
+    notificationsOn: 'Push notifications on',
+    notificationsOff: 'Enable push notifications',
   },
   timeTracker: {
     jumpToday: 'Jump to today',
@@ -229,6 +232,9 @@ const es = {
     dark: 'Oscuro',
     system: 'Sistema',
     language: 'Idioma',
+    notifications: 'Notificaciones',
+    notificationsOn: 'Notificaciones activadas',
+    notificationsOff: 'Activar notificaciones',
   },
   timeTracker: {
     jumpToday: 'Ir a hoy',

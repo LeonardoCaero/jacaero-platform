@@ -17,6 +17,9 @@ const envSchema = z.object({
   ORDERS_SENDER_ALLOWLIST: z.string().optional(),
   ORDERS_POLL_MINUTES: z.coerce.number().default(15),
   DOCS_ROOT_PATH: z.string().optional(),
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default("mailto:admin@example.com"),
 });
 
 export const env = envSchema.parse(process.env);
