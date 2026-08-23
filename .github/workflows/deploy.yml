@@ -1,0 +1,43 @@
+name: Deploy to NAS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: SSH Deploy to NAS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.NAS_HOST }}
+          username: ${{ secrets.NAS_USER }}
+          key: ${{ secrets.NAS_SSH_KEY }}
+          port: ${{ secrets.NAS_SSH_PORT || 22 }}
+          script: |
+            set -e
+            export PATH=$PATH:/usr/bin:/usr/local/bin
+
+            echo "Pulling latest code..."
+            cd ${{ secrets.NAS_JACAERO_PATH }}
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
+
+            echo "Rebuilding and starting jacaero_backend and jacaero_frontend..."
+            docker compose up -d --build --no-deps backend frontend
+
+            echo "Cleaning up old images..."
+            docker image prune -f
+
+            echo "Deploy complete."
