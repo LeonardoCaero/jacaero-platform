@@ -1,6 +1,15 @@
-import { Clock, Calendar, StickyNote, Building2, Users, ShieldCheck, type LucideIcon } from 'lucide-react'
+import {
+  Clock,
+  Calendar,
+  StickyNote,
+  Building2,
+  Users,
+  ShieldCheck,
+  FolderKanban,
+  type LucideIcon,
+} from 'lucide-react'
 
-export type ModuleKey = 'timeTracker' | 'calendar' | 'notes' | 'clients' | 'team' | 'audit'
+export type ModuleKey = 'timeTracker' | 'calendar' | 'notes' | 'clients' | 'team' | 'audit' | 'papeleo'
 
 export type Module = {
   key: ModuleKey
@@ -16,5 +25,6 @@ export const modules: Module[] = [
   { key: 'notes', path: '/notes', icon: StickyNote, permission: 'NOTES:CREATE' },
   { key: 'clients', path: '/clients', icon: Building2, permission: 'CLIENTS:MANAGE' },
   { key: 'team', path: '/team', icon: Users, permission: 'USERS:MANAGE' },
+  { key: 'papeleo', path: '/papeleo', icon: FolderKanban, permission: 'ORDERS:MANAGE' },
   { key: 'audit', path: '/audit', icon: ShieldCheck, permission: 'AUDIT:VIEW' },
 ]
