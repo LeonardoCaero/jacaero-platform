@@ -21,6 +21,8 @@ COPY --from=build /app/apps/backend/dist ./apps/backend/dist
 COPY --from=build /app/apps/backend/prisma ./apps/backend/prisma
 COPY --from=build /app/apps/backend/prisma.config.ts ./apps/backend/prisma.config.ts
 COPY --from=build /app/apps/backend/package.json ./apps/backend/package.json
+COPY apps/backend/docker-entrypoint.sh ./apps/backend/docker-entrypoint.sh
+RUN chmod +x /app/apps/backend/docker-entrypoint.sh
 WORKDIR /app/apps/backend
 EXPOSE 3000
-CMD ["node", "dist/index.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
