@@ -25,6 +25,8 @@ services:
       dockerfile: apps/backend/Dockerfile
     container_name: jacaero_backend
     restart: unless-stopped
+    env_file:
+      - apps/backend/.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-jacaero}:${POSTGRES_PASSWORD:-jacaero}@db:5432/${POSTGRES_DB:-jacaero}
       PORT: 3000
