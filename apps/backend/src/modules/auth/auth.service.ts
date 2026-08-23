@@ -26,7 +26,7 @@ function toPublicUser(user: {
   };
 }
 
-async function issueTokens(userId: string, email: string) {
+export async function issueTokens(userId: string, email: string) {
   const accessToken = signAccessToken({ userId, email });
   const refreshToken = generateRefreshToken();
   const expiresAt = new Date(Date.now() + env.REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000);
