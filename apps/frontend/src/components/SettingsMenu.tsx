@@ -1,13 +1,37 @@
 import { useEffect, useRef, useState } from 'react'
-import { Settings, Check } from 'lucide-react'
+import { Settings, Check, Bell } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useLanguage } from '../contexts/LanguageContext'
+import { pushSupported, isSubscribed, enablePush, disablePush } from '../lib/push'
 
 export function SettingsMenu() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const { theme, setTheme } = useTheme()
   const { language, setLanguage, t } = useLanguage()
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+
+  useEffect(() => {
+    if (!open || !pushSupported()) return
+    isSubscribed().then(setPushEnabled)
+  }, [open])
+
+  async function togglePush() {
+    setPushBusy(true)
+    try {
+      if (pushEnabled) {
+        await disablePush()
+        setPushEnabled(false)
+      } else {
+        await enablePush()
+        setPushEnabled(true)
+      }
+    } catch {
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (!open) return
@@ -75,6 +99,28 @@ export function SettingsMenu() {
               {language === 'es' && <Check className="h-4 w-4 text-yellow" />}
             </button>
           </div>
+
+          {pushSupported() && (
+            <>
+              <p className="mt-3 px-1 text-xs font-medium text-graphite dark:text-graphite-dark">
+                {t.settings.notifications}
+              </p>
+              <div className="mt-1.5 flex flex-col">
+                <button
+                  type="button"
+                  disabled={pushBusy}
+                  onClick={togglePush}
+                  className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-ink/5 disabled:opacity-50 dark:text-cream dark:hover:bg-cream/10"
+                >
+                  <span className="flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    {pushEnabled ? t.settings.notificationsOn : t.settings.notificationsOff}
+                  </span>
+                  {pushEnabled && <Check className="h-4 w-4 text-yellow" />}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

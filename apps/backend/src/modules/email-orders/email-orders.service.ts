@@ -6,6 +6,8 @@ import { PDFParse } from "pdf-parse";
 import { prisma } from "../../db/prisma.js";
 import { ApiError } from "../../common/errors/api-error.js";
 import { env } from "../../config/env.js";
+import { logger } from "../../common/services/logger.js";
+import { notifyPermission } from "../push-subscriptions/push-subscriptions.service.js";
 import { parsePurchaseOrderText, extractOrderNumber, extractDocumentTotal, extractDeclaredNumber } from "./po-parser.js";
 import { listCategory, getCategoryFile, type DocCategory } from "../../common/services/nas-documents.service.js";
 
@@ -51,7 +53,7 @@ async function syncOrdersInner(options: { full?: boolean } = {}) {
   });
   // ImapFlow emits 'error' on socket/protocol issues (e.g. our own socketTimeout above) — with
   // no listener, Node treats that as an uncaught exception and kills the whole process.
-  client.on("error", (err) => console.error("[email-orders] IMAP client error:", err.message));
+  client.on("error", (err) => logger.error("[email-orders] IMAP client error:", err.message));
 
   let created = 0;
   let skipped = 0;
@@ -83,7 +85,7 @@ async function syncOrdersInner(options: { full?: boolean } = {}) {
           seenUids.push(msg.uid);
         } catch (err) {
           failed++;
-          console.error(`[email-orders] failed processing uid ${msg.uid}:`, (err as Error).message);
+          logger.error(`[email-orders] failed processing uid ${msg.uid}:`, (err as Error).message);
         }
       }
 
@@ -95,6 +97,14 @@ async function syncOrdersInner(options: { full?: boolean } = {}) {
     }
   } finally {
     await client.logout().catch(() => {});
+  }
+
+  if (created > 0) {
+    const plural = created === 1 ? "" : "s";
+    await notifyPermission("ORDERS:MANAGE", {
+      title: "Nuevo pedido recibido",
+      body: `${created} pedido${plural} nuevo${plural} capturado${plural} por email.`,
+    }).catch((err) => logger.error("[email-orders] failed to send push notification:", (err as Error).message));
   }
 
   return { created, skipped, failed };
@@ -175,7 +185,7 @@ async function linkCategory(
         linked++;
       }
     } catch (err) {
-      console.error(`[email-orders] failed reading ${category} ${f.number}:`, (err as Error).message);
+      logger.error(`[email-orders] failed reading ${category} ${f.number}:`, (err as Error).message);
     }
   }
   return linked;
@@ -217,7 +227,7 @@ async function buildOriginIndex(year: number): Promise<OriginDoc[]> {
           total: extractDocumentTotal(text),
         });
       } catch (err) {
-        console.error(`[email-orders] failed reading ${category} ${f.number}:`, (err as Error).message);
+        logger.error(`[email-orders] failed reading ${category} ${f.number}:`, (err as Error).message);
       }
     }
   }
@@ -235,7 +245,7 @@ function resolveOriginDocument(index: OriginDoc[], year: number, ref: string, ex
 
   const matches = candidates.filter((c) => c.total != null && Math.abs(c.total - expectedAmount) < 0.01);
   if (matches.length !== 1) {
-    console.error(
+    logger.error(
       `[email-orders] could not resolve origin document for ref ${ref} (${year}): ${candidates.length} candidate(s), ${matches.length} by amount ${expectedAmount}`,
     );
     return undefined;
