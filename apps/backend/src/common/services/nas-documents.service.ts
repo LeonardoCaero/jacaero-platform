@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../../config/env.js";
+import { logger } from "./logger.js";
 
 const diacritics = new RegExp("[\\u0300-\\u036f]", "g");
 const normalize = (s: string) => s.normalize("NFD").replace(diacritics, "").toLowerCase();
@@ -87,7 +88,7 @@ export async function listCategory(category: DocCategory, year: number): Promise
   try {
     return await withTimeout(lookupCategory(yearPath, category), FS_TIMEOUT_MS);
   } catch (err) {
-    console.error("[documents] could not reach DOCS_ROOT_PATH:", (err as Error).message);
+    logger.error("[documents] could not reach DOCS_ROOT_PATH:", (err as Error).message);
     return [];
   }
 }
