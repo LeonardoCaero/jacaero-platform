@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { env } from "../../config/env.js";
+import { logger } from "./logger.js";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
@@ -66,7 +67,7 @@ export async function sendInvitationEmail(to: string, inviteUrl: string, roleNam
   const { subject, html } = buildInvitationEmail(inviteUrl, roleName);
 
   if (!resend) {
-    console.log(`[email] RESEND_API_KEY not set — invitation link for ${to}: ${inviteUrl}`);
+    logger.info(`[email] RESEND_API_KEY not set — invitation link for ${to}: ${inviteUrl}`);
     return;
   }
 
