@@ -11,8 +11,8 @@ RUN npm ci
 FROM deps AS build
 COPY apps/backend apps/backend
 ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5433/placeholder"
-RUN npm run build --workspace=apps/backend
 RUN npm exec --workspace=apps/backend -- prisma generate
+RUN npm run build --workspace=apps/backend
 
 FROM base AS runtime
 ENV NODE_ENV=production
