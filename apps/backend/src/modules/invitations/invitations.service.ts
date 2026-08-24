@@ -11,6 +11,10 @@ import type { z } from "zod";
 type CreateInput = z.infer<typeof createInvitationSchema>;
 type AcceptInput = z.infer<typeof acceptInvitationSchema>;
 
+function resolveRoleName(role: { name: string; nameEn: string | null }, lang: string) {
+  return lang === "en" && role.nameEn ? role.nameEn : role.name;
+}
+
 export async function list() {
   return prisma.invitation.findMany({
     where: { acceptedAt: null },
@@ -38,7 +42,7 @@ export async function create(data: CreateInput) {
   });
 
   const inviteUrl = `${env.FRONTEND_URL}/accept-invite?token=${rawToken}`;
-  await sendInvitationEmail(data.email, inviteUrl, role.name, data.lang);
+  await sendInvitationEmail(data.email, inviteUrl, resolveRoleName(role, data.lang), data.lang);
 
   return invitation;
 }
@@ -76,7 +80,7 @@ export async function accept(token: string, data: AcceptInput) {
 async function findPending(id: string) {
   const invitation = await prisma.invitation.findUnique({
     where: { id },
-    include: { role: { select: { name: true } } },
+    include: { role: { select: { name: true, nameEn: true } } },
   });
   if (!invitation || invitation.acceptedAt) {
     throw new ApiError(404, "Invitation not found");
@@ -92,7 +96,7 @@ export async function resend(id: string) {
   await prisma.invitation.update({ where: { id }, data: { tokenHash: hashToken(rawToken), expiresAt } });
 
   const inviteUrl = `${env.FRONTEND_URL}/accept-invite?token=${rawToken}`;
-  await sendInvitationEmail(invitation.email, inviteUrl, invitation.role.name, invitation.lang as Lang);
+  await sendInvitationEmail(invitation.email, inviteUrl, resolveRoleName(invitation.role, invitation.lang), invitation.lang as Lang);
 
   return { id: invitation.id, email: invitation.email, expiresAt };
 }
@@ -100,7 +104,7 @@ export async function resend(id: string) {
 export async function preview(id: string) {
   const invitation = await findPending(id);
   const previewUrl = `${env.FRONTEND_URL}/accept-invite?token=preview`;
-  return buildInvitationEmail(previewUrl, invitation.role.name, invitation.lang as Lang, true);
+  return buildInvitationEmail(previewUrl, resolveRoleName(invitation.role, invitation.lang), invitation.lang as Lang, true);
 }
 
 export async function remove(id: string) {

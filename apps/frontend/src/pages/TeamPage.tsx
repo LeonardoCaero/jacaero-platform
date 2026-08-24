@@ -18,6 +18,7 @@ type User = {
 type Role = {
   id: string
   name: string
+  nameEn: string | null
   isSystem: boolean
   userCount: number
   permissions: string[]
@@ -377,6 +378,7 @@ function RolesTab() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
+  const [nameEn, setNameEn] = useState('')
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -384,6 +386,7 @@ function RolesTab() {
     setShowForm(false)
     setEditingId(null)
     setName('')
+    setNameEn('')
     setSelectedKeys([])
     setFormError(null)
   }
@@ -397,6 +400,7 @@ function RolesTab() {
     setEditingId(role.id)
     setShowForm(true)
     setName(role.name)
+    setNameEn(role.nameEn ?? '')
     setSelectedKeys(role.permissions)
     setFormError(null)
   }
@@ -407,7 +411,7 @@ function RolesTab() {
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const payload = { name, permissionKeys: selectedKeys }
+      const payload = { name, nameEn: nameEn.trim(), permissionKeys: selectedKeys }
       if (editingId) return api.patch(`/roles/${editingId}`, payload)
       return api.post('/roles', payload)
     },
@@ -450,6 +454,12 @@ function RolesTab() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t.team.roleName}
+            className={inputClass}
+          />
+          <input
+            value={nameEn}
+            onChange={(e) => setNameEn(e.target.value)}
+            placeholder={t.team.roleNameEn}
             className={inputClass}
           />
 
