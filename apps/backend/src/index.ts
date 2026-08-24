@@ -17,6 +17,10 @@ import { logger } from "./common/services/logger.js";
 
 const app = express();
 
+// Trust the nginx reverse proxy in front of us (single hop) so express-rate-limit
+// and req.ip see the real client IP from X-Forwarded-For instead of nginx's own.
+app.set("trust proxy", 1);
+
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN.split(","), credentials: true }));
 app.use(express.json());
