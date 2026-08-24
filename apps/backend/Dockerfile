@@ -15,7 +15,9 @@ RUN npm exec --workspace=apps/backend -- prisma generate
 RUN npm run build --workspace=apps/backend
 
 FROM base AS runtime
+ARG APP_VERSION=dev
 ENV NODE_ENV=production
+ENV APP_VERSION=$APP_VERSION
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/backend/dist ./apps/backend/dist
 COPY --from=build /app/apps/backend/prisma ./apps/backend/prisma

@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom'
 import { LoginPage } from './pages/LoginPage'
 import { HomePage } from './pages/HomePage'
 import { ProfilePage } from './pages/ProfilePage'
+import { AboutPage } from './pages/AboutPage'
 import { ComingSoonPage } from './pages/ComingSoonPage'
 import { TimeTrackerPage } from './pages/TimeTrackerPage'
 import { TeamPage } from './pages/TeamPage'
@@ -28,6 +29,7 @@ function App() {
       >
         <Route path="/" element={<HomePage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/time-tracker" element={<TimeTrackerPage />} />
         <Route path="/team" element={<TeamPage />} />
         <Route path="/papeleo" element={<PapeleoPage />} />

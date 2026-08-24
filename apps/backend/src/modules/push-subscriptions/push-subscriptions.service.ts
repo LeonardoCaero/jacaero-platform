@@ -48,11 +48,18 @@ export async function notifyUser(userId: string, payload: PushPayload) {
   if (subscriptions.length > 0) await send(subscriptions, payload);
 }
 
-/** Send a push notification to every user whose role grants the given permission key. */
-export async function notifyPermission(permissionKey: string, payload: PushPayload) {
+/**
+ * Send a push notification to every user whose role grants the given permission key.
+ * Pass `excludeEndpoint` (the acting device's own push subscription) to skip notifying
+ * the device that triggered the event.
+ */
+export async function notifyPermission(permissionKey: string, payload: PushPayload, excludeEndpoint?: string) {
   if (!configured) return;
   const subscriptions = await prisma.pushSubscription.findMany({
-    where: { user: { role: { permissions: { some: { permission: { key: permissionKey } } } } } },
+    where: {
+      user: { role: { permissions: { some: { permission: { key: permissionKey } } } } },
+      ...(excludeEndpoint ? { endpoint: { not: excludeEndpoint } } : {}),
+    },
   });
   if (subscriptions.length > 0) await send(subscriptions, payload);
 }

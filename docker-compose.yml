@@ -23,6 +23,8 @@ services:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
     container_name: jacaero_backend
     restart: unless-stopped
     env_file:
