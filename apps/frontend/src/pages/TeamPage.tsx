@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Eye, Pencil, Send, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Eye, Pencil, Send, Trash2, UserCheck, UserX, X } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 
@@ -18,6 +18,7 @@ type User = {
 type Role = {
   id: string
   name: string
+  nameEn: string | null
   isSystem: boolean
   userCount: number
   permissions: string[]
@@ -110,7 +111,6 @@ function UsersTab() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [editRoleId, setEditRoleId] = useState('')
   const [editJobTitle, setEditJobTitle] = useState('')
-  const [editStatus, setEditStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE')
   const [editError, setEditError] = useState<string | null>(null)
 
   const inviteMutation = useMutation({
@@ -148,7 +148,6 @@ function UsersTab() {
       api.patch(`/users/${id}`, {
         roleId: editRoleId || null,
         jobTitle: editJobTitle.trim() || null,
-        status: editStatus,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -162,8 +161,24 @@ function UsersTab() {
     setEditingUserId(user.id)
     setEditRoleId(user.role?.id ?? '')
     setEditJobTitle(user.jobTitle ?? '')
-    setEditStatus(user.status)
     setEditError(null)
+  }
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: (user: User) =>
+      api.patch(`/users/${user.id}`, { status: user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onError: (err: any) => alert(err?.response?.data?.error ?? 'Error'),
+  })
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onError: (err: any) => alert(err?.response?.data?.error ?? 'Error'),
+  })
+
+  function handleDeleteUser(user: User) {
+    if (confirm(t.team.confirmDeleteUser)) deleteUserMutation.mutate(user.id)
   }
 
   function handleInviteSubmit(e: FormEvent) {
@@ -280,14 +295,6 @@ function UsersTab() {
                   placeholder={t.team.jobTitle}
                   className={inputClass}
                 />
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as 'ACTIVE' | 'INACTIVE')}
-                  className={inputClass}
-                >
-                  <option value="ACTIVE">{t.team.active}</option>
-                  <option value="INACTIVE">{t.team.inactive}</option>
-                </select>
                 {editError && <p className="text-sm text-rust dark:text-rust-dark">{editError}</p>}
                 <div className="flex gap-2">
                   <button
@@ -323,10 +330,29 @@ function UsersTab() {
                   </span>
                   <button
                     type="button"
+                    title={t.team.edit}
                     onClick={() => startEditUser(user)}
                     className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
                   >
                     <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    title={user.status === 'ACTIVE' ? t.team.deactivate : t.team.activate}
+                    disabled={toggleStatusMutation.isPending}
+                    onClick={() => toggleStatusMutation.mutate(user)}
+                    className="text-graphite hover:text-ink disabled:opacity-50 dark:text-graphite-dark dark:hover:text-cream"
+                  >
+                    {user.status === 'ACTIVE' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    title={t.team.deleteUser}
+                    disabled={deleteUserMutation.isPending}
+                    onClick={() => handleDeleteUser(user)}
+                    className="text-graphite hover:text-rust disabled:opacity-50 dark:text-graphite-dark dark:hover:text-rust-dark"
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -377,6 +403,7 @@ function RolesTab() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
+  const [nameEn, setNameEn] = useState('')
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -384,6 +411,7 @@ function RolesTab() {
     setShowForm(false)
     setEditingId(null)
     setName('')
+    setNameEn('')
     setSelectedKeys([])
     setFormError(null)
   }
@@ -397,6 +425,7 @@ function RolesTab() {
     setEditingId(role.id)
     setShowForm(true)
     setName(role.name)
+    setNameEn(role.nameEn ?? '')
     setSelectedKeys(role.permissions)
     setFormError(null)
   }
@@ -407,7 +436,7 @@ function RolesTab() {
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const payload = { name, permissionKeys: selectedKeys }
+      const payload = { name, nameEn: nameEn.trim(), permissionKeys: selectedKeys }
       if (editingId) return api.patch(`/roles/${editingId}`, payload)
       return api.post('/roles', payload)
     },
@@ -450,6 +479,12 @@ function RolesTab() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t.team.roleName}
+            className={inputClass}
+          />
+          <input
+            value={nameEn}
+            onChange={(e) => setNameEn(e.target.value)}
+            placeholder={t.team.roleNameEn}
             className={inputClass}
           />
 

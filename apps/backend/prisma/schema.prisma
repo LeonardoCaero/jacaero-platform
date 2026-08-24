@@ -37,6 +37,7 @@ enum UserStatus {
 model Role {
   id       String  @id @default(cuid())
   name     String  @unique
+  nameEn   String?
   isSystem Boolean @default(false)
 
   permissions RolePermission[]
