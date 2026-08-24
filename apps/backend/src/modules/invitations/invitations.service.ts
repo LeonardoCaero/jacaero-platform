@@ -100,7 +100,7 @@ export async function resend(id: string) {
 export async function preview(id: string) {
   const invitation = await findPending(id);
   const previewUrl = `${env.FRONTEND_URL}/accept-invite?token=preview`;
-  return buildInvitationEmail(previewUrl, invitation.role.name);
+  return buildInvitationEmail(previewUrl, invitation.role.name, true);
 }
 
 export async function remove(id: string) {
