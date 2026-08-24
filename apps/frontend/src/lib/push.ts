@@ -18,6 +18,14 @@ export async function isSubscribed() {
   return Boolean(subscription)
 }
 
+/** This device's push endpoint, if subscribed — used to exclude it from "other devices" notifications. */
+export async function getCurrentEndpoint() {
+  if (!pushSupported()) return null
+  const registration = await navigator.serviceWorker.getRegistration()
+  const subscription = await registration?.pushManager.getSubscription()
+  return subscription?.endpoint ?? null
+}
+
 export async function enablePush() {
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('permission-denied')
