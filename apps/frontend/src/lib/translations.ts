@@ -22,6 +22,12 @@ const en = {
     back: 'Back',
     label: 'Coming soon',
   },
+  about: {
+    title: 'About',
+    back: 'Back',
+    version: 'Version',
+    changelog: 'Changelog',
+  },
   modules: {
     timeTracker: { label: 'Time Tracker', description: 'Log your hours' },
     calendar: { label: 'Calendar', description: 'Company events and holidays' },
@@ -101,6 +107,7 @@ const en = {
     notifications: 'Notifications',
     notificationsOn: 'Push notifications on',
     notificationsOff: 'Enable push notifications',
+    about: 'About',
   },
   timeTracker: {
     jumpToday: 'Jump to today',
@@ -191,6 +198,12 @@ const es = {
     back: 'Volver',
     label: 'Próximamente',
   },
+  about: {
+    title: 'Acerca de',
+    back: 'Volver',
+    version: 'Versión',
+    changelog: 'Cambios',
+  },
   modules: {
     timeTracker: { label: 'Fichaje', description: 'Registra tus horas' },
     calendar: { label: 'Calendario', description: 'Eventos y festivos de la empresa' },
@@ -270,6 +283,7 @@ const es = {
     notifications: 'Notificaciones',
     notificationsOn: 'Notificaciones activadas',
     notificationsOff: 'Activar notificaciones',
+    about: 'Acerca de',
   },
   timeTracker: {
     jumpToday: 'Ir a hoy',

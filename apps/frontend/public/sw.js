@@ -1,7 +1,7 @@
 self.addEventListener('push', (event) => {
   if (!event.data) return
   const { title, body } = event.data.json()
-  event.waitUntil(self.registration.showNotification(title, { body, icon: '/favicon.ico' }))
+  event.waitUntil(self.registration.showNotification(title, { body, icon: '/favicon.svg' }))
 })
 
 self.addEventListener('notificationclick', (event) => {
