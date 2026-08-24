@@ -134,7 +134,7 @@ export function ReconcilePage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col gap-3">
+    <div className="flex flex-col gap-3 lg:h-[calc(100vh-8rem)]">
       <Link
         to="/papeleo/pedidos"
         className="inline-flex w-fit items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
@@ -143,20 +143,20 @@ export function ReconcilePage() {
         {t.reconcileManual.back}
       </Link>
 
-      <div className="flex flex-1 gap-3 overflow-hidden">
+      <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:overflow-hidden">
         {/* Left: order preview, always visible */}
-        <div className={`${cardClass} flex w-2/5 flex-col overflow-hidden`}>
+        <div className={`${cardClass} flex w-full flex-col lg:w-2/5 lg:overflow-hidden`}>
           <p className="font-display text-base font-semibold text-ink dark:text-cream">{order.subject}</p>
           <p className="mt-1 text-xs text-graphite dark:text-graphite-dark">
             {order.client?.name} · {order.orderNumber} · {order.totalAmount ? `${order.totalAmount} €` : ''}
           </p>
-          <div className="mt-3 flex-1 overflow-hidden rounded-xl border border-line dark:border-line-dark">
+          <div className="mt-3 h-72 overflow-hidden rounded-xl border border-line dark:border-line-dark lg:h-auto lg:flex-1">
             {orderPreview.url && <iframe title="order-pdf" src={orderPreview.url} className="h-full w-full" />}
           </div>
         </div>
 
         {/* Middle: document list, grouped by what's missing */}
-        <div className={`${cardClass} w-1/4 overflow-y-auto`}>
+        <div className={`${cardClass} w-full lg:w-1/4 lg:overflow-y-auto`}>
           {targets.length === 0 && (
             <p className="text-sm text-graphite dark:text-graphite-dark">{t.reconcileManual.allLinked}</p>
           )}
@@ -210,13 +210,13 @@ export function ReconcilePage() {
         </div>
 
         {/* Right: preview of the selected document */}
-        <div className={`${cardClass} flex w-2/5 flex-col overflow-hidden`}>
+        <div className={`${cardClass} flex w-full flex-col lg:w-2/5 lg:overflow-hidden`}>
           {!selected && (
             <p className="text-sm text-graphite dark:text-graphite-dark">{t.reconcileManual.selectDocument}</p>
           )}
           {selected && (
             <>
-              <div className="flex-1 overflow-hidden rounded-xl border border-line dark:border-line-dark">
+              <div className="h-72 overflow-hidden rounded-xl border border-line dark:border-line-dark lg:h-auto lg:flex-1">
                 {docPreview.url && <iframe title="doc-pdf" src={docPreview.url} className="h-full w-full" />}
               </div>
               <button
