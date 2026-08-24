@@ -10,6 +10,8 @@ export function AppLayout() {
   const { t } = useLanguage()
   const location = useLocation()
 
+  const isWide = location.pathname.endsWith('/reconcile')
+
   return (
     <div className="min-h-dvh bg-paper dark:bg-paper-dark">
       <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-3.5 sm:px-6 dark:border-line-dark dark:bg-surface-dark">
@@ -38,7 +40,7 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
+      <main className={`mx-auto px-4 py-4 sm:px-6 ${isWide ? 'max-w-7xl' : 'max-w-3xl'}`}>
         <div key={location.pathname} className="animate-fade-up">
           <Outlet />
         </div>
