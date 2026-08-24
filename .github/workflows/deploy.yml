@@ -36,6 +36,7 @@ jobs:
             git clean -fd
 
             echo "Rebuilding and starting jacaero_backend and jacaero_frontend..."
+            export APP_VERSION=$(git rev-parse --short HEAD)
             docker compose up -d --build --no-deps backend frontend
 
             echo "Cleaning up old images..."

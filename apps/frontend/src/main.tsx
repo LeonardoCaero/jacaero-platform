@@ -8,6 +8,10 @@ import { LanguageProvider } from './contexts/LanguageContext.tsx'
 import './index.css'
 import App from './App.tsx'
 
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {})
+}
+
 const queryClient = new QueryClient()
 
 createRoot(document.getElementById('root')!).render(

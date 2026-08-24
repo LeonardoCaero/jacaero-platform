@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Settings, Check, Bell } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Settings, Check, Bell, Info } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { pushSupported, isSubscribed, enablePush, disablePush } from '../lib/push'
@@ -121,6 +122,17 @@ export function SettingsMenu() {
               </div>
             </>
           )}
+
+          <div className="mt-3 border-t border-line pt-1.5 dark:border-line-dark">
+            <Link
+              to="/about"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10"
+            >
+              <Info className="h-4 w-4" />
+              {t.settings.about}
+            </Link>
+          </div>
         </div>
       )}
     </div>
