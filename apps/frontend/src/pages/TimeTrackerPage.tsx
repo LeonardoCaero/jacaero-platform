@@ -17,6 +17,8 @@ type TimeEntry = {
 
 type TeamMember = { id: string; fullName: string }
 
+type TeamDayEntry = TimeEntry & { userId: string; fullName: string }
+
 type TeamSummary = {
   byUser: { userId: string; fullName: string; hours: number }[]
   byDay: Record<string, number>
@@ -77,6 +79,7 @@ export function TimeTrackerPage() {
   const queryClient = useQueryClient()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const canViewAll = hasPermission('TIME:VIEW_ALL')
+  const canEditAll = hasPermission('TIME:EDIT_ALL')
 
   const [month, setMonth] = useState(() => {
     const d = new Date()
@@ -118,6 +121,13 @@ export function TimeTrackerPage() {
     enabled: isTeamView,
   })
 
+  const { data: teamDayEntries = [] } = useQuery({
+    queryKey: ['time-entries-team-day', selectedDate],
+    queryFn: async () =>
+      (await api.get<TeamDayEntry[]>('/time-entries/team-day', { params: { date: selectedDate } })).data,
+    enabled: isTeamView && !!selectedDate,
+  })
+
   const myTeamHours = teamSummary?.byUser.find((u) => u.userId === user?.id)?.hours ?? 0
   const teamTotalHours = teamSummary?.byUser.reduce((sum, u) => sum + u.hours, 0) ?? 0
 
@@ -151,7 +161,6 @@ export function TimeTrackerPage() {
   }
 
   function selectDay(key: string) {
-    if (isTeamView) return
     setSelectedDate(key)
     resetEntryForm(key)
   }
@@ -176,14 +185,20 @@ export function TimeTrackerPage() {
       return (await api.post('/time-entries', payload)).data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['time-entries', monthKey] })
+      queryClient.invalidateQueries({ queryKey: ['time-entries'] })
+      queryClient.invalidateQueries({ queryKey: ['time-entries-team-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['time-entries-team-day'] })
       resetEntryForm()
     },
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/time-entries/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['time-entries', monthKey] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-entries'] })
+      queryClient.invalidateQueries({ queryKey: ['time-entries-team-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['time-entries-team-day'] })
+    },
   })
 
   function startEdit(entry: TimeEntry) {
@@ -377,26 +392,27 @@ export function TimeTrackerPage() {
             {formatDate(selectedDate, locale, { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
 
-          {selectedEntries.length > 0 && (
+          {isTeamView && (
             <div className="mt-3 space-y-2">
-              {selectedEntries.map((entry) => (
+              {teamDayEntries.length === 0 && (
+                <p className="text-sm text-graphite dark:text-graphite-dark">{t.timeTracker.teamDayEmpty}</p>
+              )}
+              {teamDayEntries.map((entry) => (
                 <div
                   key={entry.id}
                   className="flex items-center justify-between rounded-xl border border-line px-3.5 py-2.5 dark:border-line-dark"
                 >
                   <div className="min-w-0">
-                    {entry.description && (
-                      <p className="truncate text-sm text-ink dark:text-cream">{entry.description}</p>
-                    )}
-                    {!entry.description && (
-                      <p className="text-sm text-graphite dark:text-graphite-dark">—</p>
-                    )}
+                    <p className="truncate text-sm font-semibold text-ink dark:text-cream">{entry.fullName}</p>
+                    <p className="truncate text-sm text-graphite dark:text-graphite-dark">
+                      {entry.description || '—'}
+                    </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <span className="text-sm font-semibold text-ink dark:text-cream">
                       {Number(entry.hours)}h{entry.isOvertime && ' •'}
                     </span>
-                    {isViewingSelf && (
+                    {canEditAll && (
                       <>
                         <button
                           type="button"
@@ -422,7 +438,52 @@ export function TimeTrackerPage() {
             </div>
           )}
 
-          {isViewingSelf && (
+          {!isTeamView && selectedEntries.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {selectedEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between rounded-xl border border-line px-3.5 py-2.5 dark:border-line-dark"
+                >
+                  <div className="min-w-0">
+                    {entry.description && (
+                      <p className="truncate text-sm text-ink dark:text-cream">{entry.description}</p>
+                    )}
+                    {!entry.description && (
+                      <p className="text-sm text-graphite dark:text-graphite-dark">—</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="text-sm font-semibold text-ink dark:text-cream">
+                      {Number(entry.hours)}h{entry.isOvertime && ' •'}
+                    </span>
+                    {(isViewingSelf || canEditAll) && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => startEdit(entry)}
+                          aria-label={t.timeTracker.update}
+                          className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(entry.id)}
+                          aria-label={t.timeTracker.confirmDelete}
+                          className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(isViewingSelf || (editingId && canEditAll)) && (
           <form onSubmit={handleSubmit} className="mt-3 space-y-3">
             <div className="flex flex-wrap gap-2">
               <button type="button" className={quickButtonClass} onClick={() => setHours('8')}>

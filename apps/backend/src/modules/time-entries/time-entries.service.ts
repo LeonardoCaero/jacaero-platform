@@ -58,23 +58,38 @@ export async function create(userId: string, data: CreateInput) {
   });
 }
 
-async function findOwned(id: string, userId: string) {
-  const entry = await prisma.timeEntry.findUnique({ where: { id } });
-  if (!entry || entry.userId !== userId) {
-    throw new ApiError(404, "Time entry not found");
-  }
-  return entry;
+export async function teamDayEntries(date: string) {
+  const start = new Date(`${date}T00:00:00.000Z`);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+
+  const entries = await prisma.timeEntry.findMany({
+    where: { date: { gte: start, lt: end } },
+    include: { user: { select: { fullName: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return entries.map(({ user, ...entry }) => ({ ...entry, fullName: user.fullName }));
 }
 
-export async function update(id: string, userId: string, data: UpdateInput) {
-  await findOwned(id, userId);
+async function findAccessible(id: string, requesterId: string) {
+  const entry = await prisma.timeEntry.findUnique({ where: { id } });
+  if (!entry) throw new ApiError(404, "Time entry not found");
+  if (entry.userId === requesterId || (await userHasPermission(requesterId, "TIME:EDIT_ALL"))) {
+    return entry;
+  }
+  throw new ApiError(404, "Time entry not found");
+}
+
+export async function update(id: string, requesterId: string, data: UpdateInput) {
+  await findAccessible(id, requesterId);
   return prisma.timeEntry.update({
     where: { id },
     data: { ...data, description: data.description === undefined ? undefined : data.description || null },
   });
 }
 
-export async function remove(id: string, userId: string) {
-  await findOwned(id, userId);
+export async function remove(id: string, requesterId: string) {
+  await findAccessible(id, requesterId);
   await prisma.timeEntry.delete({ where: { id } });
 }
