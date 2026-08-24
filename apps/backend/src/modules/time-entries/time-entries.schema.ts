@@ -17,3 +17,7 @@ export const listTimeEntriesSchema = z.object({
 export const teamSummarySchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
 });
+
+export const teamDaySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
