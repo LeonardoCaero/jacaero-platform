@@ -26,7 +26,7 @@ app.use(cors({ origin: env.CORS_ORIGIN.split(","), credentials: true }));
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
+  res.json({ status: "ok", version: env.APP_VERSION });
 });
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });

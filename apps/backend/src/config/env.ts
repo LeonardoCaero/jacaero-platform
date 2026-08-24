@@ -20,6 +20,7 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default("mailto:admin@example.com"),
+  APP_VERSION: z.string().default("dev"),
 });
 
 export const env = envSchema.parse(process.env);

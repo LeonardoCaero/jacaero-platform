@@ -1,16 +1,33 @@
+import { useEffect, useRef } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { Logo } from './Logo'
 import { SettingsMenu } from './SettingsMenu'
 import { Avatar } from './Avatar'
+import { api } from '../lib/axios'
 
 export function AppLayout() {
   const { user, logout } = useAuth()
   const { t } = useLanguage()
   const location = useLocation()
+  const knownVersion = useRef<string | null>(null)
 
   const isWide = location.pathname.endsWith('/reconcile')
+
+  // Reload automatically when a new version has been deployed, checked on each navigation.
+  useEffect(() => {
+    api
+      .get<{ version: string }>('/health')
+      .then(({ data }) => {
+        if (knownVersion.current === null) {
+          knownVersion.current = data.version
+        } else if (knownVersion.current !== data.version) {
+          window.location.reload()
+        }
+      })
+      .catch(() => {})
+  }, [location.pathname])
 
   return (
     <div className="min-h-dvh bg-paper dark:bg-paper-dark">

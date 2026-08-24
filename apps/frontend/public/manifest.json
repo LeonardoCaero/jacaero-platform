@@ -1,0 +1,9 @@
+{
+  "name": "J.A. Caero",
+  "short_name": "J.A. Caero",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111113",
+  "theme_color": "#111113",
+  "icons": [{ "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" }]
+}
