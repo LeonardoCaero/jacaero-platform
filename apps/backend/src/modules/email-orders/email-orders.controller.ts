@@ -5,6 +5,7 @@ import {
   setFavoriteSchema,
   syncQuerySchema,
   reconcileQuerySchema,
+  linkDocumentSchema,
 } from "./email-orders.schema.js";
 import * as emailOrdersService from "./email-orders.service.js";
 
@@ -45,4 +46,9 @@ export async function setQuoteStatusHandler(req: Request<{ id: string }>, res: R
 export async function setFavoriteHandler(req: Request<{ id: string }>, res: Response) {
   const { favorite } = setFavoriteSchema.parse(req.body);
   res.json(await emailOrdersService.setFavorite(req.params.id, favorite));
+}
+
+export async function linkDocumentHandler(req: Request<{ id: string }>, res: Response) {
+  const { category, number } = linkDocumentSchema.parse(req.body);
+  res.json(await emailOrdersService.linkDocument(req.params.id, category, number));
 }

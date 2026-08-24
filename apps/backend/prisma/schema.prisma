@@ -79,6 +79,7 @@ model Invitation {
   expiresAt  DateTime
   acceptedAt DateTime?
   createdAt  DateTime  @default(now())
+  lang       String    @default("es")
 }
 
 // Legal data
