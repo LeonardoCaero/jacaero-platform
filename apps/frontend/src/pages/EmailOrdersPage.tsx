@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, RefreshCw, FileDown, X, Check, Link2, Eye, Star, Search } from 'lucide-react'
 import { api } from '../lib/axios'
+import { Skeleton } from '../components/Skeleton'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
@@ -91,6 +92,28 @@ type EmailOrder = {
 
 const cardClass =
   'rounded-2xl border border-line bg-surface p-4 shadow-sm dark:border-line-dark dark:bg-surface-dark'
+
+function OrderCardSkeleton({ delay }: { delay: number }) {
+  return (
+    <div className={`${cardClass} animate-fade-up`} style={{ animationDelay: `${delay}ms` }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-44" />
+          </div>
+        </div>
+        <Skeleton className="h-4 w-14 shrink-0" />
+      </div>
+      <div className="mt-3 flex gap-1.5">
+        <Skeleton className="h-6 w-20 rounded-full" />
+        <Skeleton className="h-6 w-24 rounded-full" />
+        <Skeleton className="h-6 w-20 rounded-full" />
+      </div>
+    </div>
+  )
+}
 
 const primaryButtonClass =
   'flex h-10 items-center gap-1.5 rounded-xl bg-ink px-4 text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90'
@@ -328,8 +351,17 @@ export function EmailOrdersPage() {
         />
       </div>
 
+      {isLoading && (
+        <div className="mt-4 space-y-2">
+          {Array.from({ length: 6 }, (_, i) => (
+            <OrderCardSkeleton key={i} delay={i * 60} />
+          ))}
+        </div>
+      )}
+
       <div className="mt-4 space-y-2">
-        {filteredOrders.map((order) => (
+        {!isLoading &&
+          filteredOrders.map((order) => (
           <button
             key={order.id}
             type="button"
