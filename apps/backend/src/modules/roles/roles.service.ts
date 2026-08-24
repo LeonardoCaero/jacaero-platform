@@ -14,6 +14,7 @@ const roleWithPermissions = {
 function toPublicRole(role: {
   id: string;
   name: string;
+  nameEn: string | null;
   isSystem: boolean;
   _count: { users: number };
   permissions: { permission: { key: string } }[];
@@ -21,6 +22,7 @@ function toPublicRole(role: {
   return {
     id: role.id,
     name: role.name,
+    nameEn: role.nameEn,
     isSystem: role.isSystem,
     userCount: role._count.users,
     permissions: role.permissions.map((rp) => rp.permission.key),
@@ -39,7 +41,11 @@ export async function listPermissions() {
 export async function create(data: CreateInput) {
   const permissions = await prisma.permission.findMany({ where: { key: { in: data.permissionKeys } } });
   const role = await prisma.role.create({
-    data: { name: data.name, permissions: { create: permissions.map((p) => ({ permissionId: p.id })) } },
+    data: {
+      name: data.name,
+      nameEn: data.nameEn || null,
+      permissions: { create: permissions.map((p) => ({ permissionId: p.id })) },
+    },
     include: roleWithPermissions,
   });
   return toPublicRole(role);
@@ -57,8 +63,14 @@ export async function update(id: string, data: UpdateInput) {
     await prisma.rolePermission.createMany({ data: permissions.map((p) => ({ roleId: id, permissionId: p.id })) });
   }
 
-  if (data.name) {
-    await prisma.role.update({ where: { id }, data: { name: data.name } });
+  if (data.name || data.nameEn !== undefined) {
+    await prisma.role.update({
+      where: { id },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(data.nameEn !== undefined && { nameEn: data.nameEn || null }),
+      },
+    });
   }
 
   const role = await prisma.role.findUniqueOrThrow({ where: { id }, include: roleWithPermissions });

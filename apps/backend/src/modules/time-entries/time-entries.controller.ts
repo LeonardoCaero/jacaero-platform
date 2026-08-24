@@ -4,6 +4,7 @@ import {
   updateTimeEntrySchema,
   listTimeEntriesSchema,
   teamSummarySchema,
+  teamDaySchema,
 } from "./time-entries.schema.js";
 import * as timeEntriesService from "./time-entries.service.js";
 
@@ -16,6 +17,11 @@ export async function listHandler(req: Request, res: Response) {
 export async function teamSummaryHandler(req: Request, res: Response) {
   const { month } = teamSummarySchema.parse(req.query);
   res.json(await timeEntriesService.teamSummary(month));
+}
+
+export async function teamDayHandler(req: Request, res: Response) {
+  const { date } = teamDaySchema.parse(req.query);
+  res.json(await timeEntriesService.teamDayEntries(date));
 }
 
 export async function createHandler(req: Request, res: Response) {
