@@ -26,7 +26,7 @@ export async function teamDayHandler(req: Request, res: Response) {
 
 export async function createHandler(req: Request, res: Response) {
   const data = createTimeEntrySchema.parse(req.body);
-  const entry = await timeEntriesService.create(req.user!.userId, data);
+  const entry = await timeEntriesService.create(req.user!.userId, data, req.header("x-push-endpoint"));
   res.status(201).json(entry);
 }
 
