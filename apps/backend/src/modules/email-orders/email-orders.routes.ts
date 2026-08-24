@@ -10,6 +10,7 @@ import {
   setMilestoneHandler,
   setQuoteStatusHandler,
   setFavoriteHandler,
+  linkDocumentHandler,
 } from "./email-orders.controller.js";
 
 export const emailOrdersRoutes = Router();
@@ -24,3 +25,4 @@ emailOrdersRoutes.get("/:id/pdf", getPdfHandler);
 emailOrdersRoutes.patch("/:id/milestone", setMilestoneHandler);
 emailOrdersRoutes.patch("/:id/quote-status", setQuoteStatusHandler);
 emailOrdersRoutes.patch("/:id/favorite", setFavoriteHandler);
+emailOrdersRoutes.patch("/:id/link", linkDocumentHandler);
