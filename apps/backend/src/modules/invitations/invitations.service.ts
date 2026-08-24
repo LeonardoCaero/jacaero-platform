@@ -4,6 +4,7 @@ import { ApiError } from "../../common/errors/api-error.js";
 import { generateRefreshToken, hashToken } from "../../common/utils/tokens.util.js";
 import { env } from "../../config/env.js";
 import { sendInvitationEmail, buildInvitationEmail, type Lang } from "../../common/services/email.service.js";
+import { notifyPermission } from "../push-subscriptions/push-subscriptions.service.js";
 import { issueTokens, getMe } from "../auth/auth.service.js";
 import type { createInvitationSchema, acceptInvitationSchema } from "./invitations.schema.js";
 import type { z } from "zod";
@@ -23,7 +24,7 @@ export async function list() {
   });
 }
 
-export async function create(data: CreateInput) {
+export async function create(data: CreateInput, actingEndpoint?: string) {
   const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
   if (existingUser) {
     throw new ApiError(409, "A user with this email already exists");
@@ -43,6 +44,12 @@ export async function create(data: CreateInput) {
 
   const inviteUrl = `${env.FRONTEND_URL}/accept-invite?token=${rawToken}`;
   await sendInvitationEmail(data.email, inviteUrl, resolveRoleName(role, data.lang), data.lang);
+
+  await notifyPermission(
+    "USERS:MANAGE",
+    { title: "Invitación enviada", body: `Se ha invitado a ${data.email}` },
+    actingEndpoint,
+  );
 
   return invitation;
 }
@@ -72,6 +79,8 @@ export async function accept(token: string, data: AcceptInput) {
   });
 
   await prisma.invitation.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } });
+
+  await notifyPermission("USERS:MANAGE", { title: "Nuevo miembro", body: `${data.fullName} se ha unido al equipo` });
 
   const tokens = await issueTokens(user.id, user.email);
   return { ...tokens, user: await getMe(user.id) };
