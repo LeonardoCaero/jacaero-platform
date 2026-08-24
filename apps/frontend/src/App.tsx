@@ -7,6 +7,7 @@ import { TimeTrackerPage } from './pages/TimeTrackerPage'
 import { TeamPage } from './pages/TeamPage'
 import { PapeleoPage } from './pages/PapeleoPage'
 import { EmailOrdersPage } from './pages/EmailOrdersPage'
+import { ReconcilePage } from './pages/ReconcilePage'
 import { DocumentsPage } from './pages/DocumentsPage'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -31,6 +32,7 @@ function App() {
         <Route path="/team" element={<TeamPage />} />
         <Route path="/papeleo" element={<PapeleoPage />} />
         <Route path="/papeleo/pedidos" element={<EmailOrdersPage />} />
+        <Route path="/papeleo/pedidos/:id/reconcile" element={<ReconcilePage />} />
         <Route
           path="/papeleo/presupuestos"
           element={<DocumentsPage category="presupuesto" titleKey="presupuesto" />}

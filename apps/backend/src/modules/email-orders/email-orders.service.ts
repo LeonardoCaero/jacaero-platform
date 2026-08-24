@@ -239,9 +239,14 @@ function resolveOriginDocument(index: OriginDoc[], year: number, ref: string, ex
   const candidates = index.filter((d) => d.filenameNumber === padded || d.declaredNumber === padded);
   if (candidates.length === 0) return undefined;
 
-  if (expectedAmount == null) {
-    return candidates.length === 1 ? candidates[0] : undefined;
-  }
+  // A single candidate by number is trusted as-is — the reference number is always entered
+  // correctly, but the amount often isn't a match: a presupuesto can be an umbrella quote
+  // fulfilled across several orders, or a horasTrabajo document can list a full month while
+  // the order only covers the overtime hours the client picked out of it. The amount check
+  // below exists only to disambiguate when multiple documents share the same number.
+  if (candidates.length === 1) return candidates[0];
+
+  if (expectedAmount == null) return undefined;
 
   const matches = candidates.filter((c) => c.total != null && Math.abs(c.total - expectedAmount) < 0.01);
   if (matches.length !== 1) {
@@ -347,4 +352,25 @@ export async function setQuoteStatus(id: string, category: "pending" | "presupue
 export async function setFavorite(id: string, favorite: boolean) {
   await get(id);
   return prisma.emailOrder.update({ where: { id }, data: { favorite } });
+}
+
+const DOC_CATEGORY_TO_QUOTE_CATEGORY = {
+  presupuesto: "PRESUPUESTO",
+  horasTrabajo: "HORAS",
+  pedidoMaterial: "MATERIAL",
+} as const satisfies Partial<Record<DocCategory, QuoteCategory>>;
+
+export async function linkDocument(id: string, category: DocCategory, number: string) {
+  await get(id);
+
+  if (category === "albaran") {
+    return prisma.emailOrder.update({ where: { id }, data: { deliveryNoteAt: new Date(), albaranNumber: number } });
+  }
+  if (category === "factura") {
+    return prisma.emailOrder.update({ where: { id }, data: { invoicedAt: new Date(), facturaNumber: number } });
+  }
+  return prisma.emailOrder.update({
+    where: { id },
+    data: { quotedAt: new Date(), quoteCategory: DOC_CATEGORY_TO_QUOTE_CATEGORY[category] },
+  });
 }
