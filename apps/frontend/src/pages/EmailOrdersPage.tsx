@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, RefreshCw, FileDown, X, Check, Link2, Eye, Star, Search } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
-import { Skeleton } from '../components/Skeleton'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
 
@@ -95,28 +94,6 @@ const cardClass =
 
 const primaryButtonClass =
   'flex h-10 items-center gap-1.5 rounded-xl bg-ink px-4 text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90'
-
-function OrderCardSkeleton({ delay }: { delay: number }) {
-  return (
-    <div className={`${cardClass} animate-fade-up`} style={{ animationDelay: `${delay}ms` }}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3 w-44" />
-          </div>
-        </div>
-        <Skeleton className="h-4 w-14 shrink-0" />
-      </div>
-      <div className="mt-3 flex gap-1.5">
-        <Skeleton className="h-6 w-20 rounded-full" />
-        <Skeleton className="h-6 w-24 rounded-full" />
-        <Skeleton className="h-6 w-20 rounded-full" />
-      </div>
-    </div>
-  )
-}
 
 const secondaryButtonClass =
   'flex h-10 items-center gap-1.5 rounded-xl border border-line px-4 text-sm font-semibold text-graphite transition hover:text-ink active:scale-[0.98] disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
@@ -351,78 +328,69 @@ export function EmailOrdersPage() {
         />
       </div>
 
-      {isLoading && (
-        <div className="mt-4 space-y-2">
-          {Array.from({ length: 5 }, (_, i) => (
-            <OrderCardSkeleton key={i} delay={i * 60} />
-          ))}
-        </div>
-      )}
-
       <div className="mt-4 space-y-2">
-        {!isLoading &&
-          filteredOrders.map((order) => (
-            <button
-              key={order.id}
-              type="button"
-              onClick={() => setSelectedId(order.id)}
-              className={`${cardClass} block w-full text-left transition hover:border-yellow ${
-                order.favorite ? 'border-yellow/50 bg-yellow/[0.04]' : ''
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-1">
-                  <FavoriteButton
-                    favorite={order.favorite}
-                    onToggle={(e) => {
-                      e.stopPropagation()
-                      favoriteMutation.mutate({ id: order.id, favorite: !order.favorite })
-                    }}
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink dark:text-cream">
-                      {order.orderNumber ?? order.subject}
-                    </p>
-                    <p className="truncate text-xs text-graphite dark:text-graphite-dark">
-                      {order.senderEmail} · {formatDate(order.orderDate)}
-                    </p>
-                  </div>
-                </div>
-                {order.totalAmount && (
-                  <span className="shrink-0 text-sm font-semibold text-ink dark:text-cream">
-                    {Number(order.totalAmount).toLocaleString(locale)}€
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <QuoteBadge
-                  category={quoteCategoryOf(order)}
-                  labels={{
-                    pending: t.emailOrders.quoted,
-                    presupuesto: t.emailOrders.quoteCategoryPresupuesto,
-                    horas: t.emailOrders.quoteCategoryHoras,
-                    material: t.emailOrders.quoteCategoryMaterial,
-                  }}
-                  onCycle={(e) => {
+        {filteredOrders.map((order) => (
+          <button
+            key={order.id}
+            type="button"
+            onClick={() => setSelectedId(order.id)}
+            className={`${cardClass} block w-full text-left transition hover:border-yellow ${
+              order.favorite ? 'border-yellow/50 bg-yellow/[0.04]' : ''
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-1">
+                <FavoriteButton
+                  favorite={order.favorite}
+                  onToggle={(e) => {
                     e.stopPropagation()
-                    quoteStatusMutation.mutate({ id: order.id, category: QUOTE_CYCLE[quoteCategoryOf(order)] })
+                    favoriteMutation.mutate({ id: order.id, favorite: !order.favorite })
                   }}
                 />
-                {MILESTONES.map(({ field, labelKey }) => (
-                  <MilestoneBadge
-                    key={field}
-                    done={!!order[field]}
-                    label={t.emailOrders[labelKey]}
-                    onToggle={(e) => {
-                      e.stopPropagation()
-                      milestoneMutation.mutate({ id: order.id, field, done: !order[field] })
-                    }}
-                  />
-                ))}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-ink dark:text-cream">
+                    {order.orderNumber ?? order.subject}
+                  </p>
+                  <p className="truncate text-xs text-graphite dark:text-graphite-dark">
+                    {order.senderEmail} · {formatDate(order.orderDate)}
+                  </p>
+                </div>
               </div>
-            </button>
-          ))}
+              {order.totalAmount && (
+                <span className="shrink-0 text-sm font-semibold text-ink dark:text-cream">
+                  {Number(order.totalAmount).toLocaleString(locale)}€
+                </span>
+              )}
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <QuoteBadge
+                category={quoteCategoryOf(order)}
+                labels={{
+                  pending: t.emailOrders.quoted,
+                  presupuesto: t.emailOrders.quoteCategoryPresupuesto,
+                  horas: t.emailOrders.quoteCategoryHoras,
+                  material: t.emailOrders.quoteCategoryMaterial,
+                }}
+                onCycle={(e) => {
+                  e.stopPropagation()
+                  quoteStatusMutation.mutate({ id: order.id, category: QUOTE_CYCLE[quoteCategoryOf(order)] })
+                }}
+              />
+              {MILESTONES.map(({ field, labelKey }) => (
+                <MilestoneBadge
+                  key={field}
+                  done={!!order[field]}
+                  label={t.emailOrders[labelKey]}
+                  onToggle={(e) => {
+                    e.stopPropagation()
+                    milestoneMutation.mutate({ id: order.id, field, done: !order[field] })
+                  }}
+                />
+              ))}
+            </div>
+          </button>
+        ))}
       </div>
 
       {!isLoading && orders.length === 0 && (
