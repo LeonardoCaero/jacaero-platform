@@ -32,10 +32,6 @@ La plataforma vieja (`platform-api`/`platform-frontend`) está apagada; `jacaero
 
 No se están vigilando (decisión consciente): rotar `TS_OAUTH_SECRET`, y si la IP pública del NAS es fija o dinámica.
 
-## Nota de seguridad (2026-08-24)
-
-Una versión anterior de este archivo tenía la IP pública del NAS escrita literalmente, en un repo público de GitHub. Se reescribió el historial de `develop`/`main` con `git filter-branch` para quitarla de todos los commits, se purgaron las referencias de respaldo y se hizo force-push. Búsqueda posterior de contraseñas/claves/rutas personales en todo el historial: limpio. **Regla desde ahora**: nada personal ni de la infraestructura del NAS (IPs, rutas de Windows, etc.) va en archivos versionados — solo en `~/Projects/credentials/jacaero-platform.md` del propio NAS, que nunca pasa por git.
-
 ## Notificaciones — lo que falta si se quiere ampliar
 
 - `ReminderNotification` + `scheduler.ts` (node-cron) — tiene sentido cuando exista el módulo Calendar, no antes (en `platform-api` cuelga de `CalendarNote`).
