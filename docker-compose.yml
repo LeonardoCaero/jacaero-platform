@@ -32,6 +32,8 @@ services:
       PORT: 3000
     ports:
       - "127.0.0.1:4000:3000"
+    volumes:
+      - ${DOCS_HOST_PATH:-./local-docs}:/docs:ro
     depends_on:
       db:
         condition: service_healthy
