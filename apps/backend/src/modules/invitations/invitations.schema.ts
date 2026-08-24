@@ -3,6 +3,7 @@ import { z } from "zod";
 export const createInvitationSchema = z.object({
   email: z.string().email(),
   roleId: z.string().min(1),
+  lang: z.enum(["en", "es"]).default("es"),
 });
 
 export const acceptInvitationSchema = z.object({
