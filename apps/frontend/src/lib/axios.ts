@@ -1,14 +1,19 @@
 import axios from 'axios'
 import { tokenStorage } from './token-storage'
+import { getCurrentEndpoint } from './push'
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 })
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   const accessToken = tokenStorage.getAccessToken()
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
+  }
+  const endpoint = await getCurrentEndpoint().catch(() => null)
+  if (endpoint) {
+    config.headers['X-Push-Endpoint'] = endpoint
   }
   return config
 })

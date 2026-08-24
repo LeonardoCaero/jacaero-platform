@@ -8,7 +8,7 @@ export async function listHandler(_req: Request, res: Response) {
 
 export async function createHandler(req: Request, res: Response) {
   const data = createInvitationSchema.parse(req.body);
-  const invitation = await invitationsService.create(data);
+  const invitation = await invitationsService.create(data, req.header("x-push-endpoint"));
   res.status(201).json({ id: invitation.id, email: invitation.email, expiresAt: invitation.expiresAt });
 }
 

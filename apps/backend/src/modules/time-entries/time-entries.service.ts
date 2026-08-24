@@ -1,6 +1,7 @@
 import { prisma } from "../../db/prisma.js";
 import { ApiError } from "../../common/errors/api-error.js";
 import { userHasPermission } from "../../common/middlewares/require-permission.middleware.js";
+import { notifyPermission } from "../push-subscriptions/push-subscriptions.service.js";
 import type { createTimeEntrySchema, updateTimeEntrySchema } from "./time-entries.schema.js";
 import type { z } from "zod";
 
@@ -52,10 +53,20 @@ export async function teamSummary(month: string) {
   };
 }
 
-export async function create(userId: string, data: CreateInput) {
-  return prisma.timeEntry.create({
+export async function create(userId: string, data: CreateInput, actingEndpoint?: string) {
+  const entry = await prisma.timeEntry.create({
     data: { userId, createdBy: userId, ...data, description: data.description || null },
+    include: { user: { select: { fullName: true } } },
   });
+
+  await notifyPermission(
+    "TIME:VIEW_ALL",
+    { title: "Horas registradas", body: `${entry.user.fullName} ha registrado ${data.hours}h el ${data.date}` },
+    actingEndpoint,
+  );
+
+  const { user, ...rest } = entry;
+  return rest;
 }
 
 export async function teamDayEntries(date: string) {
