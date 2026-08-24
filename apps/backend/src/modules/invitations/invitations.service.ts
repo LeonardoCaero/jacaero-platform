@@ -3,7 +3,7 @@ import { prisma } from "../../db/prisma.js";
 import { ApiError } from "../../common/errors/api-error.js";
 import { generateRefreshToken, hashToken } from "../../common/utils/tokens.util.js";
 import { env } from "../../config/env.js";
-import { sendInvitationEmail, buildInvitationEmail } from "../../common/services/email.service.js";
+import { sendInvitationEmail, buildInvitationEmail, type Lang } from "../../common/services/email.service.js";
 import { issueTokens, getMe } from "../auth/auth.service.js";
 import type { createInvitationSchema, acceptInvitationSchema } from "./invitations.schema.js";
 import type { z } from "zod";
@@ -34,11 +34,11 @@ export async function create(data: CreateInput) {
   const expiresAt = new Date(Date.now() + env.INVITATION_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000);
 
   const invitation = await prisma.invitation.create({
-    data: { email: data.email, roleId: data.roleId, tokenHash: hashToken(rawToken), expiresAt },
+    data: { email: data.email, roleId: data.roleId, tokenHash: hashToken(rawToken), expiresAt, lang: data.lang },
   });
 
   const inviteUrl = `${env.FRONTEND_URL}/accept-invite?token=${rawToken}`;
-  await sendInvitationEmail(data.email, inviteUrl, role.name);
+  await sendInvitationEmail(data.email, inviteUrl, role.name, data.lang);
 
   return invitation;
 }
@@ -92,7 +92,7 @@ export async function resend(id: string) {
   await prisma.invitation.update({ where: { id }, data: { tokenHash: hashToken(rawToken), expiresAt } });
 
   const inviteUrl = `${env.FRONTEND_URL}/accept-invite?token=${rawToken}`;
-  await sendInvitationEmail(invitation.email, inviteUrl, invitation.role.name);
+  await sendInvitationEmail(invitation.email, inviteUrl, invitation.role.name, invitation.lang as Lang);
 
   return { id: invitation.id, email: invitation.email, expiresAt };
 }
@@ -100,7 +100,7 @@ export async function resend(id: string) {
 export async function preview(id: string) {
   const invitation = await findPending(id);
   const previewUrl = `${env.FRONTEND_URL}/accept-invite?token=preview`;
-  return buildInvitationEmail(previewUrl, invitation.role.name, true);
+  return buildInvitationEmail(previewUrl, invitation.role.name, invitation.lang as Lang, true);
 }
 
 export async function remove(id: string) {

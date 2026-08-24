@@ -85,7 +85,7 @@ export function TeamPage() {
 }
 
 function UsersTab() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const queryClient = useQueryClient()
 
   const { data: users = [] } = useQuery({
@@ -104,6 +104,7 @@ function UsersTab() {
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRoleId, setInviteRoleId] = useState('')
+  const [inviteLang, setInviteLang] = useState(language)
   const [inviteError, setInviteError] = useState<string | null>(null)
 
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
@@ -113,12 +114,13 @@ function UsersTab() {
   const [editError, setEditError] = useState<string | null>(null)
 
   const inviteMutation = useMutation({
-    mutationFn: () => api.post('/invitations', { email: inviteEmail, roleId: inviteRoleId }),
+    mutationFn: () => api.post('/invitations', { email: inviteEmail, roleId: inviteRoleId, lang: inviteLang }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invitations'] })
       setShowInviteForm(false)
       setInviteEmail('')
       setInviteRoleId('')
+      setInviteLang(language)
       setInviteError(null)
     },
     onError: (err: any) => setInviteError(err?.response?.data?.error ?? 'Error'),
@@ -205,6 +207,10 @@ function UsersTab() {
                 {r.name}
               </option>
             ))}
+          </select>
+          <select value={inviteLang} onChange={(e) => setInviteLang(e.target.value as 'en' | 'es')} className={inputClass}>
+            <option value="es">Español</option>
+            <option value="en">English</option>
           </select>
           {inviteError && <p className="text-sm text-rust dark:text-rust-dark">{inviteError}</p>}
           <button type="submit" disabled={inviteMutation.isPending} className={primaryButtonClass}>
