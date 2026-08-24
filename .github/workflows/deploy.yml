@@ -18,12 +18,6 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
-      - name: Debug Tailscale connectivity
-        run: |
-          tailscale status
-          tailscale ping -c 3 ${{ secrets.NAS_HOST }} || true
-          nc -zv -w 5 ${{ secrets.NAS_HOST }} ${{ secrets.NAS_SSH_PORT || 22 }} || true
-
       - name: Deploy
         uses: appleboy/ssh-action@v1
         with:
