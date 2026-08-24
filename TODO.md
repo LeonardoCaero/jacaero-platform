@@ -21,15 +21,20 @@ La plataforma vieja (`platform-api`/`platform-frontend`) está apagada; `jacaero
 - **Time Tracker — vista "Todos" editable**: como admin, al hacer clic en un día en la vista de equipo, se ven las horas de *todo el mundo* ese día (con nombre), y se pueden editar/borrar si tienes `TIME:EDIT_ALL` (permiso que existía en el seed pero no se usaba en ningún sitio hasta ahora).
 - **Gestión de usuarios con iconos**: editar / activar-desactivar / eliminar directamente en la fila, sin abrir un formulario. "Eliminar" es un borrado físico real y en cascada (horas, notas, eventos de calendario, tokens, suscripciones push, perfil) — sin bloqueo, solo un aviso de confirmación explicando que es irreversible. "Desactivar" sigue siendo el borrado lógico/reversible para gente con historial real.
 - **Favicon**: SVG del logo de la empresa, recortado para que se vea bien de pequeño (antes tenía demasiado margen).
+- **Loading skeletons**: Documentos y Pedidos de clientes muestran un shimmer mientras cargan, en vez de "Cargando..." o nada.
+- **Backup diario de Postgres**: cron de `root` a las 3am, `pg_dump` comprimido a `/home/Leo/backups/jacaero-platform/` (fuera del repo, no lo toca un deploy), rota a 30 días.
 
 ## Pendiente
 
-- [ ] **Rotar `TS_OAUTH_SECRET`** — se pegó en el chat varias veces durante la depuración del auto-deploy. El que está en uso (`kjCCV6syy421CNTRL`) sigue funcionando; rotarlo es limpieza, no urgente.
-- [ ] Backup del volumen `jacaero_pgdata` (p.ej. `pg_dump` programado + rotación) — todavía no hay ninguna política.
 - [ ] `morgan` (o equivalente) para logs de acceso HTTP — valorar si hace falta.
 - [ ] Vincular a mano los pedidos de años/meses distintos a agosto 2026 que sigan pendientes en `/papeleo/pedidos` (ya tienes la pantalla para hacerlo).
-- [ ] Commitear o descartar tu trabajo en curso de los "Skeleton" de carga (`Skeleton.tsx`, cambios pendientes en `DocumentsPage.tsx`/`index.css`) — sigue sin tocar, esperando a que lo retomes tú.
 - [ ] Actualizar `README.md` (desactualizado desde antes de todo esto).
+
+No se están vigilando (decisión consciente): rotar `TS_OAUTH_SECRET`, y si la IP pública del NAS es fija o dinámica.
+
+## Nota de seguridad (2026-08-24)
+
+Una versión anterior de este archivo tenía la IP pública del NAS escrita literalmente, en un repo público de GitHub. Se reescribió el historial de `develop`/`main` con `git filter-branch` para quitarla de todos los commits, se purgaron las referencias de respaldo y se hizo force-push. Búsqueda posterior de contraseñas/claves/rutas personales en todo el historial: limpio. **Regla desde ahora**: nada personal ni de la infraestructura del NAS (IPs, rutas de Windows, etc.) va en archivos versionados — solo en `~/Projects/credentials/jacaero-platform.md` del propio NAS, que nunca pasa por git.
 
 ## Notificaciones — lo que falta si se quiere ampliar
 
