@@ -11,3 +11,8 @@ export async function updateHandler(req: Request<{ id: string }>, res: Response)
   const user = await usersService.update(req.params.id, req.user!.userId, data);
   res.json(user);
 }
+
+export async function deleteHandler(req: Request<{ id: string }>, res: Response) {
+  await usersService.remove(req.params.id, req.user!.userId);
+  res.status(204).send();
+}
