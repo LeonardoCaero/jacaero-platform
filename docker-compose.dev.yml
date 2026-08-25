@@ -1,0 +1,76 @@
+services:
+  db:
+    image: postgres:16
+    container_name: jacaero_db_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jacaero}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jacaero}
+      POSTGRES_DB: ${POSTGRES_DB:-jacaero}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - jacaero_pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jacaero_net_dev
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    container_name: jacaero_backend_dev
+    restart: unless-stopped
+    env_file:
+      - apps/backend/.env.dev
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jacaero}:${POSTGRES_PASSWORD:-jacaero}@db:5432/${POSTGRES_DB:-jacaero}
+      PORT: 3000
+    ports:
+      - "127.0.0.1:4001:3000"
+    volumes:
+      - ${DOCS_HOST_PATH:-./local-docs}:/docs:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jacaero_net_dev
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4001}
+        VITE_ENVIRONMENT: dev
+    container_name: jacaero_frontend_dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jacaero_net_dev
+
+networks:
+  jacaero_net_dev:
+    driver: bridge
+
+volumes:
+  jacaero_pgdata_dev:
