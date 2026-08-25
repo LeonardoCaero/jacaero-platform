@@ -59,9 +59,10 @@ export async function create(userId: string, data: CreateInput, actingEndpoint?:
     include: { user: { select: { fullName: true } } },
   });
 
+  const dateLabel = entry.date.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
   await notifyPermission(
     "TIME:VIEW_ALL",
-    { title: "Horas registradas", body: `${entry.user.fullName} ha registrado ${data.hours}h el ${data.date}` },
+    { title: "Horas registradas", body: `${entry.user.fullName} ha registrado ${data.hours}h el ${dateLabel}` },
     actingEndpoint,
   );
 
