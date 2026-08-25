@@ -11,7 +11,9 @@ RUN npm ci
 FROM deps AS build
 COPY apps/frontend apps/frontend
 ARG VITE_API_URL
+ARG VITE_ENVIRONMENT
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_ENVIRONMENT=$VITE_ENVIRONMENT
 RUN npm run build --workspace=apps/frontend
 
 FROM nginx:alpine AS runtime
