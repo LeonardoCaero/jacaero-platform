@@ -128,6 +128,8 @@ const en = {
     loading: 'Loading…',
     searchPlaceholder: 'Search documents…',
     noResults: 'No documents match your search.',
+    viewPdf: 'View PDF',
+    downloadWord: 'Download Word',
   },
   settings: {
     theme: 'Theme',
@@ -335,6 +337,8 @@ const es = {
     loading: 'Cargando…',
     searchPlaceholder: 'Buscar documentos…',
     noResults: 'Ningún documento coincide con la búsqueda.',
+    viewPdf: 'Ver PDF',
+    downloadWord: 'Descargar Word',
   },
   settings: {
     theme: 'Tema',

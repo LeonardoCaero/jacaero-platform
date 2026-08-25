@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, FileText, File, Search } from 'lucide-react'
+import { ArrowLeft, Eye, Download, Search } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { translations } from '../lib/translations'
@@ -116,19 +116,21 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 {f.hasPdf && (
                   <button
                     type="button"
+                    title={t.documents.viewPdf}
                     onClick={() => openFile(f.number, 'pdf')}
                     className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
                   >
-                    <FileText className="h-4 w-4" />
+                    <Eye className="h-4 w-4" />
                   </button>
                 )}
                 {f.hasDocx && (
                   <button
                     type="button"
+                    title={t.documents.downloadWord}
                     onClick={() => openFile(f.number, 'docx')}
                     className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
                   >
-                    <File className="h-4 w-4" />
+                    <Download className="h-4 w-4" />
                   </button>
                 )}
               </div>
