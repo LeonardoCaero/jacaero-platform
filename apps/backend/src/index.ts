@@ -12,6 +12,7 @@ import { emailOrdersRoutes } from "./modules/email-orders/email-orders.routes.js
 import { syncOrders } from "./modules/email-orders/email-orders.service.js";
 import { documentsRoutes } from "./modules/documents/documents.routes.js";
 import { pushSubscriptionsRoutes } from "./modules/push-subscriptions/push-subscriptions.routes.js";
+import { clientsRoutes } from "./modules/clients/clients.routes.js";
 import { errorHandler } from "./common/middlewares/error-handler.middleware.js";
 import { logger } from "./common/services/logger.js";
 
@@ -40,6 +41,7 @@ app.use("/invitations", invitationsRoutes);
 app.use("/email-orders", emailOrdersRoutes);
 app.use("/documents", documentsRoutes);
 app.use("/push-subscriptions", pushSubscriptionsRoutes);
+app.use("/clients", clientsRoutes);
 
 app.use(errorHandler);
 
