@@ -37,11 +37,6 @@ export function AppLayout() {
           <span className="font-display text-lg font-semibold tracking-wide text-ink dark:text-cream">
             J.A. Caero
           </span>
-          {import.meta.env.VITE_ENVIRONMENT === 'dev' && (
-            <span className="rounded-full bg-rust px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cream dark:bg-rust-dark">
-              Dev
-            </span>
-          )}
         </Link>
 
         <div className="flex items-center gap-3">
