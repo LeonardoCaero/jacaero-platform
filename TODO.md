@@ -1,6 +1,6 @@
 # TODO — jacaero-platform
 
-Última actualización: 2026-08-24. Reescrito de cero porque casi todo el TODO original ya está hecho — para el detalle día a día, ver el historial de commits de `develop`/`main`.
+Última actualización: 2026-08-31. Para el detalle día a día, ver el historial de commits de `develop`/`main`.
 
 ## Estado actual: en producción
 
@@ -24,6 +24,8 @@ La plataforma vieja (`platform-api`/`platform-frontend`) está apagada; `jacaero
 - **Favicon**: SVG del logo de la empresa, recortado para que se vea bien de pequeño (antes tenía demasiado margen).
 - **Loading skeletons**: Documentos y Pedidos de clientes muestran un shimmer mientras cargan, en vez de "Cargando..." o nada.
 - **Backup diario de Postgres**: cron de `root` a las 3am, `pg_dump` comprimido a `/home/Leo/backups/jacaero-platform/` (fuera del repo, no lo toca un deploy), rota a 30 días.
+- **Clients & Contracts — Phase 1**: módulo backend (`clients.controller/service/schema/routes`) + `ClientsPage`/`ClientDetailPage` en el frontend.
+- **Pedidos por email en tiempo real**: se reemplazó el polling (`setInterval` cada `ORDERS_POLL_MINUTES`) por un listener IMAP IDLE persistente — la lista se actualiza al instante al llegar un correo, sin sondear. *(en `develop`, pendiente de mergear a `main`.)*
 
 ## Pendiente
 
