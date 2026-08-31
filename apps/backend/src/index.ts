@@ -9,7 +9,7 @@ import { rolesRoutes } from "./modules/roles/roles.routes.js";
 import { usersRoutes } from "./modules/users/users.routes.js";
 import { invitationsRoutes } from "./modules/invitations/invitations.routes.js";
 import { emailOrdersRoutes } from "./modules/email-orders/email-orders.routes.js";
-import { syncOrders } from "./modules/email-orders/email-orders.service.js";
+import { syncOrders, startImapIdleListener } from "./modules/email-orders/email-orders.service.js";
 import { documentsRoutes } from "./modules/documents/documents.routes.js";
 import { pushSubscriptionsRoutes } from "./modules/push-subscriptions/push-subscriptions.routes.js";
 import { clientsRoutes } from "./modules/clients/clients.routes.js";
@@ -50,9 +50,6 @@ app.listen(env.PORT, () => {
 });
 
 if (env.ORDERS_EMAIL_ADDRESS && env.ORDERS_EMAIL_APP_PASSWORD) {
-  const pollMs = env.ORDERS_POLL_MINUTES * 60 * 1000;
   syncOrders().catch((err) => logger.error("[email-orders] initial sync failed:", err));
-  setInterval(() => {
-    syncOrders().catch((err) => logger.error("[email-orders] sync failed:", err));
-  }, pollMs);
+  startImapIdleListener();
 }
