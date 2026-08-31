@@ -246,6 +246,34 @@ function LocationsSection({
     if (confirm(t.clients.confirmDeleteLocation)) removeMutation.mutate(locationId)
   }
 
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editAddress, setEditAddress] = useState('')
+  const [editCity, setEditCity] = useState('')
+  const [editPostalCode, setEditPostalCode] = useState('')
+
+  function startEdit(loc: Location) {
+    setEditingId(loc.id)
+    setEditName(loc.name)
+    setEditAddress(loc.address ?? '')
+    setEditCity(loc.city ?? '')
+    setEditPostalCode(loc.postalCode ?? '')
+  }
+
+  const updateMutation = useMutation({
+    mutationFn: (locationId: string) =>
+      api.patch(`/clients/locations/${locationId}`, {
+        name: editName,
+        address: editAddress.trim() || undefined,
+        city: editCity.trim() || undefined,
+        postalCode: editPostalCode.trim() || undefined,
+      }),
+    onSuccess: () => {
+      onChange()
+      setEditingId(null)
+    },
+  })
+
   return (
     <div className={`${cardClass} space-y-3`}>
       <SectionHeader
@@ -300,21 +328,71 @@ function LocationsSection({
         <p className="text-sm text-graphite dark:text-graphite-dark">{t.clients.noLocations}</p>
       )}
       <div className="space-y-2">
-        {locations.map((loc) => (
-          <div key={loc.id} className="flex items-center justify-between">
-            <p className="min-w-0 truncate text-sm text-ink dark:text-cream">
-              {loc.name}
-              {loc.city && <span className="text-graphite dark:text-graphite-dark"> · {loc.city}</span>}
-            </p>
-            <button
-              type="button"
-              onClick={() => handleRemove(loc.id)}
-              className="shrink-0 text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+        {locations.map((loc) =>
+          editingId === loc.id ? (
+            <form
+              key={loc.id}
+              onSubmit={(e: FormEvent) => {
+                e.preventDefault()
+                updateMutation.mutate(loc.id)
+              }}
+              className="space-y-2 rounded-xl border border-line p-3 dark:border-line-dark"
             >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
+              <input required value={editName} onChange={(e) => setEditName(e.target.value)} className={inputClass} />
+              <input
+                value={editAddress}
+                onChange={(e) => setEditAddress(e.target.value)}
+                placeholder={t.clients.address}
+                className={inputClass}
+              />
+              <div className="flex gap-2">
+                <input
+                  value={editCity}
+                  onChange={(e) => setEditCity(e.target.value)}
+                  placeholder={t.clients.city}
+                  className={inputClass}
+                />
+                <input
+                  value={editPostalCode}
+                  onChange={(e) => setEditPostalCode(e.target.value)}
+                  placeholder={t.clients.postalCode}
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" disabled={updateMutation.isPending} className={`flex-1 ${primaryButtonClass}`}>
+                  {t.team.save}
+                </button>
+                <button type="button" onClick={() => setEditingId(null)} className={secondaryButtonClass}>
+                  {t.team.cancel}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div key={loc.id} className="flex items-center justify-between">
+              <p className="min-w-0 truncate text-sm text-ink dark:text-cream">
+                {loc.name}
+                {loc.city && <span className="text-graphite dark:text-graphite-dark"> · {loc.city}</span>}
+              </p>
+              <div className="flex shrink-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => startEdit(loc)}
+                  className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(loc.id)}
+                  className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ),
+        )}
       </div>
     </div>
   )
@@ -367,6 +445,34 @@ function ContactsSection({
     if (confirm(t.clients.confirmDeleteContact)) removeMutation.mutate(contactId)
   }
 
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editFullName, setEditFullName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editJobTitle, setEditJobTitle] = useState('')
+
+  function startEdit(c: Contact) {
+    setEditingId(c.id)
+    setEditFullName(c.fullName)
+    setEditEmail(c.email)
+    setEditPhone(c.phone ?? '')
+    setEditJobTitle(c.jobTitle ?? '')
+  }
+
+  const updateMutation = useMutation({
+    mutationFn: (contactId: string) =>
+      api.patch(`/clients/contacts/${contactId}`, {
+        fullName: editFullName,
+        email: editEmail,
+        phone: editPhone.trim() || undefined,
+        jobTitle: editJobTitle.trim() || undefined,
+      }),
+    onSuccess: () => {
+      onChange()
+      setEditingId(null)
+    },
+  })
+
   return (
     <div className={`${cardClass} space-y-3`}>
       <SectionHeader
@@ -418,24 +524,80 @@ function ContactsSection({
         <p className="text-sm text-graphite dark:text-graphite-dark">{t.clients.noContacts}</p>
       )}
       <div className="space-y-2">
-        {contacts.map((c) => (
-          <div key={c.id} className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="truncate text-sm text-ink dark:text-cream">{c.fullName}</p>
-              <p className="truncate text-sm text-graphite dark:text-graphite-dark">
-                {c.email}
-                {c.jobTitle && ` · ${c.jobTitle}`}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleRemove(c.id)}
-              className="shrink-0 text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+        {contacts.map((c) =>
+          editingId === c.id ? (
+            <form
+              key={c.id}
+              onSubmit={(e: FormEvent) => {
+                e.preventDefault()
+                updateMutation.mutate(c.id)
+              }}
+              className="space-y-2 rounded-xl border border-line p-3 dark:border-line-dark"
             >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
+              <input
+                required
+                value={editFullName}
+                onChange={(e) => setEditFullName(e.target.value)}
+                className={inputClass}
+              />
+              <input
+                required
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                className={inputClass}
+              />
+              <div className="flex gap-2">
+                <input
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="Tel."
+                  className={inputClass}
+                />
+                <input
+                  value={editJobTitle}
+                  onChange={(e) => setEditJobTitle(e.target.value)}
+                  placeholder={t.profile.jobTitle}
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" disabled={updateMutation.isPending} className={`flex-1 ${primaryButtonClass}`}>
+                  {t.team.save}
+                </button>
+                <button type="button" onClick={() => setEditingId(null)} className={secondaryButtonClass}>
+                  {t.team.cancel}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div key={c.id} className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="truncate text-sm text-ink dark:text-cream">{c.fullName}</p>
+                <p className="truncate text-sm text-graphite dark:text-graphite-dark">
+                  {c.email}
+                  {c.jobTitle && ` · ${c.jobTitle}`}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => startEdit(c)}
+                  className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(c.id)}
+                  className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ),
+        )}
       </div>
     </div>
   )
