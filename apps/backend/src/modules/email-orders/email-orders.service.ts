@@ -33,6 +33,58 @@ export async function syncOrders(options: { full?: boolean } = {}) {
   return withTimeout(syncOrdersInner(options), options.full ? 600_000 : 120_000, "email sync");
 }
 
+// Keeps one IMAP connection open with IDLE instead of polling: the server pushes an 'exists'
+// event the instant new mail lands, so orders show up right away with no setInterval anywhere.
+export function startImapIdleListener() {
+  if (!env.ORDERS_EMAIL_ADDRESS || !env.ORDERS_EMAIL_APP_PASSWORD) return;
+  runIdleLoop();
+}
+
+async function runIdleLoop() {
+  for (;;) {
+    try {
+      await idleUntilDisconnected();
+    } catch (err) {
+      logger.error("[email-orders] IMAP idle connection lost:", (err as Error).message);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 30_000));
+  }
+}
+
+function idleUntilDisconnected(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const client = new ImapFlow({
+      host: env.ORDERS_IMAP_HOST,
+      port: 993,
+      secure: true,
+      auth: { user: env.ORDERS_EMAIL_ADDRESS!, pass: env.ORDERS_EMAIL_APP_PASSWORD! },
+      logger: false,
+      // Gmail drops IDLE around the 29min mark; ImapFlow breaks and restarts it on its own
+      // before that so the session never times out from under us.
+      maxIdleTime: 25 * 60 * 1000,
+    });
+
+    let syncTimer: NodeJS.Timeout | undefined;
+    const scheduleSync = () => {
+      clearTimeout(syncTimer);
+      // Coalesce a burst of new messages (e.g. several POs at once) into a single sync.
+      syncTimer = setTimeout(() => {
+        syncOrders().catch((err) => logger.error("[email-orders] sync after new mail failed:", err));
+      }, 2_000);
+    };
+
+    client.on("exists", scheduleSync);
+    client.on("close", () => resolve());
+    client.on("error", (err) => reject(err));
+
+    client
+      .connect()
+      .then(() => client.getMailboxLock("INBOX"))
+      .then(() => logger.info("[email-orders] IMAP idle listener connected"))
+      .catch(reject);
+  });
+}
+
 async function syncOrdersInner(options: { full?: boolean } = {}) {
   if (!env.ORDERS_EMAIL_ADDRESS || !env.ORDERS_EMAIL_APP_PASSWORD) {
     throw new ApiError(400, "ORDERS_EMAIL_ADDRESS / ORDERS_EMAIL_APP_PASSWORD not configured");
