@@ -24,14 +24,13 @@ La plataforma vieja (`platform-api`/`platform-frontend`) está apagada; `jacaero
 - **Favicon**: SVG del logo de la empresa, recortado para que se vea bien de pequeño (antes tenía demasiado margen).
 - **Loading skeletons**: Documentos y Pedidos de clientes muestran un shimmer mientras cargan, en vez de "Cargando..." o nada.
 - **Backup diario de Postgres**: cron de `root` a las 3am, `pg_dump` comprimido a `/home/Leo/backups/jacaero-platform/` (fuera del repo, no lo toca un deploy), rota a 30 días.
-- **Clients & Contracts — Phase 1**: módulo backend (`clients.controller/service/schema/routes`) + `ClientsPage`/`ClientDetailPage` en el frontend.
+- **Clients & Contracts**: módulo backend completo + `ClientsPage`/`ClientDetailPage` en el frontend — alta/edición de cliente, ubicaciones, contactos y contratos (todo con edición, no solo alta/baja). `README.md` actualizado para reflejar el estado real de la plataforma (estaba desactualizado desde antes de todo el trabajo reciente).
 - **Pedidos por email en tiempo real**: se reemplazó el polling (`setInterval` cada `ORDERS_POLL_MINUTES`) por un listener IMAP IDLE persistente — la lista se actualiza al instante al llegar un correo, sin sondear.
 
 ## Pendiente
 
 - [ ] `morgan` (o equivalente) para logs de acceso HTTP — valorar si hace falta.
 - [ ] Vincular a mano los pedidos de años/meses distintos a agosto 2026 que sigan pendientes en `/papeleo/pedidos` (ya tienes la pantalla para hacerlo).
-- [ ] Actualizar `README.md` (desactualizado desde antes de todo esto).
 
 No se están vigilando (decisión consciente): rotar `TS_OAUTH_SECRET`, y si la IP pública del NAS es fija o dinámica.
 
@@ -47,5 +46,4 @@ No se están vigilando (decisión consciente): rotar `TS_OAUTH_SECRET`, y si la 
 - [ ] Enlazar `email-orders` con `nas-documents.service` para *crear* documentos (hoy solo hay lectura/numeración)
 - [ ] Calendar — UI real (hoy "coming soon")
 - [ ] Notes — UI real
-- [ ] Clients & Contracts — UI real
 - [ ] Audit Log — UI real (el modelo ya existe)
