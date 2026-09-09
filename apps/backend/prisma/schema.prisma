@@ -137,6 +137,7 @@ model Client {
   timeEntries TimeEntry[]
   emailOrders EmailOrder[]
   albaranes   MonthlyAlbaran[]
+  recurringAlbaranTemplates RecurringAlbaranTemplate[]
 }
 
 enum ClientStatus {
@@ -397,4 +398,17 @@ model MonthlyAlbaranLine {
   overtimeHours      Decimal          @db.Decimal(6, 2)
   overtimeRate       Decimal          @db.Decimal(10, 2)
   subtotal           Decimal          @db.Decimal(12, 2)
+}
+
+model RecurringAlbaranTemplate {
+  id            String    @id @default(cuid())
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id])
+  orderNumber   String    @unique
+  label         String
+  titleTemplate String
+  templateDocx  Bytes
+  lastPeriod    DateTime?
+  lastNumber    String?
+  createdAt     DateTime  @default(now())
 }

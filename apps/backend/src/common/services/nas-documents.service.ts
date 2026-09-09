@@ -52,6 +52,14 @@ const CATEGORY_KEYWORDS: Record<DocCategory, string> = {
   horasTrabajo: "horas",
 };
 
+export async function getCategoryFolderPath(year: number, category: DocCategory) {
+  if (!env.DOCS_ROOT_PATH) throw new Error("DOCS_ROOT_PATH is not configured");
+  const yearPath = path.join(env.DOCS_ROOT_PATH, String(year));
+  const folder = await withTimeout(findFolder(yearPath, CATEGORY_KEYWORDS[category]), FS_TIMEOUT_MS);
+  if (!folder) throw new Error(`No se encontró la carpeta de ${category} para ${yearPath}`);
+  return folder;
+}
+
 export type DocFile = {
   number: string;
   title: string;
