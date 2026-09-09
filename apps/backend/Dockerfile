@@ -18,6 +18,7 @@ FROM base AS runtime
 ARG APP_VERSION=dev
 ENV NODE_ENV=production
 ENV APP_VERSION=$APP_VERSION
+RUN apk add --no-cache libreoffice ttf-liberation
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/backend/dist ./apps/backend/dist
 COPY --from=build /app/apps/backend/prisma ./apps/backend/prisma
