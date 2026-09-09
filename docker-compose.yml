@@ -32,10 +32,11 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-jacaero}:${POSTGRES_PASSWORD:-jacaero}@db:5432/${POSTGRES_DB:-jacaero}
       PORT: 3000
+      DOCS_ROOT_PATH: /docs
     ports:
       - "127.0.0.1:4000:3000"
     volumes:
-      - ${DOCS_HOST_PATH:-./local-docs}:/docs:ro
+      - ${DOCS_HOST_PATH:-./local-docs}:/docs
     depends_on:
       db:
         condition: service_healthy
