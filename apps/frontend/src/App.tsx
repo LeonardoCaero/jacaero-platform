@@ -12,6 +12,7 @@ import { PapeleoPage } from './pages/PapeleoPage'
 import { EmailOrdersPage } from './pages/EmailOrdersPage'
 import { ReconcilePage } from './pages/ReconcilePage'
 import { DocumentsPage } from './pages/DocumentsPage'
+import { RecurringAlbaranesPage } from './pages/RecurringAlbaranesPage'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AppLayout } from './components/AppLayout'
@@ -50,6 +51,7 @@ function App() {
         />
         <Route path="/papeleo/facturas" element={<DocumentsPage category="factura" titleKey="facturas" />} />
         <Route path="/papeleo/horas" element={<DocumentsPage category="horasTrabajo" titleKey="horas" />} />
+        <Route path="/papeleo/generacion" element={<RecurringAlbaranesPage />} />
         {modules
           .filter((m) => !['timeTracker', 'team', 'papeleo', 'clients'].includes(m.key))
           .map((m) => (

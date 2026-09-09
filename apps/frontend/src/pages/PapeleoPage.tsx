@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Truck, FileSignature, Clock, Package, Mail, Receipt, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Truck, FileSignature, Clock, Package, Mail, Receipt, Wand2, type LucideIcon } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type Tile = {
-  key: 'albaran' | 'presupuesto' | 'horas' | 'pedidoMaterial' | 'pedidosCorreo' | 'facturas'
+  key: 'albaran' | 'presupuesto' | 'horas' | 'pedidoMaterial' | 'pedidosCorreo' | 'facturas' | 'generacion'
   path: string
   icon: LucideIcon
   primary?: boolean
@@ -11,6 +11,7 @@ type Tile = {
 
 const tiles: Tile[] = [
   { key: 'pedidosCorreo', path: '/papeleo/pedidos', icon: Mail, primary: true },
+  { key: 'generacion', path: '/papeleo/generacion', icon: Wand2 },
   { key: 'horas', path: '/papeleo/horas', icon: Clock },
   { key: 'presupuesto', path: '/papeleo/presupuestos', icon: FileSignature },
   { key: 'albaran', path: '/papeleo/albaranes', icon: Truck },
