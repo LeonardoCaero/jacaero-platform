@@ -13,13 +13,12 @@ import { syncOrders, startImapIdleListener } from "./modules/email-orders/email-
 import { documentsRoutes } from "./modules/documents/documents.routes.js";
 import { pushSubscriptionsRoutes } from "./modules/push-subscriptions/push-subscriptions.routes.js";
 import { clientsRoutes } from "./modules/clients/clients.routes.js";
+import { recurringAlbaranesRoutes } from "./modules/recurring-albaranes/recurring-albaranes.routes.js";
 import { errorHandler } from "./common/middlewares/error-handler.middleware.js";
 import { logger } from "./common/services/logger.js";
 
 const app = express();
 
-// Trust the nginx reverse proxy in front of us (single hop) so express-rate-limit
-// and req.ip see the real client IP from X-Forwarded-For instead of nginx's own.
 app.set("trust proxy", 1);
 
 app.use(helmet());
@@ -42,6 +41,7 @@ app.use("/email-orders", emailOrdersRoutes);
 app.use("/documents", documentsRoutes);
 app.use("/push-subscriptions", pushSubscriptionsRoutes);
 app.use("/clients", clientsRoutes);
+app.use("/recurring-albaranes", recurringAlbaranesRoutes);
 
 app.use(errorHandler);
 
