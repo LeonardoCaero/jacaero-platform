@@ -215,6 +215,8 @@ export function EmailOrdersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<QuoteCategory | 'all'>('all')
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['email-orders'],
@@ -222,7 +224,10 @@ export function EmailOrdersPage() {
   })
 
   const query = search.trim().toLowerCase()
-  const filteredOrders = query ? orders.filter((o) => orderSearchText(o).includes(query)) : orders
+  const filteredOrders = orders
+    .filter((o) => !query || orderSearchText(o).includes(query))
+    .filter((o) => typeFilter === 'all' || quoteCategoryOf(o) === typeFilter)
+    .filter((o) => !favoritesOnly || o.favorite)
 
   const syncMutation = useMutation({
     mutationFn: async (full: boolean) =>
@@ -349,6 +354,32 @@ export function EmailOrdersPage() {
           placeholder={t.emailOrders.searchPlaceholder}
           className="h-10 w-full rounded-xl border border-line bg-paper pl-9 pr-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
         />
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value as QuoteCategory | 'all')}
+          className="h-9 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+        >
+          <option value="all">{t.emailOrders.filterTypeAll}</option>
+          <option value="pending">{t.emailOrders.quoted}</option>
+          <option value="presupuesto">{t.emailOrders.quoteCategoryPresupuesto}</option>
+          <option value="horas">{t.emailOrders.quoteCategoryHoras}</option>
+          <option value="material">{t.emailOrders.quoteCategoryMaterial}</option>
+        </select>
+        <button
+          type="button"
+          onClick={() => setFavoritesOnly((v) => !v)}
+          className={`flex h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold transition ${
+            favoritesOnly
+              ? 'bg-yellow/20 text-ink dark:text-cream'
+              : 'border border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
+          }`}
+        >
+          <Star className="h-3.5 w-3.5" fill={favoritesOnly ? 'currentColor' : 'none'} />
+          {t.emailOrders.filterFavorites}
+        </button>
       </div>
 
       {isLoading && (
