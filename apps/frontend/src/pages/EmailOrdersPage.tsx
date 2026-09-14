@@ -363,7 +363,7 @@ export function EmailOrdersPage() {
           className="h-9 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
         >
           <option value="all">{t.emailOrders.filterTypeAll}</option>
-          <option value="pending">{t.emailOrders.quoted}</option>
+          <option value="pending">{t.emailOrders.filterTypePending}</option>
           <option value="presupuesto">{t.emailOrders.quoteCategoryPresupuesto}</option>
           <option value="horas">{t.emailOrders.quoteCategoryHoras}</option>
           <option value="material">{t.emailOrders.quoteCategoryMaterial}</option>
