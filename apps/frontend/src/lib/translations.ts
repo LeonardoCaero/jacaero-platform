@@ -211,6 +211,8 @@ const en = {
     confirmDeleteInvite: 'Cancel this invitation?',
     previewInvite: 'Preview email',
     resendInvite: 'Resend invitation',
+    invitationSent: 'Invitation sent',
+    invitationResent: 'Invitation resent',
   },
   acceptInvite: {
     invitedAs: 'Invited as',
@@ -437,6 +439,8 @@ const es = {
     confirmDeleteInvite: '¿Cancelar esta invitación?',
     previewInvite: 'Vista previa del correo',
     resendInvite: 'Reenviar invitación',
+    invitationSent: 'Invitación enviada',
+    invitationResent: 'Invitación reenviada',
   },
   acceptInvite: {
     invitedAs: 'Invitado como',
