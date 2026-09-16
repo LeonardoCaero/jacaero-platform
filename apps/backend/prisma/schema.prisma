@@ -18,6 +18,7 @@ model User {
   jobTitle     String?
   status       UserStatus @default(ACTIVE)
   avatarUrl    String?
+  notifyTimeEntries Boolean @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
