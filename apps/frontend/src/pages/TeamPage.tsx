@@ -13,6 +13,7 @@ type User = {
   jobTitle: string | null
   status: 'ACTIVE' | 'INACTIVE'
   role: { id: string; name: string } | null
+  notifyTimeEntries: boolean
 }
 
 type Role = {
@@ -122,6 +123,7 @@ function UsersTab() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [editRoleId, setEditRoleId] = useState('')
   const [editJobTitle, setEditJobTitle] = useState('')
+  const [editNotifyTimeEntries, setEditNotifyTimeEntries] = useState(true)
   const [editError, setEditError] = useState<string | null>(null)
 
   const inviteMutation = useMutation({
@@ -172,6 +174,7 @@ function UsersTab() {
       api.patch(`/users/${id}`, {
         roleId: editRoleId || null,
         jobTitle: editJobTitle.trim() || null,
+        notifyTimeEntries: editNotifyTimeEntries,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -185,6 +188,7 @@ function UsersTab() {
     setEditingUserId(user.id)
     setEditRoleId(user.role?.id ?? '')
     setEditJobTitle(user.jobTitle ?? '')
+    setEditNotifyTimeEntries(user.notifyTimeEntries)
     setEditError(null)
   }
 
@@ -336,6 +340,14 @@ function UsersTab() {
                   placeholder={t.team.jobTitle}
                   className={inputClass}
                 />
+                <label className="flex items-center gap-2 text-sm text-ink dark:text-cream">
+                  <input
+                    type="checkbox"
+                    checked={editNotifyTimeEntries}
+                    onChange={(e) => setEditNotifyTimeEntries(e.target.checked)}
+                  />
+                  {t.team.notifyTimeEntries}
+                </label>
                 {editError && <p className="text-sm text-rust dark:text-rust-dark">{editError}</p>}
                 <div className="flex gap-2">
                   <button

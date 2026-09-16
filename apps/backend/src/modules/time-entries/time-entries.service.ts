@@ -64,6 +64,7 @@ export async function create(userId: string, data: CreateInput, actingEndpoint?:
     "TIME:VIEW_ALL",
     { title: "Horas registradas", body: `${entry.user.fullName} ha registrado ${data.hours}h el ${dateLabel}` },
     actingEndpoint,
+    "notifyTimeEntries",
   );
 
   const { user, ...rest } = entry;
