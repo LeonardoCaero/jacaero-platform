@@ -16,6 +16,7 @@ const envSchema = z.object({
   ORDERS_EMAIL_APP_PASSWORD: z.string().optional(),
   ORDERS_SENDER_ALLOWLIST: z.string().optional(),
   DOCS_ROOT_PATH: z.string().optional(),
+  UPLOADS_PATH: z.string().default("./uploads"),
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default("mailto:admin@example.com"),

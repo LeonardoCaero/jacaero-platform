@@ -33,10 +33,12 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-jacaero}:${POSTGRES_PASSWORD:-jacaero}@db:5432/${POSTGRES_DB:-jacaero}
       PORT: 3000
       DOCS_ROOT_PATH: /docs
+      UPLOADS_PATH: /uploads
     ports:
       - "127.0.0.1:4000:3000"
     volumes:
       - ${DOCS_HOST_PATH:-./local-docs}:/docs
+      - jacaero_uploads:/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -74,3 +76,4 @@ networks:
 
 volumes:
   jacaero_pgdata:
+  jacaero_uploads:

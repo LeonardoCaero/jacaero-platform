@@ -1,7 +1,7 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronLeft, ChevronRight, PieChart, Pencil, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, PieChart, Pencil, Trash2, X, Image as ImageIcon } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -13,6 +13,7 @@ type TimeEntry = {
   hours: string
   description: string | null
   isOvertime: boolean
+  photos: string[]
 }
 
 type TeamMember = { id: string; fullName: string }
@@ -93,6 +94,7 @@ export function TimeTrackerPage() {
   const [hours, setHours] = useState('8')
   const [description, setDescription] = useState('')
   const [isOvertime, setIsOvertime] = useState(isWeekendKey(todayKey))
+  const [pendingPhotos, setPendingPhotos] = useState<File[]>([])
   const [viewUserId, setViewUserId] = useState('')
   const isTeamView = viewUserId === TEAM_VIEW
   const isViewingSelf = !viewUserId || viewUserId === user?.id
@@ -142,12 +144,14 @@ export function TimeTrackerPage() {
 
   const monthTotal = isTeamView ? teamTotalHours : entries.reduce((sum, e) => sum + Number(e.hours), 0)
   const selectedEntries = selectedDate ? (entriesByDay.get(selectedDate) ?? []) : []
+  const editingEntry = editingId ? ((isTeamView ? teamDayEntries : entries).find((e) => e.id === editingId) ?? null) : null
 
   function resetEntryForm(forKey?: string) {
     setEditingId(null)
     setHours('8')
     setDescription('')
     setIsOvertime(forKey ? isWeekendKey(forKey) : false)
+    setPendingPhotos([])
   }
 
   function changeMonth(delta: number) {
@@ -181,14 +185,29 @@ export function TimeTrackerPage() {
         description: description.trim() || undefined,
         isOvertime,
       }
-      if (editingId) return (await api.patch(`/time-entries/${editingId}`, payload)).data
-      return (await api.post('/time-entries', payload)).data
+      const entry = editingId
+        ? (await api.patch(`/time-entries/${editingId}`, payload)).data
+        : (await api.post('/time-entries', payload)).data
+      if (pendingPhotos.length > 0) {
+        const form = new FormData()
+        pendingPhotos.forEach((file) => form.append('photos', file))
+        await api.post(`/time-entries/${entry.id}/photos`, form)
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-entries'] })
       queryClient.invalidateQueries({ queryKey: ['time-entries-team-summary'] })
       queryClient.invalidateQueries({ queryKey: ['time-entries-team-day'] })
       resetEntryForm()
+    },
+  })
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: ({ entryId, filename }: { entryId: string; filename: string }) =>
+      api.delete(`/time-entries/${entryId}/photos/${filename}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-entries'] })
+      queryClient.invalidateQueries({ queryKey: ['time-entries-team-day'] })
     },
   })
 
@@ -206,6 +225,7 @@ export function TimeTrackerPage() {
     setHours(entry.hours)
     setDescription(entry.description ?? '')
     setIsOvertime(entry.isOvertime)
+    setPendingPhotos([])
   }
 
   function handleDelete(id: string) {
@@ -525,6 +545,44 @@ export function TimeTrackerPage() {
               {t.timeTracker.overtime}
             </label>
 
+            <div className="flex flex-wrap items-center gap-2">
+              {editingEntry?.photos.map((filename) => (
+                <PhotoThumbnail
+                  key={filename}
+                  entryId={editingEntry.id}
+                  filename={filename}
+                  onDelete={() => {
+                    if (confirm(t.timeTracker.confirmDeletePhoto)) {
+                      deletePhotoMutation.mutate({ entryId: editingEntry.id, filename })
+                    }
+                  }}
+                />
+              ))}
+              {pendingPhotos.map((file, i) => (
+                <PendingPhotoThumbnail
+                  key={i}
+                  file={file}
+                  onRemove={() => setPendingPhotos((prev) => prev.filter((_, idx) => idx !== i))}
+                />
+              ))}
+              <label
+                aria-label={t.timeTracker.addPhoto}
+                className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-dashed border-line text-graphite hover:border-yellow hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
+              >
+                <ImageIcon className="h-5 w-5" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    setPendingPhotos((prev) => [...prev, ...Array.from(e.target.files ?? [])])
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+            </div>
+
             <div className="flex gap-2 pt-1">
               <button
                 type="submit"
@@ -562,6 +620,60 @@ export function TimeTrackerPage() {
           />,
           document.body,
         )}
+    </div>
+  )
+}
+
+function PhotoThumbnail({ entryId, filename, onDelete }: { entryId: string; filename: string; onDelete: () => void }) {
+  const [src, setSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    let url: string | null = null
+    let cancelled = false
+    api.get(`/time-entries/${entryId}/photos/${filename}`, { responseType: 'blob' }).then((res) => {
+      if (cancelled) return
+      url = URL.createObjectURL(res.data)
+      setSrc(url)
+    })
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [entryId, filename])
+
+  return (
+    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line dark:border-line-dark">
+      {src && <img src={src} alt="" className="h-full w-full object-cover" />}
+      <button
+        type="button"
+        onClick={onDelete}
+        className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-ink/70 text-cream"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  )
+}
+
+function PendingPhotoThumbnail({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const [src, setSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file)
+    setSrc(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  return (
+    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line dark:border-line-dark">
+      {src && <img src={src} alt="" className="h-full w-full object-cover" />}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-ink/70 text-cream"
+      >
+        <X className="h-3 w-3" />
+      </button>
     </div>
   )
 }
