@@ -95,6 +95,7 @@ export function TimeTrackerPage() {
   const [description, setDescription] = useState('')
   const [isOvertime, setIsOvertime] = useState(isWeekendKey(todayKey))
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([])
+  const [previewEntry, setPreviewEntry] = useState<TimeEntry | null>(null)
   const [viewUserId, setViewUserId] = useState('')
   const isTeamView = viewUserId === TEAM_VIEW
   const isViewingSelf = !viewUserId || viewUserId === user?.id
@@ -432,6 +433,16 @@ export function TimeTrackerPage() {
                     <span className="text-sm font-semibold text-ink dark:text-cream">
                       {Number(entry.hours)}h{entry.isOvertime && ' •'}
                     </span>
+                    {entry.photos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewEntry(entry)}
+                        aria-label={t.timeTracker.viewPhotos}
+                        className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                      </button>
+                    )}
                     {canEditAll && (
                       <>
                         <button
@@ -477,6 +488,16 @@ export function TimeTrackerPage() {
                     <span className="text-sm font-semibold text-ink dark:text-cream">
                       {Number(entry.hours)}h{entry.isOvertime && ' •'}
                     </span>
+                    {entry.photos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewEntry(entry)}
+                        aria-label={t.timeTracker.viewPhotos}
+                        className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                      </button>
+                    )}
                     {(isViewingSelf || canEditAll) && (
                       <>
                         <button
@@ -611,6 +632,36 @@ export function TimeTrackerPage() {
         <p className="mt-4 text-center text-sm text-graphite dark:text-graphite-dark">{t.timeTracker.empty}</p>
       )}
 
+      {previewEntry &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
+            onClick={() => setPreviewEntry(null)}
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl bg-surface p-4 shadow-xl dark:bg-surface-dark"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-ink dark:text-cream">{t.timeTracker.photos}</p>
+                <button
+                  type="button"
+                  onClick={() => setPreviewEntry(null)}
+                  className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-3 max-h-[70vh] space-y-3 overflow-y-auto">
+                {previewEntry.photos.map((filename) => (
+                  <FullPhoto key={filename} entryId={previewEntry.id} filename={filename} />
+                ))}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
       {showTeamChart &&
         createPortal(
           <TeamHoursChart
@@ -625,7 +676,7 @@ export function TimeTrackerPage() {
   )
 }
 
-function PhotoThumbnail({ entryId, filename, onDelete }: { entryId: string; filename: string; onDelete: () => void }) {
+function usePhotoUrl(entryId: string, filename: string) {
   const [src, setSrc] = useState<string | null>(null)
 
   useEffect(() => {
@@ -642,6 +693,12 @@ function PhotoThumbnail({ entryId, filename, onDelete }: { entryId: string; file
     }
   }, [entryId, filename])
 
+  return src
+}
+
+function PhotoThumbnail({ entryId, filename, onDelete }: { entryId: string; filename: string; onDelete: () => void }) {
+  const src = usePhotoUrl(entryId, filename)
+
   return (
     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line dark:border-line-dark">
       {src && <img src={src} alt="" className="h-full w-full object-cover" />}
@@ -652,6 +709,20 @@ function PhotoThumbnail({ entryId, filename, onDelete }: { entryId: string; file
       >
         <X className="h-3 w-3" />
       </button>
+    </div>
+  )
+}
+
+function FullPhoto({ entryId, filename }: { entryId: string; filename: string }) {
+  const src = usePhotoUrl(entryId, filename)
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-line dark:border-line-dark">
+      {src ? (
+        <img src={src} alt="" className="w-full object-contain" />
+      ) : (
+        <div className="h-40 animate-pulse bg-paper dark:bg-paper-dark" />
+      )}
     </div>
   )
 }
