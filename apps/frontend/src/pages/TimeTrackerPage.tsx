@@ -576,7 +576,8 @@ export function TimeTrackerPage() {
                   multiple
                   className="hidden"
                   onChange={(e) => {
-                    setPendingPhotos((prev) => [...prev, ...Array.from(e.target.files ?? [])])
+                    const picked = Array.from(e.target.files ?? [])
+                    setPendingPhotos((prev) => [...prev, ...picked])
                     e.target.value = ''
                   }}
                 />
