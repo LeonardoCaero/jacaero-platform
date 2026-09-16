@@ -40,3 +40,18 @@ export async function deleteHandler(req: Request<{ id: string }>, res: Response)
   await timeEntriesService.remove(req.params.id, req.user!.userId);
   res.status(204).send();
 }
+
+export async function uploadPhotosHandler(req: Request<{ id: string }>, res: Response) {
+  const entry = await timeEntriesService.addPhotos(req.params.id, req.user!.userId, req.files as Express.Multer.File[]);
+  res.status(201).json(entry);
+}
+
+export async function getPhotoHandler(req: Request<{ id: string; filename: string }>, res: Response) {
+  const filePath = await timeEntriesService.getPhotoPath(req.params.id, req.user!.userId, req.params.filename);
+  res.sendFile(filePath);
+}
+
+export async function deletePhotoHandler(req: Request<{ id: string; filename: string }>, res: Response) {
+  await timeEntriesService.removePhoto(req.params.id, req.user!.userId, req.params.filename);
+  res.status(204).send();
+}
