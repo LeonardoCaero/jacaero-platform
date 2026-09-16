@@ -53,11 +53,19 @@ export async function notifyUser(userId: string, payload: PushPayload) {
  * Pass `excludeEndpoint` (the acting device's own push subscription) to skip notifying
  * the device that triggered the event.
  */
-export async function notifyPermission(permissionKey: string, payload: PushPayload, excludeEndpoint?: string) {
+export async function notifyPermission(
+  permissionKey: string,
+  payload: PushPayload,
+  excludeEndpoint?: string,
+  mutedBy?: "notifyTimeEntries",
+) {
   if (!configured) return;
   const subscriptions = await prisma.pushSubscription.findMany({
     where: {
-      user: { role: { permissions: { some: { permission: { key: permissionKey } } } } },
+      user: {
+        role: { permissions: { some: { permission: { key: permissionKey } } } },
+        ...(mutedBy ? { [mutedBy]: true } : {}),
+      },
       ...(excludeEndpoint ? { endpoint: { not: excludeEndpoint } } : {}),
     },
   });

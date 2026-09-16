@@ -11,6 +11,7 @@ const userSelect = {
   fullName: true,
   jobTitle: true,
   status: true,
+  notifyTimeEntries: true,
   createdAt: true,
   role: { select: { id: true, name: true } },
 } as const;
