@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Eye, Download, Search, Share2 } from 'lucide-react'
 import { api } from '../lib/axios'
@@ -35,7 +35,8 @@ function FileCardSkeleton({ delay }: { delay: number }) {
 
 export function DocumentsPage({ category, titleKey }: { category: DocCategory; titleKey: PapeleoKey }) {
   const { t } = useLanguage()
-  const [year, setYear] = useState(currentYear)
+  const [searchParams] = useSearchParams()
+  const [year, setYear] = useState(() => Number(searchParams.get('year')) || currentYear)
   const [search, setSearch] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   function showToast(message: string) {
@@ -53,30 +54,41 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     ? files.filter((f) => `${f.number} ${f.title}`.toLowerCase().includes(query))
     : files
 
-  async function openFile(number: string, ext: 'pdf' | 'docx') {
+  async function openFile(number: string, ext: 'pdf' | 'docx', sameTab = false) {
     const { data } = await api.get(`/documents/${category}/file`, {
       params: { year, number, ext },
       responseType: 'blob',
     })
     const url = URL.createObjectURL(data)
-    window.open(url, '_blank')
+    if (sameTab) window.location.href = url
+    else window.open(url, '_blank')
   }
 
-  async function shareFile(number: string, title: string, ext: 'pdf' | 'docx') {
-    const { data } = await api.post(`/documents/${category}/share`, null, { params: { year, number, ext } })
-    const url = `${import.meta.env.VITE_API_URL}/documents/share/file?token=${data.token}`
+  // Shared links land here logged out; ProtectedRoute bounces to /login and back, then this opens the file.
+  // Same-tab navigation (not window.open) because it can't rely on a fresh user gesture at that point.
+  useEffect(() => {
+    const number = searchParams.get('number')
+    const ext = searchParams.get('ext')
+    if (!searchParams.get('open') || !number || (ext !== 'pdf' && ext !== 'docx')) return
+    openFile(number, ext, true).catch(() => showToast(t.documents.unreachable))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function shareFile(number: string, title: string, ext: 'pdf' | 'docx') {
+    const url = new URL(window.location.pathname, window.location.origin)
+    url.searchParams.set('open', '1')
+    url.searchParams.set('year', String(year))
+    url.searchParams.set('number', number)
+    url.searchParams.set('ext', ext)
 
     if (navigator.share) {
-      try {
-        await navigator.share({ title, url })
-      } catch {
+      navigator.share({ title, url: url.toString() }).catch(() => {
         // user cancelled the share sheet, nothing to do
-      }
+      })
       return
     }
 
-    await navigator.clipboard.writeText(url)
-    showToast(t.documents.linkCopied)
+    navigator.clipboard.writeText(url.toString()).then(() => showToast(t.documents.linkCopied))
   }
 
   return (

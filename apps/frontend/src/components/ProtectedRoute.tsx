@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth()
+  const location = useLocation()
 
   if (isLoading) {
     return (
@@ -13,7 +14,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     )
   }
 
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" state={{ from: `${location.pathname}${location.search}` }} replace />
 
   return children
 }
