@@ -13,3 +13,7 @@ export const getDocumentFileSchema = z.object({
   number: z.string().regex(/^\d+$/),
   ext: z.enum(["pdf", "docx"]),
 });
+
+export const shareTokenQuerySchema = z.object({
+  token: z.string().min(1),
+});

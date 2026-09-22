@@ -1,6 +1,6 @@
 # TODO — jacaero-platform
 
-Última actualización: 2026-09-02. Para el detalle día a día, ver el historial de commits de `develop`/`main`.
+Última actualización: 2026-09-22. Para el detalle día a día, ver el historial de commits de `develop`/`main`.
 
 ## Estado actual: en producción
 
@@ -27,6 +27,7 @@ La plataforma vieja (`platform-api`/`platform-frontend`) está apagada; `jacaero
 - **Backup diario de Postgres**: cron de `root` a las 3am, `pg_dump` comprimido a `/home/Leo/backups/jacaero-platform/` (fuera del repo, no lo toca un deploy), rota a 30 días.
 - **Clients & Contracts**: módulo backend completo + `ClientsPage`/`ClientDetailPage` en el frontend — alta/edición de cliente, ubicaciones, contactos y contratos (todo con edición, no solo alta/baja). `README.md` actualizado para reflejar el estado real de la plataforma (estaba desactualizado desde antes de todo el trabajo reciente).
 - **Pedidos por email en tiempo real**: se reemplazó el polling (`setInterval` cada `ORDERS_POLL_MINUTES`) por un listener IMAP IDLE persistente — la lista se actualiza al instante al llegar un correo, sin sondear.
+- **Compartir documentos (2026-09-22)**: en Documentos (presupuesto/albarán/factura/pedido de material), botón "Compartir" junto a cada PDF — genera un enlace firmado (JWT, 30 días, sin necesidad de login) y lo pasa por `navigator.share()` (o lo copia al portapapeles si el navegador no soporta Web Share API). Antes solo se podía "Ver" el PDF, que abría un `blob:` local al navegador — imposible de reenviar a nadie (un compañero intentó compartir uno así y no abría). Endpoint público `GET /documents/share/file?token=` sirve el PDF directamente para que el enlace se pueda previsualizar sin sesión.
 - **Incidente DNS resuelto (2026-09-02)**: la IP pública del NAS cambió y el DNS (en Squarespace) se quedó apuntando a la vieja — la plataforma estuvo caída desde fuera mientras todo lo interno (containers, nginx) seguía sano. Se migró la gestión DNS de `caero.group` de Squarespace a **Cloudflare** (nameservers cambiados, todos los registros de correo — MX/SPF/DKIM de Google Workspace y Resend — verificados e intactos). El registro A de `plataforma.caero.group` ahora lo mantiene actualizado el **DDNS nativo de UGOS** (Panel de Control → Acceso Remoto → DDNS, proveedor Cloudflare, token con alcance limitado a esa zona) — ya no depende de nadie tocando DNS a mano cuando cambie la IP.
 
 ## Pendiente

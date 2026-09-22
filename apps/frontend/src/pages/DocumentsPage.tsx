@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Eye, Download, Search } from 'lucide-react'
+import { ArrowLeft, Eye, Download, Search, Share2 } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { translations } from '../lib/translations'
@@ -36,6 +37,11 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
   const { t } = useLanguage()
   const [year, setYear] = useState(currentYear)
   const [search, setSearch] = useState('')
+  const [toast, setToast] = useState<string | null>(null)
+  function showToast(message: string) {
+    setToast(message)
+    window.setTimeout(() => setToast(null), 3000)
+  }
 
   const { data: files = [], isLoading, isError } = useQuery({
     queryKey: ['documents', category, year],
@@ -54,6 +60,23 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     })
     const url = URL.createObjectURL(data)
     window.open(url, '_blank')
+  }
+
+  async function shareFile(number: string, title: string, ext: 'pdf' | 'docx') {
+    const { data } = await api.post(`/documents/${category}/share`, null, { params: { year, number, ext } })
+    const url = `${import.meta.env.VITE_API_URL}/documents/share/file?token=${data.token}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url })
+      } catch {
+        // user cancelled the share sheet, nothing to do
+      }
+      return
+    }
+
+    await navigator.clipboard.writeText(url)
+    showToast(t.documents.linkCopied)
   }
 
   return (
@@ -123,6 +146,16 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                     <Eye className="h-4 w-4" />
                   </button>
                 )}
+                {f.hasPdf && (
+                  <button
+                    type="button"
+                    title={t.documents.share}
+                    onClick={() => shareFile(f.number, `${f.number} · ${f.title}`, 'pdf')}
+                    className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                )}
                 {f.hasDocx && (
                   <button
                     type="button"
@@ -145,6 +178,16 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       {!isLoading && !isError && files.length > 0 && filteredFiles.length === 0 && (
         <p className="mt-6 text-center text-sm text-graphite dark:text-graphite-dark">{t.documents.noResults}</p>
       )}
+
+      {toast &&
+        createPortal(
+          <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+            <div className="rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cream shadow-lg dark:bg-cream dark:text-ink">
+              {toast}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

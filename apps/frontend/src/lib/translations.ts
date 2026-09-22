@@ -134,6 +134,8 @@ const en = {
     noResults: 'No documents match your search.',
     viewPdf: 'View PDF',
     downloadWord: 'Download Word',
+    share: 'Share',
+    linkCopied: 'Link copied to clipboard',
   },
   recurringAlbaranes: {
     back: 'Back',
@@ -367,6 +369,8 @@ const es = {
     noResults: 'Ningún documento coincide con la búsqueda.',
     viewPdf: 'Ver PDF',
     downloadWord: 'Descargar Word',
+    share: 'Compartir',
+    linkCopied: 'Enlace copiado',
   },
   recurringAlbaranes: {
     back: 'Volver',
