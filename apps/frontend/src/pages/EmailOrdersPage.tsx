@@ -2,7 +2,7 @@ import { useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, RefreshCw, FileDown, X, Check, Link2, Eye, Star, Search } from 'lucide-react'
+import { ArrowLeft, RefreshCw, FileText, X, Check, Link2, Eye, Star, Search } from 'lucide-react'
 import { api } from '../lib/axios'
 import { Skeleton } from '../components/Skeleton'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -36,9 +36,30 @@ function orderSearchText(order: EmailOrder): string {
     .toLowerCase()
 }
 
-async function previewDocument(category: DocCategory, year: number, number: string) {
-  const { data } = await api.get(`/documents/${category}/file`, { params: { year, number, ext: 'pdf' } , responseType: 'blob' })
-  window.open(URL.createObjectURL(data), '_blank')
+async function fetchPdfUrl(path: string, params?: Record<string, unknown>) {
+  const { data } = await api.get(path, { params, responseType: 'blob' })
+  return URL.createObjectURL(new Blob([data], { type: 'application/pdf' }))
+}
+
+function PdfPreview({ url, onClose }: { url: string; onClose: () => void }) {
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/50 p-4" onClick={onClose}>
+      <div
+        className="relative h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-surface shadow-xl dark:bg-surface-dark"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface text-graphite shadow hover:text-ink dark:bg-surface-dark dark:text-graphite-dark dark:hover:text-cream"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        <iframe title="pdf-preview" src={url} className="h-full w-full" />
+      </div>
+    </div>,
+    document.body,
+  )
 }
 
 function PreviewButton({ onClick }: { onClick: (e: MouseEvent) => void }) {
@@ -217,6 +238,16 @@ export function EmailOrdersPage() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<QuoteCategory | 'all'>('all')
   const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  async function openPreview(path: string, params?: Record<string, unknown>) {
+    setPreviewUrl(await fetchPdfUrl(path, params))
+  }
+
+  function closePreview() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+  }
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['email-orders'],
@@ -419,11 +450,19 @@ export function EmailOrdersPage() {
                   </p>
                 </div>
               </div>
-              {order.totalAmount && (
-                <span className="shrink-0 text-sm font-semibold text-ink dark:text-cream">
-                  {Number(order.totalAmount).toLocaleString(locale)}€
-                </span>
-              )}
+              <div className="flex shrink-0 items-center gap-1">
+                {order.totalAmount && (
+                  <span className="text-sm font-semibold text-ink dark:text-cream">
+                    {Number(order.totalAmount).toLocaleString(locale)}€
+                  </span>
+                )}
+                <PreviewButton
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openPreview(`/email-orders/${order.id}/pdf`)
+                  }}
+                />
+              </div>
             </div>
 
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -463,21 +502,28 @@ export function EmailOrdersPage() {
         <p className="mt-6 text-center text-sm text-graphite dark:text-graphite-dark">{t.emailOrders.noResults}</p>
       )}
 
-      {selected && <OrderDetail order={selected} onClose={() => setSelectedId(null)} />}
+      {selected && <OrderDetail order={selected} onClose={() => setSelectedId(null)} onPreview={openPreview} />}
+      {previewUrl && <PdfPreview url={previewUrl} onClose={closePreview} />}
     </div>
   )
 }
 
-function OrderDetail({ order, onClose }: { order: EmailOrder; onClose: () => void }) {
+function OrderDetail({
+  order,
+  onClose,
+  onPreview,
+}: {
+  order: EmailOrder
+  onClose: () => void
+  onPreview: (path: string, params?: Record<string, unknown>) => void
+}) {
   const { t, language } = useLanguage()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const year = order.orderDate ? new Date(order.orderDate).getUTCFullYear() : null
   const quoteDocCategory = order.quoteCategory ? QUOTE_CATEGORY_TO_DOC[order.quoteCategory] : null
 
-  async function downloadPdf() {
-    const { data } = await api.get(`/email-orders/${order.id}/pdf`, { responseType: 'blob' })
-    const url = URL.createObjectURL(data)
-    window.open(url, '_blank')
+  function previewDocument(category: DocCategory, year: number, number: string) {
+    onPreview(`/documents/${category}/file`, { year, number, ext: 'pdf' })
   }
 
   const hasMissingLink =
@@ -572,11 +618,11 @@ function OrderDetail({ order, onClose }: { order: EmailOrder; onClose: () => voi
 
           <button
             type="button"
-            onClick={downloadPdf}
+            onClick={() => onPreview(`/email-orders/${order.id}/pdf`)}
             className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-line text-sm font-semibold text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
           >
-            <FileDown className="h-4 w-4" />
-            {t.emailOrders.downloadPdf}
+            <FileText className="h-4 w-4" />
+            {t.emailOrders.viewPdf}
           </button>
 
           {hasMissingLink && (
