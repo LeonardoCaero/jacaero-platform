@@ -319,6 +319,7 @@ model EmailOrder {
   albaranNumber   String?
   albaranSentAt   DateTime?
   facturarOkAt    DateTime?
+  facturaLabelAt  DateTime?
   invoicedAt      DateTime?
   facturaNumber   String?
   favorite        Boolean          @default(false)

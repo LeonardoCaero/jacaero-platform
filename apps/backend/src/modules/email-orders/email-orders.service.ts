@@ -33,7 +33,10 @@ export async function syncOrders(options: { full?: boolean } = {}) {
   return withTimeout(syncOrdersInner(options), options.full ? 600_000 : 120_000, "email sync");
 }
 
+// ImapFlow quotes label names itself — pre-quoting them creates a label with literal quotes.
 const FACTURAR_OK_LABEL = "FACTURAR OK";
+const FACTURA_LABEL = "Factura";
+const ALBARAN_LABEL = "Albarán";
 const FACTURAR_OK_DELAY_MS = 2 * 24 * 60 * 60 * 1000;
 
 function attachmentNames(node: MessageStructureObject): string[] {
@@ -48,7 +51,8 @@ export async function syncFacturarOk() {
 
 // Albaranes go out from this same mailbox as attachments named "<number> ALBARÁN ...", so the
 // Sent folder tells us when each one was sent. Two days after that, if there's still no factura,
-// the order's email gets the Gmail label FACTURAR OK; it comes off once the factura is linked.
+// the order's email gets the Gmail label FACTURAR OK. Once the factura is linked, it swaps
+// Albarán / FACTURAR OK for Factura.
 async function syncFacturarOkInner() {
   const needsSentDate = await prisma.emailOrder.findMany({
     where: { albaranNumber: { not: null }, albaranSentAt: null },
@@ -111,29 +115,42 @@ async function syncFacturarOkInner() {
       },
       select: { id: true, orderNumber: true, senderEmail: true },
     });
-    const toUnlabel = await prisma.emailOrder.findMany({
-      where: { invoicedAt: { not: null }, facturarOkAt: { not: null } },
+    const toInvoice = await prisma.emailOrder.findMany({
+      where: { invoicedAt: { not: null }, facturaLabelAt: null, orderNumber: { not: null } },
       select: { id: true, orderNumber: true, senderEmail: true },
     });
-    if (toLabel.length === 0 && toUnlabel.length === 0) return;
+    if (toLabel.length === 0 && toInvoice.length === 0) return;
 
-    // The label has a space, so it must go over the wire quoted — ImapFlow sends labels as bare atoms.
-    const label = `"${FACTURAR_OK_LABEL}"`;
     const lock = await client.getMailboxLock(allPath);
     try {
-      for (const order of [...toLabel, ...toUnlabel]) {
-        const add = toLabel.includes(order);
+      const findOrderEmail = async (order: { orderNumber: string | null; senderEmail: string }) => {
         const uids = await client.search(
           { from: order.senderEmail, gmraw: `subject:${order.orderNumber}` },
           { uid: true },
         );
         if (!uids || uids.length === 0) {
           logger.error(`[email-orders] order email not found in Gmail for ${order.orderNumber}`);
-          continue;
+          return undefined;
         }
-        if (add) await client.messageFlagsAdd(uids, [label], { uid: true, useLabels: true });
-        else await client.messageFlagsRemove(uids, [label], { uid: true, useLabels: true });
-        await prisma.emailOrder.update({ where: { id: order.id }, data: { facturarOkAt: add ? new Date() : null } });
+        return uids;
+      };
+
+      for (const order of toLabel) {
+        const uids = await findOrderEmail(order);
+        if (!uids) continue;
+        await client.messageFlagsAdd(uids, [FACTURAR_OK_LABEL], { uid: true, useLabels: true });
+        await prisma.emailOrder.update({ where: { id: order.id }, data: { facturarOkAt: new Date() } });
+      }
+
+      for (const order of toInvoice) {
+        const uids = await findOrderEmail(order);
+        if (!uids) continue;
+        await client.messageFlagsAdd(uids, [FACTURA_LABEL], { uid: true, useLabels: true });
+        await client.messageFlagsRemove(uids, [FACTURAR_OK_LABEL, ALBARAN_LABEL], { uid: true, useLabels: true });
+        await prisma.emailOrder.update({
+          where: { id: order.id },
+          data: { facturaLabelAt: new Date(), facturarOkAt: null },
+        });
       }
     } finally {
       lock.release();
