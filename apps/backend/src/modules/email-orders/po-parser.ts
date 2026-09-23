@@ -122,3 +122,9 @@ export function parsePurchaseOrderText(fullText: string): ParsedPurchaseOrder {
     totalAmount,
   };
 }
+
+// "067 ALBARÁN TRABAJOS POLIPASTO.pdf" -> 67
+export function albaranNumberFromFilename(name: string) {
+  const match = name.normalize("NFD").replace(/\p{Diacritic}/gu, "").match(/^(\d+)\s*albaran/i);
+  return match ? Number(match[1]) : undefined;
+}

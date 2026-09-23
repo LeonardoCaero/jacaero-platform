@@ -103,6 +103,8 @@ type EmailOrder = {
   quoteCategory: 'PRESUPUESTO' | 'HORAS' | 'MATERIAL' | null
   deliveryNoteAt: string | null
   albaranNumber: string | null
+  albaranSentAt: string | null
+  facturarOkAt: string | null
   invoicedAt: string | null
   facturaNumber: string | null
   favorite: boolean
@@ -490,6 +492,11 @@ export function EmailOrdersPage() {
                   }}
                 />
               ))}
+              {order.facturarOkAt && !order.invoicedAt && (
+                <span className="rounded-full bg-ink px-2.5 py-1 text-xs font-semibold text-cream dark:bg-cream dark:text-ink">
+                  {t.emailOrders.facturarOk}
+                </span>
+              )}
             </div>
           </button>
         ))}
@@ -563,6 +570,12 @@ function OrderDetail({
             <p className="flex items-center gap-1 text-graphite dark:text-graphite-dark">
               {t.emailOrders.albaranNumber}: <span className="text-ink dark:text-cream">{order.albaranNumber}</span>
               {year && <PreviewButton onClick={() => previewDocument('albaran', year, order.albaranNumber!)} />}
+            </p>
+          )}
+          {order.albaranSentAt && (
+            <p className="text-graphite dark:text-graphite-dark">
+              {t.emailOrders.albaranSent}:{' '}
+              <span className="text-ink dark:text-cream">{new Date(order.albaranSentAt).toLocaleDateString(locale)}</span>
             </p>
           )}
           {order.facturaNumber && (
