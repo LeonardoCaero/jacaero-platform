@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import type { QuoteCategory } from "@prisma/client";
-import { ImapFlow } from "imapflow";
+import { ImapFlow, type MessageStructureObject } from "imapflow";
 import { simpleParser } from "mailparser";
 import { PDFParse } from "pdf-parse";
 import { prisma } from "../../db/prisma.js";
@@ -8,7 +8,7 @@ import { ApiError } from "../../common/errors/api-error.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../common/services/logger.js";
 import { notifyPermission } from "../push-subscriptions/push-subscriptions.service.js";
-import { parsePurchaseOrderText, extractOrderNumber, extractDocumentTotal, extractDeclaredNumber } from "./po-parser.js";
+import { parsePurchaseOrderText, extractOrderNumber, extractDocumentTotal, extractDeclaredNumber, albaranNumberFromFilename } from "./po-parser.js";
 import { listCategory, getCategoryFile, type DocCategory } from "../../common/services/nas-documents.service.js";
 
 function allowedSenders() {
@@ -33,8 +33,118 @@ export async function syncOrders(options: { full?: boolean } = {}) {
   return withTimeout(syncOrdersInner(options), options.full ? 600_000 : 120_000, "email sync");
 }
 
+const FACTURAR_OK_LABEL = "FACTURAR OK";
+const FACTURAR_OK_DELAY_MS = 2 * 24 * 60 * 60 * 1000;
+
+function attachmentNames(node: MessageStructureObject): string[] {
+  const name = node.dispositionParameters?.filename ?? node.parameters?.name;
+  return [...(name ? [name] : []), ...(node.childNodes ?? []).flatMap(attachmentNames)];
+}
+
+export async function syncFacturarOk() {
+  if (!env.ORDERS_EMAIL_ADDRESS || !env.ORDERS_EMAIL_APP_PASSWORD) return;
+  return withTimeout(syncFacturarOkInner(), 120_000, "FACTURAR OK labels");
+}
+
+// Albaranes go out from this same mailbox as attachments named "<number> ALBARÁN ...", so the
+// Sent folder tells us when each one was sent. Two days after that, if there's still no factura,
+// the order's email gets the Gmail label FACTURAR OK; it comes off once the factura is linked.
+async function syncFacturarOkInner() {
+  const needsSentDate = await prisma.emailOrder.findMany({
+    where: { albaranNumber: { not: null }, albaranSentAt: null },
+    select: { id: true, albaranNumber: true, receivedAt: true },
+  });
+
+  const client = new ImapFlow({
+    host: env.ORDERS_IMAP_HOST,
+    port: 993,
+    secure: true,
+    auth: { user: env.ORDERS_EMAIL_ADDRESS!, pass: env.ORDERS_EMAIL_APP_PASSWORD! },
+    logger: false,
+    greetingTimeout: 15_000,
+    connectionTimeout: 15_000,
+  });
+  client.on("error", (err) => logger.error("[email-orders] IMAP client error:", err.message));
+
+  await client.connect();
+  try {
+    const boxes = await client.list();
+    const sentPath = boxes.find((b) => b.specialUse === "\\Sent")?.path;
+    const allPath = boxes.find((b) => b.specialUse === "\\All")?.path;
+    if (!sentPath || !allPath) throw new Error("Gmail Sent / All Mail folders not found");
+
+    if (needsSentDate.length > 0) {
+      const since = new Date(Math.min(...needsSentDate.map((o) => o.receivedAt.getTime())));
+      const sentDates = new Map<number, Date[]>();
+      const lock = await client.getMailboxLock(sentPath);
+      try {
+        const uids = await client.search({ since, gmraw: "has:attachment (albaran OR albarán)" }, { uid: true });
+        if (uids && uids.length > 0) {
+          for await (const msg of client.fetch(uids, { envelope: true, bodyStructure: true }, { uid: true })) {
+            const date = msg.envelope?.date;
+            if (!date || !msg.bodyStructure) continue;
+            for (const name of attachmentNames(msg.bodyStructure)) {
+              const number = albaranNumberFromFilename(name);
+              if (number !== undefined) sentDates.set(number, [...(sentDates.get(number) ?? []), date]);
+            }
+          }
+        }
+      } finally {
+        lock.release();
+      }
+
+      for (const order of needsSentDate) {
+        // Numbers restart every year, so only count sends after the order arrived.
+        const dates = (sentDates.get(Number(order.albaranNumber)) ?? []).filter((d) => d >= order.receivedAt);
+        if (dates.length === 0) continue;
+        const sentAt = new Date(Math.min(...dates.map((d) => d.getTime())));
+        await prisma.emailOrder.update({ where: { id: order.id }, data: { albaranSentAt: sentAt } });
+      }
+    }
+
+    const toLabel = await prisma.emailOrder.findMany({
+      where: {
+        albaranSentAt: { lte: new Date(Date.now() - FACTURAR_OK_DELAY_MS) },
+        invoicedAt: null,
+        facturarOkAt: null,
+        orderNumber: { not: null },
+      },
+      select: { id: true, orderNumber: true, senderEmail: true },
+    });
+    const toUnlabel = await prisma.emailOrder.findMany({
+      where: { invoicedAt: { not: null }, facturarOkAt: { not: null } },
+      select: { id: true, orderNumber: true, senderEmail: true },
+    });
+    if (toLabel.length === 0 && toUnlabel.length === 0) return;
+
+    // The label has a space, so it must go over the wire quoted — ImapFlow sends labels as bare atoms.
+    const label = `"${FACTURAR_OK_LABEL}"`;
+    const lock = await client.getMailboxLock(allPath);
+    try {
+      for (const order of [...toLabel, ...toUnlabel]) {
+        const add = toLabel.includes(order);
+        const uids = await client.search(
+          { from: order.senderEmail, gmraw: `subject:${order.orderNumber}` },
+          { uid: true },
+        );
+        if (!uids || uids.length === 0) {
+          logger.error(`[email-orders] order email not found in Gmail for ${order.orderNumber}`);
+          continue;
+        }
+        if (add) await client.messageFlagsAdd(uids, [label], { uid: true, useLabels: true });
+        else await client.messageFlagsRemove(uids, [label], { uid: true, useLabels: true });
+        await prisma.emailOrder.update({ where: { id: order.id }, data: { facturarOkAt: add ? new Date() : null } });
+      }
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => {});
+  }
+}
+
 // Keeps one IMAP connection open with IDLE instead of polling: the server pushes an 'exists'
-// event the instant new mail lands, so orders show up right away with no setInterval anywhere.
+// event the instant new mail lands, so orders show up right away without polling the mailbox.
 export function startImapIdleListener() {
   if (!env.ORDERS_EMAIL_ADDRESS || !env.ORDERS_EMAIL_APP_PASSWORD) return;
   runIdleLoop();

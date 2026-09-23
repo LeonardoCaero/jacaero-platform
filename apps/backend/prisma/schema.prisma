@@ -317,6 +317,8 @@ model EmailOrder {
   quoteCategory   QuoteCategory?
   deliveryNoteAt  DateTime?
   albaranNumber   String?
+  albaranSentAt   DateTime?
+  facturarOkAt    DateTime?
   invoicedAt      DateTime?
   facturaNumber   String?
   favorite        Boolean          @default(false)
