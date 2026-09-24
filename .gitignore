@@ -9,3 +9,5 @@ build/
 DOCS/
 local-docs/
 uploads/
+CLAUDE.md
+.claude/
