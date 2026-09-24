@@ -9,11 +9,12 @@ import { rolesRoutes } from "./modules/roles/roles.routes.js";
 import { usersRoutes } from "./modules/users/users.routes.js";
 import { invitationsRoutes } from "./modules/invitations/invitations.routes.js";
 import { emailOrdersRoutes } from "./modules/email-orders/email-orders.routes.js";
-import { syncOrders, startImapIdleListener } from "./modules/email-orders/email-orders.service.js";
+import { syncOrders, startImapIdleListener, syncFacturarOk } from "./modules/email-orders/email-orders.service.js";
 import { documentsRoutes } from "./modules/documents/documents.routes.js";
 import { pushSubscriptionsRoutes } from "./modules/push-subscriptions/push-subscriptions.routes.js";
 import { clientsRoutes } from "./modules/clients/clients.routes.js";
 import { recurringAlbaranesRoutes } from "./modules/recurring-albaranes/recurring-albaranes.routes.js";
+import { calendarRoutes } from "./modules/calendar/calendar.routes.js";
 import { errorHandler } from "./common/middlewares/error-handler.middleware.js";
 import { logger } from "./common/services/logger.js";
 
@@ -42,6 +43,7 @@ app.use("/documents", documentsRoutes);
 app.use("/push-subscriptions", pushSubscriptionsRoutes);
 app.use("/clients", clientsRoutes);
 app.use("/recurring-albaranes", recurringAlbaranesRoutes);
+app.use("/calendar", calendarRoutes);
 
 app.use(errorHandler);
 
@@ -52,4 +54,9 @@ app.listen(env.PORT, () => {
 if (env.ORDERS_EMAIL_ADDRESS && env.ORDERS_EMAIL_APP_PASSWORD) {
   syncOrders().catch((err) => logger.error("[email-orders] initial sync failed:", err));
   startImapIdleListener();
+  // Time-based (2 days after the albarán went out), so it needs a clock rather than a mail event.
+  const runFacturarOk = () =>
+    syncFacturarOk().catch((err) => logger.error("[email-orders] FACTURAR OK sync failed:", err));
+  runFacturarOk();
+  setInterval(runFacturarOk, 60 * 60 * 1000);
 }

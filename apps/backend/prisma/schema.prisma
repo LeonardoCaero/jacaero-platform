@@ -18,6 +18,7 @@ model User {
   jobTitle     String?
   status       UserStatus @default(ACTIVE)
   avatarUrl    String?
+  notifyTimeEntries Boolean @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -224,6 +225,7 @@ model TimeEntry {
   hours       Decimal  @db.Decimal(5, 2)
   description String?
   isOvertime  Boolean  @default(false)
+  photos      String[] @default([])
 
   clientId           String?
   client             Client?           @relation(fields: [clientId], references: [id])
@@ -267,7 +269,10 @@ model Note {
 model CalendarEvent {
   id                 String          @id @default(cuid())
   title              String
+  description        String?
   date               DateTime
+  endDate            DateTime?
+  photos             String[]        @default([])
   createdBy          String
   visibility         EventVisibility @default(COMPANY)
   color              String?
@@ -284,7 +289,7 @@ enum EventVisibility {
 
 model CalendarEventAssignee {
   eventId String
-  event   CalendarEvent @relation(fields: [eventId], references: [id])
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   userId  String
   user    User          @relation(fields: [userId], references: [id])
 
@@ -315,6 +320,9 @@ model EmailOrder {
   quoteCategory   QuoteCategory?
   deliveryNoteAt  DateTime?
   albaranNumber   String?
+  albaranSentAt   DateTime?
+  facturarOkAt    DateTime?
+  facturaLabelAt  DateTime?
   invoicedAt      DateTime?
   facturaNumber   String?
   favorite        Boolean          @default(false)

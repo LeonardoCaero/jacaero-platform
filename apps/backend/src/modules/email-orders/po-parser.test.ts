@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { esNumber, extractOrderNumber, extractDeclaredNumber, extractDocumentTotal } from "./po-parser.js";
+import { esNumber, extractOrderNumber, extractDeclaredNumber, extractDocumentTotal, albaranNumberFromFilename } from "./po-parser.js";
 
 describe("esNumber", () => {
   it("parses Spanish thousand/decimal separators", () => {
@@ -39,5 +39,14 @@ describe("extractDocumentTotal", () => {
 
   it("returns undefined when no total pattern matches", () => {
     expect(extractDocumentTotal("nothing relevant")).toBeUndefined();
+  });
+});
+
+describe("albaranNumberFromFilename", () => {
+  it("reads the number off sent albarán attachments", () => {
+    expect(albaranNumberFromFilename("001 ALBARÁN TRABAJOS EJEMPLO.pdf")).toBe(1);
+    expect(albaranNumberFromFilename("002 ALBARÁN MES DE ENERO(Extra).pdf")).toBe(2);
+    expect(albaranNumberFromFilename("003 HORAS ENERO.pdf")).toBeUndefined();
+    expect(albaranNumberFromFilename("image001.png")).toBeUndefined();
   });
 });

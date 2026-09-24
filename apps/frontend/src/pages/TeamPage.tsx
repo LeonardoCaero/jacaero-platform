@@ -13,6 +13,7 @@ type User = {
   jobTitle: string | null
   status: 'ACTIVE' | 'INACTIVE'
   role: { id: string; name: string } | null
+  notifyTimeEntries: boolean
 }
 
 type Role = {
@@ -51,6 +52,17 @@ function tabButtonClass(active: boolean) {
       ? 'bg-ink text-cream dark:bg-cream dark:text-ink'
       : 'border border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
   }`
+}
+
+const MIN_SPIN_MS = 1200
+
+function SendIcon({ pending }: { pending: boolean }) {
+  return (
+    <span className="relative inline-flex h-4 w-4 shrink-0">
+      <Send className={`h-4 w-4 ${pending ? 'opacity-30' : ''}`} />
+      {pending && <span className="absolute inset-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}
+    </span>
+  )
 }
 
 export function TeamPage() {
@@ -111,6 +123,7 @@ function UsersTab() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [editRoleId, setEditRoleId] = useState('')
   const [editJobTitle, setEditJobTitle] = useState('')
+  const [editNotifyTimeEntries, setEditNotifyTimeEntries] = useState(true)
   const [editError, setEditError] = useState<string | null>(null)
 
   const inviteMutation = useMutation({
@@ -122,6 +135,7 @@ function UsersTab() {
       setInviteRoleId('')
       setInviteLang(language)
       setInviteError(null)
+      showToast(t.team.invitationSent)
     },
     onError: (err: any) => setInviteError(err?.response?.data?.error ?? 'Error'),
   })
@@ -133,10 +147,22 @@ function UsersTab() {
 
   const resendInviteMutation = useMutation({
     mutationFn: (id: string) => api.post(`/invitations/${id}/resend`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invitations'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invitations'] })
+      showToast(t.team.invitationResent)
+    },
   })
 
+  const [inviteSpinning, setInviteSpinning] = useState(false)
+  const [resendSpinningId, setResendSpinningId] = useState<string | null>(null)
+
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
+
+  const [toast, setToast] = useState<string | null>(null)
+  function showToast(message: string) {
+    setToast(message)
+    window.setTimeout(() => setToast(null), 3000)
+  }
 
   async function handlePreviewInvite(id: string) {
     const { data } = await api.get<{ html: string }>(`/invitations/${id}/preview`)
@@ -148,6 +174,7 @@ function UsersTab() {
       api.patch(`/users/${id}`, {
         roleId: editRoleId || null,
         jobTitle: editJobTitle.trim() || null,
+        notifyTimeEntries: editNotifyTimeEntries,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -161,6 +188,7 @@ function UsersTab() {
     setEditingUserId(user.id)
     setEditRoleId(user.role?.id ?? '')
     setEditJobTitle(user.jobTitle ?? '')
+    setEditNotifyTimeEntries(user.notifyTimeEntries)
     setEditError(null)
   }
 
@@ -183,7 +211,19 @@ function UsersTab() {
 
   function handleInviteSubmit(e: FormEvent) {
     e.preventDefault()
-    inviteMutation.mutate()
+    const startedAt = Date.now()
+    setInviteSpinning(true)
+    inviteMutation.mutate(undefined, {
+      onSettled: () => window.setTimeout(() => setInviteSpinning(false), Math.max(MIN_SPIN_MS - (Date.now() - startedAt), 0)),
+    })
+  }
+
+  function handleResendInvite(id: string) {
+    const startedAt = Date.now()
+    setResendSpinningId(id)
+    resendInviteMutation.mutate(id, {
+      onSettled: () => window.setTimeout(() => setResendSpinningId(null), Math.max(MIN_SPIN_MS - (Date.now() - startedAt), 0)),
+    })
   }
 
   function handleCancelInvite(id: string) {
@@ -228,7 +268,12 @@ function UsersTab() {
             <option value="en">English</option>
           </select>
           {inviteError && <p className="text-sm text-rust dark:text-rust-dark">{inviteError}</p>}
-          <button type="submit" disabled={inviteMutation.isPending} className={primaryButtonClass}>
+          <button
+            type="submit"
+            disabled={inviteMutation.isPending || inviteSpinning}
+            className={`${primaryButtonClass} inline-flex items-center gap-2`}
+          >
+            <SendIcon pending={inviteSpinning} />
             {t.team.invite}
           </button>
         </form>
@@ -255,11 +300,11 @@ function UsersTab() {
                   <button
                     type="button"
                     title={t.team.resendInvite}
-                    disabled={resendInviteMutation.isPending}
-                    onClick={() => resendInviteMutation.mutate(inv.id)}
+                    disabled={resendSpinningId === inv.id}
+                    onClick={() => handleResendInvite(inv.id)}
                     className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
                   >
-                    <Send className="h-4 w-4" />
+                    <SendIcon pending={resendSpinningId === inv.id} />
                   </button>
                   <button
                     type="button"
@@ -295,6 +340,14 @@ function UsersTab() {
                   placeholder={t.team.jobTitle}
                   className={inputClass}
                 />
+                <label className="flex items-center gap-2 text-sm text-ink dark:text-cream">
+                  <input
+                    type="checkbox"
+                    checked={editNotifyTimeEntries}
+                    onChange={(e) => setEditNotifyTimeEntries(e.target.checked)}
+                  />
+                  {t.team.notifyTimeEntries}
+                </label>
                 {editError && <p className="text-sm text-rust dark:text-rust-dark">{editError}</p>}
                 <div className="flex gap-2">
                   <button
@@ -360,6 +413,16 @@ function UsersTab() {
           </div>
         ))}
       </div>
+
+      {toast &&
+        createPortal(
+          <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+            <div className="rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cream shadow-lg dark:bg-cream dark:text-ink">
+              {toast}
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {previewHtml &&
         createPortal(
