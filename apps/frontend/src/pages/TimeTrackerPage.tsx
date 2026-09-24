@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
-import { FullPhoto, PendingPhotoThumbnail, PhotoThumbnail } from '../components/Photos'
+import { FullPhoto, PendingPhotoThumbnail, PhotoGallery, PhotoThumbnail } from '../components/Photos'
 import { buildMonthGrid, formatDate, isWeekendKey, toDateKey, toMonthKey, weekdayLabels as getWeekdayLabels } from '../lib/dates'
 
 type TimeEntry = {
@@ -617,10 +617,12 @@ export function TimeTrackerPage() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="mt-3 max-h-[70vh] space-y-3 overflow-y-auto">
-                {previewEntry.photos.map((filename) => (
-                  <FullPhoto key={filename} url={`/time-entries/${previewEntry.id}/photos/${filename}`} />
-                ))}
+              <div className="mt-3 max-h-[70vh] overflow-y-auto">
+                {previewEntry.photos.length === 1 ? (
+                  <FullPhoto url={`/time-entries/${previewEntry.id}/photos/${previewEntry.photos[0]}`} />
+                ) : (
+                  <PhotoGallery urls={previewEntry.photos.map((f) => `/time-entries/${previewEntry.id}/photos/${f}`)} />
+                )}
               </div>
             </div>
           </div>,
