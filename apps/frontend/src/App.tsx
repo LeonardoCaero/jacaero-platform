@@ -7,6 +7,7 @@ import { ClientsPage } from './pages/ClientsPage'
 import { ClientDetailPage } from './pages/ClientDetailPage'
 import { ComingSoonPage } from './pages/ComingSoonPage'
 import { TimeTrackerPage } from './pages/TimeTrackerPage'
+import { CalendarPage } from './pages/CalendarPage'
 import { TeamPage } from './pages/TeamPage'
 import { PapeleoPage } from './pages/PapeleoPage'
 import { EmailOrdersPage } from './pages/EmailOrdersPage'
@@ -34,6 +35,7 @@ function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/time-tracker" element={<TimeTrackerPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/team" element={<TeamPage />} />
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/clients/:id" element={<ClientDetailPage />} />
@@ -53,7 +55,7 @@ function App() {
         <Route path="/papeleo/horas" element={<DocumentsPage category="horasTrabajo" titleKey="horas" />} />
         <Route path="/papeleo/generacion" element={<RecurringAlbaranesPage />} />
         {modules
-          .filter((m) => !['timeTracker', 'team', 'papeleo', 'clients'].includes(m.key))
+          .filter((m) => !['timeTracker', 'calendar', 'team', 'papeleo', 'clients'].includes(m.key))
           .map((m) => (
             <Route key={m.path} path={m.path} element={<ComingSoonPage moduleKey={m.key} />} />
           ))}

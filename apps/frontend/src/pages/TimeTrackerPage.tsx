@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { buildMonthGrid, formatDate, isWeekendKey, toDateKey, toMonthKey, weekdayLabels as getWeekdayLabels } from '../lib/dates'
 
 type TimeEntry = {
   id: string
@@ -39,34 +40,6 @@ const DONUT_COLORS = [
   { light: '#4a3aa7', dark: '#9085e9' },
   { light: '#e34948', dark: '#e66767' },
 ]
-
-function isWeekendKey(key: string) {
-  return new Date(`${key}T00:00:00Z`).getUTCDay() % 6 === 0
-}
-
-function toDateKey(d: Date) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function toMonthKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
-function buildMonthGrid(year: number, monthIndex: number) {
-  const startOffset = (new Date(year, monthIndex, 1).getDay() + 6) % 7 // Monday-first
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
-  const cells: (string | null)[] = Array(startOffset).fill(null)
-  for (let d = 1; d <= daysInMonth; d++) cells.push(toDateKey(new Date(year, monthIndex, d)))
-  while (cells.length % 7 !== 0) cells.push(null)
-  return cells
-}
-
-function formatDate(key: string, locale: string, opts: Intl.DateTimeFormatOptions) {
-  return new Date(`${key}T00:00:00Z`).toLocaleDateString(locale, { ...opts, timeZone: 'UTC' })
-}
 
 const inputClass =
   'h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
@@ -240,15 +213,7 @@ export function TimeTrackerPage() {
     saveMutation.mutate()
   }
 
-  const weekdayLabels = useMemo(() => {
-    // Monday-first short weekday labels, locale-aware
-    const base = new Date(Date.UTC(2024, 0, 1)) // a Monday
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(base)
-      d.setUTCDate(base.getUTCDate() + i)
-      return d.toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' })
-    })
-  }, [locale])
+  const weekdayLabels = useMemo(() => getWeekdayLabels(locale), [locale])
 
   return (
     <div>
