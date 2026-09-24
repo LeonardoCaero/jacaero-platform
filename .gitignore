@@ -8,3 +8,5 @@ build/
 .DS_Store
 DOCS/
 local-docs/
+CLAUDE.md
+.claude/
