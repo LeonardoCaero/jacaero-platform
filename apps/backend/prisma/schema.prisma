@@ -272,6 +272,7 @@ model CalendarEvent {
   description        String?
   date               DateTime
   endDate            DateTime?
+  photos             String[]        @default([])
   createdBy          String
   visibility         EventVisibility @default(COMPANY)
   color              String?

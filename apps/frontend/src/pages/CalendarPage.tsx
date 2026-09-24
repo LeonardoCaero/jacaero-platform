@@ -1,10 +1,12 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Building2, ChevronLeft, ChevronRight, Lock, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ArrowLeft, Building2, ChevronLeft, ChevronRight, Image as ImageIcon, Lock, Pencil, Plus, Trash2, Users, X } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { FullPhoto, PendingPhotoThumbnail, PhotoThumbnail } from '../components/Photos'
 import { buildMonthGrid, formatDate, isWeekendKey, toDateKey, toMonthKey, weekdayLabels as getWeekdayLabels } from '../lib/dates'
 
 type Person = { id: string; fullName: string }
@@ -15,6 +17,7 @@ type CalendarNote = {
   description: string | null
   date: string
   endDate: string | null
+  photos: string[]
   color: string | null
   visibility: 'PERSONAL' | 'COMPANY'
   createdBy: string
@@ -70,6 +73,8 @@ export function CalendarPage() {
   const [color, setColor] = useState(COLORS[0])
   const [audience, setAudience] = useState<Audience>('me')
   const [sharedWith, setSharedWith] = useState<string[]>([])
+  const [pendingPhotos, setPendingPhotos] = useState<File[]>([])
+  const [previewNote, setPreviewNote] = useState<CalendarNote | null>(null)
 
   const range = useMemo(() => {
     const last = new Date(month.getFullYear(), month.getMonth() + 1, 0)
@@ -89,6 +94,7 @@ export function CalendarPage() {
 
   const notesOn = (key: string) => notes.filter((n) => startKey(n) <= key && key <= endKey(n))
   const selectedNotes = selectedDate ? notesOn(selectedDate) : []
+  const editingNote = editingId ? (notes.find((n) => n.id === editingId) ?? null) : null
 
   function resetForm() {
     setFormOpen(false)
@@ -99,6 +105,7 @@ export function CalendarPage() {
     setColor(COLORS[0])
     setAudience('me')
     setSharedWith([])
+    setPendingPhotos([])
   }
 
   function openNew() {
@@ -116,6 +123,7 @@ export function CalendarPage() {
     setColor(n.color ?? COLORS[0])
     setAudience(audienceOf(n))
     setSharedWith(n.sharedWith.map((p) => p.id))
+    setPendingPhotos([])
     setFormOpen(true)
   }
 
@@ -148,13 +156,25 @@ export function CalendarPage() {
         visibility: audience === 'all' ? 'COMPANY' : 'PERSONAL',
         sharedWith: audience === 'some' ? sharedWith : [],
       }
-      if (editingId) await api.patch(`/calendar/${editingId}`, payload)
-      else await api.post('/calendar', payload)
+      const note = editingId
+        ? (await api.patch<CalendarNote>(`/calendar/${editingId}`, payload)).data
+        : (await api.post<CalendarNote>('/calendar', payload)).data
+      if (pendingPhotos.length > 0) {
+        const form = new FormData()
+        pendingPhotos.forEach((file) => form.append('photos', file))
+        await api.post(`/calendar/${note.id}/photos`, form)
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
       resetForm()
     },
+  })
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: ({ noteId, filename }: { noteId: string; filename: string }) =>
+      api.delete(`/calendar/${noteId}/photos/${filename}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['calendar'] }),
   })
 
   const deleteMutation = useMutation({
@@ -331,8 +351,14 @@ export function CalendarPage() {
                       {n.sharedWith.length > 0 && ` · ${n.sharedWith.map((p) => p.fullName).join(', ')}`}
                     </p>
                   </div>
-                  {n.canEdit && (
-                    <div className="flex shrink-0 items-start gap-3">
+                  <div className="flex shrink-0 items-start gap-3">
+                    {n.photos.length > 0 && (
+                      <button type="button" onClick={() => setPreviewNote(n)} aria-label={t.timeTracker.viewPhotos} className={iconButtonClass}>
+                        <ImageIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                    {n.canEdit && (
+                      <>
                       <button type="button" onClick={() => startEdit(n)} aria-label={t.calendar.update} className={iconButtonClass}>
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -344,8 +370,9 @@ export function CalendarPage() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -380,6 +407,44 @@ export function CalendarPage() {
                 <label className="text-xs text-graphite dark:text-graphite-dark">
                   {t.calendar.to}
                   <input type="date" min={from} value={to} onChange={(e) => setTo(e.target.value)} className={`mt-1 ${inputClass}`} />
+                </label>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {editingNote?.photos.map((filename) => (
+                  <PhotoThumbnail
+                    key={filename}
+                    url={`/calendar/${editingNote.id}/photos/${filename}`}
+                    onDelete={() => {
+                      if (confirm(t.timeTracker.confirmDeletePhoto)) {
+                        deletePhotoMutation.mutate({ noteId: editingNote.id, filename })
+                      }
+                    }}
+                  />
+                ))}
+                {pendingPhotos.map((file, i) => (
+                  <PendingPhotoThumbnail
+                    key={i}
+                    file={file}
+                    onRemove={() => setPendingPhotos((prev) => prev.filter((_, idx) => idx !== i))}
+                  />
+                ))}
+                <label
+                  aria-label={t.timeTracker.addPhoto}
+                  className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-dashed border-line text-graphite hover:border-yellow hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
+                >
+                  <ImageIcon className="h-5 w-5" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const picked = Array.from(e.target.files ?? [])
+                      setPendingPhotos((prev) => [...prev, ...picked])
+                      e.target.value = ''
+                    }}
+                  />
                 </label>
               </div>
 
@@ -463,6 +528,29 @@ export function CalendarPage() {
           )}
         </div>
       )}
+
+      {previewNote &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={() => setPreviewNote(null)}>
+            <div
+              className="w-full max-w-sm rounded-2xl bg-surface p-4 shadow-xl dark:bg-surface-dark"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-ink dark:text-cream">{previewNote.title}</p>
+                <button type="button" onClick={() => setPreviewNote(null)} className={iconButtonClass}>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-3 max-h-[70vh] space-y-3 overflow-y-auto">
+                {previewNote.photos.map((filename) => (
+                  <FullPhoto key={filename} url={`/calendar/${previewNote.id}/photos/${filename}`} />
+                ))}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

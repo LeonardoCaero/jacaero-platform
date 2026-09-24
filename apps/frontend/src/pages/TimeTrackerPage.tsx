@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ChevronLeft, ChevronRight, PieChart, Pencil, Trash2, X, Image as ImageIcon } from 'lucide-react'
@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { FullPhoto, PendingPhotoThumbnail, PhotoThumbnail } from '../components/Photos'
 import { buildMonthGrid, formatDate, isWeekendKey, toDateKey, toMonthKey, weekdayLabels as getWeekdayLabels } from '../lib/dates'
 
 type TimeEntry = {
@@ -535,8 +536,7 @@ export function TimeTrackerPage() {
               {editingEntry?.photos.map((filename) => (
                 <PhotoThumbnail
                   key={filename}
-                  entryId={editingEntry.id}
-                  filename={filename}
+                  url={`/time-entries/${editingEntry.id}/photos/${filename}`}
                   onDelete={() => {
                     if (confirm(t.timeTracker.confirmDeletePhoto)) {
                       deletePhotoMutation.mutate({ entryId: editingEntry.id, filename })
@@ -619,7 +619,7 @@ export function TimeTrackerPage() {
               </div>
               <div className="mt-3 max-h-[70vh] space-y-3 overflow-y-auto">
                 {previewEntry.photos.map((filename) => (
-                  <FullPhoto key={filename} entryId={previewEntry.id} filename={filename} />
+                  <FullPhoto key={filename} url={`/time-entries/${previewEntry.id}/photos/${filename}`} />
                 ))}
               </div>
             </div>
@@ -637,80 +637,6 @@ export function TimeTrackerPage() {
           />,
           document.body,
         )}
-    </div>
-  )
-}
-
-function usePhotoUrl(entryId: string, filename: string) {
-  const [src, setSrc] = useState<string | null>(null)
-
-  useEffect(() => {
-    let url: string | null = null
-    let cancelled = false
-    api.get(`/time-entries/${entryId}/photos/${filename}`, { responseType: 'blob' }).then((res) => {
-      if (cancelled) return
-      url = URL.createObjectURL(res.data)
-      setSrc(url)
-    })
-    return () => {
-      cancelled = true
-      if (url) URL.revokeObjectURL(url)
-    }
-  }, [entryId, filename])
-
-  return src
-}
-
-function PhotoThumbnail({ entryId, filename, onDelete }: { entryId: string; filename: string; onDelete: () => void }) {
-  const src = usePhotoUrl(entryId, filename)
-
-  return (
-    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line dark:border-line-dark">
-      {src && <img src={src} alt="" className="h-full w-full object-cover" />}
-      <button
-        type="button"
-        onClick={onDelete}
-        className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-ink/70 text-cream"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </div>
-  )
-}
-
-function FullPhoto({ entryId, filename }: { entryId: string; filename: string }) {
-  const src = usePhotoUrl(entryId, filename)
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-line dark:border-line-dark">
-      {src ? (
-        <img src={src} alt="" className="w-full object-contain" />
-      ) : (
-        <div className="h-40 animate-pulse bg-paper dark:bg-paper-dark" />
-      )}
-    </div>
-  )
-}
-
-function PendingPhotoThumbnail({ file, onRemove }: { file: File; onRemove: () => void }) {
-  const [src, setSrc] = useState<string | null>(null)
-
-  useEffect(() => {
-    const url = URL.createObjectURL(file)
-    setSrc(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
-
-  return (
-    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line dark:border-line-dark">
-      {src && <img src={src} alt="" className="h-full w-full object-cover" />}
-      <button
-        type="button"
-        onClick={onRemove}
-        className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-ink/70 text-cream"
-      >
-        <X className="h-3 w-3" />
-      </button>
     </div>
   )
 }

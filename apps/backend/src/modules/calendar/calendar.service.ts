@@ -1,9 +1,12 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { ApiError } from "../../common/errors/api-error.js";
 import { userHasPermission } from "../../common/middlewares/require-permission.middleware.js";
 import type { calendarEventSchema } from "./calendar.schema.js";
 import { visibilityFilter } from "./calendar.visibility.js";
+import { photosDir } from "./photo-upload.js";
 import type { z } from "zod";
 
 type Input = z.infer<typeof calendarEventSchema>;
@@ -86,8 +89,35 @@ export async function update(id: string, requesterId: string, input: Input) {
 }
 
 export async function remove(id: string, requesterId: string) {
-  await findEditable(id, requesterId);
+  const event = await findEditable(id, requesterId);
   await prisma.calendarEvent.delete({ where: { id } });
+  await Promise.all(event.photos.map((filename) => fs.unlink(path.join(photosDir, filename)).catch(() => {})));
+}
+
+export async function addPhotos(id: string, requesterId: string, files: Express.Multer.File[]) {
+  await findEditable(id, requesterId);
+  const event = await prisma.calendarEvent.update({
+    where: { id },
+    data: { photos: { push: files.map((f) => f.filename) } },
+    include,
+  });
+  return (await serialize([event], requesterId))[0];
+}
+
+// Anyone who can see the note can see its photos.
+export async function getPhotoPath(id: string, requesterId: string, filename: string) {
+  const event = await prisma.calendarEvent.findFirst({
+    where: { AND: [{ id }, visibilityFilter(requesterId, await isAdmin(requesterId))] },
+  });
+  if (!event || !event.photos.includes(filename)) throw new ApiError(404, "Photo not found");
+  return path.join(photosDir, filename);
+}
+
+export async function removePhoto(id: string, requesterId: string, filename: string) {
+  const event = await findEditable(id, requesterId);
+  if (!event.photos.includes(filename)) throw new ApiError(404, "Photo not found");
+  await prisma.calendarEvent.update({ where: { id }, data: { photos: event.photos.filter((p) => p !== filename) } });
+  await fs.unlink(path.join(photosDir, filename)).catch(() => {});
 }
 
 // Minimal directory so anyone can pick who to share a note with (GET /users needs USERS:MANAGE).
