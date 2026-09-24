@@ -6,7 +6,7 @@ import { ArrowLeft, Building2, ChevronLeft, ChevronRight, Image as ImageIcon, Lo
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
-import { FullPhoto, PendingPhotoThumbnail, PhotoThumbnail } from '../components/Photos'
+import { FullPhoto, PendingPhotoThumbnail, PhotoGallery, PhotoThumbnail } from '../components/Photos'
 import { buildMonthGrid, formatDate, isWeekendKey, toDateKey, toMonthKey, weekdayLabels as getWeekdayLabels } from '../lib/dates'
 
 type Person = { id: string; fullName: string }
@@ -542,10 +542,12 @@ export function CalendarPage() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="mt-3 max-h-[70vh] space-y-3 overflow-y-auto">
-                {previewNote.photos.map((filename) => (
-                  <FullPhoto key={filename} url={`/calendar/${previewNote.id}/photos/${filename}`} />
-                ))}
+              <div className="mt-3 max-h-[70vh] overflow-y-auto">
+                {previewNote.photos.length === 1 ? (
+                  <FullPhoto url={`/calendar/${previewNote.id}/photos/${previewNote.photos[0]}`} />
+                ) : (
+                  <PhotoGallery urls={previewNote.photos.map((f) => `/calendar/${previewNote.id}/photos/${f}`)} />
+                )}
               </div>
             </div>
           </div>,
