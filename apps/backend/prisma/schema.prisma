@@ -269,7 +269,9 @@ model Note {
 model CalendarEvent {
   id                 String          @id @default(cuid())
   title              String
+  description        String?
   date               DateTime
+  endDate            DateTime?
   createdBy          String
   visibility         EventVisibility @default(COMPANY)
   color              String?
@@ -286,7 +288,7 @@ enum EventVisibility {
 
 model CalendarEventAssignee {
   eventId String
-  event   CalendarEvent @relation(fields: [eventId], references: [id])
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   userId  String
   user    User          @relation(fields: [userId], references: [id])
 

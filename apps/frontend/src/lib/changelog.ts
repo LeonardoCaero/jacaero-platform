@@ -1,5 +1,9 @@
 export const changelog: { date: string; notes: string[] }[] = [
   {
+    date: '2026-09-24',
+    notes: ['Calendario con notas: solo para ti, compartidas con algunas personas o con toda la empresa.'],
+  },
+  {
     date: '2026-08-24',
     notes: [
       'App instalable en el móvil (añadir a inicio) con notificaciones push.',
