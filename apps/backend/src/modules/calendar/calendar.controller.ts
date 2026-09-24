@@ -25,3 +25,16 @@ export async function deleteHandler(req: Request<{ id: string }>, res: Response)
   await calendarService.remove(req.params.id, req.user!.userId);
   res.status(204).send();
 }
+
+export async function uploadPhotosHandler(req: Request<{ id: string }>, res: Response) {
+  res.status(201).json(await calendarService.addPhotos(req.params.id, req.user!.userId, req.files as Express.Multer.File[]));
+}
+
+export async function getPhotoHandler(req: Request<{ id: string; filename: string }>, res: Response) {
+  res.sendFile(await calendarService.getPhotoPath(req.params.id, req.user!.userId, req.params.filename));
+}
+
+export async function deletePhotoHandler(req: Request<{ id: string; filename: string }>, res: Response) {
+  await calendarService.removePhoto(req.params.id, req.user!.userId, req.params.filename);
+  res.status(204).send();
+}
