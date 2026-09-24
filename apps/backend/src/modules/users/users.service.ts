@@ -11,6 +11,7 @@ const userSelect = {
   fullName: true,
   jobTitle: true,
   status: true,
+  notifyTimeEntries: true,
   createdAt: true,
   role: { select: { id: true, name: true } },
 } as const;
@@ -52,6 +53,7 @@ export async function remove(id: string, actorUserId: string) {
     prisma.timeEntry.deleteMany({ where: { userId: id } }),
     prisma.note.deleteMany({ where: { userId: id } }),
     prisma.calendarEventAssignee.deleteMany({ where: { userId: id } }),
+    prisma.calendarEvent.deleteMany({ where: { createdBy: id } }),
     prisma.user.delete({ where: { id } }),
   ]);
 }

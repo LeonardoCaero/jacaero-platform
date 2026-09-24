@@ -1,7 +1,10 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { prisma } from "../../db/prisma.js";
 import { ApiError } from "../../common/errors/api-error.js";
 import { userHasPermission } from "../../common/middlewares/require-permission.middleware.js";
 import { notifyPermission } from "../push-subscriptions/push-subscriptions.service.js";
+import { photosDir } from "./photo-upload.js";
 import type { createTimeEntrySchema, updateTimeEntrySchema } from "./time-entries.schema.js";
 import type { z } from "zod";
 
@@ -64,6 +67,7 @@ export async function create(userId: string, data: CreateInput, actingEndpoint?:
     "TIME:VIEW_ALL",
     { title: "Horas registradas", body: `${entry.user.fullName} ha registrado ${data.hours}h el ${dateLabel}` },
     actingEndpoint,
+    "notifyTimeEntries",
   );
 
   const { user, ...rest } = entry;
@@ -102,6 +106,30 @@ export async function update(id: string, requesterId: string, data: UpdateInput)
 }
 
 export async function remove(id: string, requesterId: string) {
-  await findAccessible(id, requesterId);
+  const entry = await findAccessible(id, requesterId);
   await prisma.timeEntry.delete({ where: { id } });
+  await Promise.all(entry.photos.map((filename) => fs.unlink(path.join(photosDir, filename)).catch(() => {})));
+}
+
+export async function addPhotos(id: string, requesterId: string, files: Express.Multer.File[]) {
+  await findAccessible(id, requesterId);
+  return prisma.timeEntry.update({
+    where: { id },
+    data: { photos: { push: files.map((f) => f.filename) } },
+  });
+}
+
+export async function getPhotoPath(id: string, requesterId: string, filename: string) {
+  const entry = await prisma.timeEntry.findUnique({ where: { id } });
+  if (!entry) throw new ApiError(404, "Time entry not found");
+  const canView = entry.userId === requesterId || (await userHasPermission(requesterId, "TIME:VIEW_ALL"));
+  if (!canView || !entry.photos.includes(filename)) throw new ApiError(404, "Photo not found");
+  return path.join(photosDir, filename);
+}
+
+export async function removePhoto(id: string, requesterId: string, filename: string) {
+  const entry = await findAccessible(id, requesterId);
+  if (!entry.photos.includes(filename)) throw new ApiError(404, "Photo not found");
+  await prisma.timeEntry.update({ where: { id }, data: { photos: entry.photos.filter((p) => p !== filename) } });
+  await fs.unlink(path.join(photosDir, filename)).catch(() => {});
 }

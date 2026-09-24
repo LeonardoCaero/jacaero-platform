@@ -1,11 +1,13 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronLeft, ChevronRight, PieChart, Pencil, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, PieChart, Pencil, Trash2, X, Image as ImageIcon } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { FullPhoto, PendingPhotoThumbnail, PhotoThumbnail } from '../components/Photos'
+import { buildMonthGrid, formatDate, isWeekendKey, toDateKey, toMonthKey, weekdayLabels as getWeekdayLabels } from '../lib/dates'
 
 type TimeEntry = {
   id: string
@@ -13,6 +15,7 @@ type TimeEntry = {
   hours: string
   description: string | null
   isOvertime: boolean
+  photos: string[]
 }
 
 type TeamMember = { id: string; fullName: string }
@@ -38,34 +41,6 @@ const DONUT_COLORS = [
   { light: '#4a3aa7', dark: '#9085e9' },
   { light: '#e34948', dark: '#e66767' },
 ]
-
-function isWeekendKey(key: string) {
-  return new Date(`${key}T00:00:00Z`).getUTCDay() % 6 === 0
-}
-
-function toDateKey(d: Date) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function toMonthKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
-function buildMonthGrid(year: number, monthIndex: number) {
-  const startOffset = (new Date(year, monthIndex, 1).getDay() + 6) % 7 // Monday-first
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
-  const cells: (string | null)[] = Array(startOffset).fill(null)
-  for (let d = 1; d <= daysInMonth; d++) cells.push(toDateKey(new Date(year, monthIndex, d)))
-  while (cells.length % 7 !== 0) cells.push(null)
-  return cells
-}
-
-function formatDate(key: string, locale: string, opts: Intl.DateTimeFormatOptions) {
-  return new Date(`${key}T00:00:00Z`).toLocaleDateString(locale, { ...opts, timeZone: 'UTC' })
-}
 
 const inputClass =
   'h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
@@ -93,6 +68,8 @@ export function TimeTrackerPage() {
   const [hours, setHours] = useState('8')
   const [description, setDescription] = useState('')
   const [isOvertime, setIsOvertime] = useState(isWeekendKey(todayKey))
+  const [pendingPhotos, setPendingPhotos] = useState<File[]>([])
+  const [previewEntry, setPreviewEntry] = useState<TimeEntry | null>(null)
   const [viewUserId, setViewUserId] = useState('')
   const isTeamView = viewUserId === TEAM_VIEW
   const isViewingSelf = !viewUserId || viewUserId === user?.id
@@ -142,12 +119,14 @@ export function TimeTrackerPage() {
 
   const monthTotal = isTeamView ? teamTotalHours : entries.reduce((sum, e) => sum + Number(e.hours), 0)
   const selectedEntries = selectedDate ? (entriesByDay.get(selectedDate) ?? []) : []
+  const editingEntry = editingId ? ((isTeamView ? teamDayEntries : entries).find((e) => e.id === editingId) ?? null) : null
 
   function resetEntryForm(forKey?: string) {
     setEditingId(null)
     setHours('8')
     setDescription('')
     setIsOvertime(forKey ? isWeekendKey(forKey) : false)
+    setPendingPhotos([])
   }
 
   function changeMonth(delta: number) {
@@ -181,14 +160,29 @@ export function TimeTrackerPage() {
         description: description.trim() || undefined,
         isOvertime,
       }
-      if (editingId) return (await api.patch(`/time-entries/${editingId}`, payload)).data
-      return (await api.post('/time-entries', payload)).data
+      const entry = editingId
+        ? (await api.patch(`/time-entries/${editingId}`, payload)).data
+        : (await api.post('/time-entries', payload)).data
+      if (pendingPhotos.length > 0) {
+        const form = new FormData()
+        pendingPhotos.forEach((file) => form.append('photos', file))
+        await api.post(`/time-entries/${entry.id}/photos`, form)
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-entries'] })
       queryClient.invalidateQueries({ queryKey: ['time-entries-team-summary'] })
       queryClient.invalidateQueries({ queryKey: ['time-entries-team-day'] })
       resetEntryForm()
+    },
+  })
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: ({ entryId, filename }: { entryId: string; filename: string }) =>
+      api.delete(`/time-entries/${entryId}/photos/${filename}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-entries'] })
+      queryClient.invalidateQueries({ queryKey: ['time-entries-team-day'] })
     },
   })
 
@@ -206,6 +200,7 @@ export function TimeTrackerPage() {
     setHours(entry.hours)
     setDescription(entry.description ?? '')
     setIsOvertime(entry.isOvertime)
+    setPendingPhotos([])
   }
 
   function handleDelete(id: string) {
@@ -219,15 +214,7 @@ export function TimeTrackerPage() {
     saveMutation.mutate()
   }
 
-  const weekdayLabels = useMemo(() => {
-    // Monday-first short weekday labels, locale-aware
-    const base = new Date(Date.UTC(2024, 0, 1)) // a Monday
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(base)
-      d.setUTCDate(base.getUTCDate() + i)
-      return d.toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' })
-    })
-  }, [locale])
+  const weekdayLabels = useMemo(() => getWeekdayLabels(locale), [locale])
 
   return (
     <div>
@@ -412,6 +399,16 @@ export function TimeTrackerPage() {
                     <span className="text-sm font-semibold text-ink dark:text-cream">
                       {Number(entry.hours)}h{entry.isOvertime && ' •'}
                     </span>
+                    {entry.photos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewEntry(entry)}
+                        aria-label={t.timeTracker.viewPhotos}
+                        className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                      </button>
+                    )}
                     {canEditAll && (
                       <>
                         <button
@@ -457,6 +454,16 @@ export function TimeTrackerPage() {
                     <span className="text-sm font-semibold text-ink dark:text-cream">
                       {Number(entry.hours)}h{entry.isOvertime && ' •'}
                     </span>
+                    {entry.photos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewEntry(entry)}
+                        aria-label={t.timeTracker.viewPhotos}
+                        className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                      </button>
+                    )}
                     {(isViewingSelf || canEditAll) && (
                       <>
                         <button
@@ -525,6 +532,44 @@ export function TimeTrackerPage() {
               {t.timeTracker.overtime}
             </label>
 
+            <div className="flex flex-wrap items-center gap-2">
+              {editingEntry?.photos.map((filename) => (
+                <PhotoThumbnail
+                  key={filename}
+                  url={`/time-entries/${editingEntry.id}/photos/${filename}`}
+                  onDelete={() => {
+                    if (confirm(t.timeTracker.confirmDeletePhoto)) {
+                      deletePhotoMutation.mutate({ entryId: editingEntry.id, filename })
+                    }
+                  }}
+                />
+              ))}
+              {pendingPhotos.map((file, i) => (
+                <PendingPhotoThumbnail
+                  key={i}
+                  file={file}
+                  onRemove={() => setPendingPhotos((prev) => prev.filter((_, idx) => idx !== i))}
+                />
+              ))}
+              <label
+                aria-label={t.timeTracker.addPhoto}
+                className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-dashed border-line text-graphite hover:border-yellow hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
+              >
+                <ImageIcon className="h-5 w-5" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const picked = Array.from(e.target.files ?? [])
+                    setPendingPhotos((prev) => [...prev, ...picked])
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+            </div>
+
             <div className="flex gap-2 pt-1">
               <button
                 type="submit"
@@ -551,6 +596,36 @@ export function TimeTrackerPage() {
       {!isTeamView && !isLoading && entries.length === 0 && (
         <p className="mt-4 text-center text-sm text-graphite dark:text-graphite-dark">{t.timeTracker.empty}</p>
       )}
+
+      {previewEntry &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
+            onClick={() => setPreviewEntry(null)}
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl bg-surface p-4 shadow-xl dark:bg-surface-dark"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-ink dark:text-cream">{t.timeTracker.photos}</p>
+                <button
+                  type="button"
+                  onClick={() => setPreviewEntry(null)}
+                  className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-3 max-h-[70vh] space-y-3 overflow-y-auto">
+                {previewEntry.photos.map((filename) => (
+                  <FullPhoto key={filename} url={`/time-entries/${previewEntry.id}/photos/${filename}`} />
+                ))}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {showTeamChart &&
         createPortal(

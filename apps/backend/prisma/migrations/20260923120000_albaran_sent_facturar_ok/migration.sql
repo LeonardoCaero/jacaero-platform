@@ -1,0 +1,2 @@
+ALTER TABLE "EmailOrder" ADD COLUMN "albaranSentAt" TIMESTAMP(3),
+ADD COLUMN "facturarOkAt" TIMESTAMP(3);

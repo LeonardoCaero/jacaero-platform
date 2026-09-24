@@ -2,7 +2,7 @@ import { useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, RefreshCw, FileDown, X, Check, Link2, Eye, Star, Search } from 'lucide-react'
+import { ArrowLeft, RefreshCw, FileText, X, Check, Link2, Eye, Star, Search } from 'lucide-react'
 import { api } from '../lib/axios'
 import { Skeleton } from '../components/Skeleton'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -36,8 +36,10 @@ function orderSearchText(order: EmailOrder): string {
     .toLowerCase()
 }
 
-async function previewDocument(category: DocCategory, year: number, number: string) {
-  const { data } = await api.get(`/documents/${category}/file`, { params: { year, number, ext: 'pdf' } , responseType: 'blob' })
+// Same as Documentos: hand the blob to a new tab so mobile opens it in the system PDF viewer —
+// an in-page <iframe> can't render PDFs on mobile browsers.
+async function openPdf(path: string, params?: Record<string, unknown>) {
+  const { data } = await api.get(path, { params, responseType: 'blob' })
   window.open(URL.createObjectURL(data), '_blank')
 }
 
@@ -82,6 +84,8 @@ type EmailOrder = {
   quoteCategory: 'PRESUPUESTO' | 'HORAS' | 'MATERIAL' | null
   deliveryNoteAt: string | null
   albaranNumber: string | null
+  albaranSentAt: string | null
+  facturarOkAt: string | null
   invoicedAt: string | null
   facturaNumber: string | null
   favorite: boolean
@@ -215,6 +219,8 @@ export function EmailOrdersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<QuoteCategory | 'all'>('all')
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['email-orders'],
@@ -222,7 +228,10 @@ export function EmailOrdersPage() {
   })
 
   const query = search.trim().toLowerCase()
-  const filteredOrders = query ? orders.filter((o) => orderSearchText(o).includes(query)) : orders
+  const filteredOrders = orders
+    .filter((o) => !query || orderSearchText(o).includes(query))
+    .filter((o) => typeFilter === 'all' || quoteCategoryOf(o) === typeFilter)
+    .filter((o) => !favoritesOnly || o.favorite)
 
   const syncMutation = useMutation({
     mutationFn: async (full: boolean) =>
@@ -351,6 +360,32 @@ export function EmailOrdersPage() {
         />
       </div>
 
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value as QuoteCategory | 'all')}
+          className="h-9 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+        >
+          <option value="all">{t.emailOrders.filterTypeAll}</option>
+          <option value="pending">{t.emailOrders.filterTypePending}</option>
+          <option value="presupuesto">{t.emailOrders.quoteCategoryPresupuesto}</option>
+          <option value="horas">{t.emailOrders.quoteCategoryHoras}</option>
+          <option value="material">{t.emailOrders.quoteCategoryMaterial}</option>
+        </select>
+        <button
+          type="button"
+          onClick={() => setFavoritesOnly((v) => !v)}
+          className={`flex h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold transition ${
+            favoritesOnly
+              ? 'bg-yellow/20 text-ink dark:text-cream'
+              : 'border border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
+          }`}
+        >
+          <Star className="h-3.5 w-3.5" fill={favoritesOnly ? 'currentColor' : 'none'} />
+          {t.emailOrders.filterFavorites}
+        </button>
+      </div>
+
       {isLoading && (
         <div className="mt-4 space-y-2">
           {Array.from({ length: 6 }, (_, i) => (
@@ -388,11 +423,19 @@ export function EmailOrdersPage() {
                   </p>
                 </div>
               </div>
-              {order.totalAmount && (
-                <span className="shrink-0 text-sm font-semibold text-ink dark:text-cream">
-                  {Number(order.totalAmount).toLocaleString(locale)}€
-                </span>
-              )}
+              <div className="flex shrink-0 items-center gap-1">
+                {order.totalAmount && (
+                  <span className="text-sm font-semibold text-ink dark:text-cream">
+                    {Number(order.totalAmount).toLocaleString(locale)}€
+                  </span>
+                )}
+                <PreviewButton
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openPdf(`/email-orders/${order.id}/pdf`)
+                  }}
+                />
+              </div>
             </div>
 
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -420,6 +463,11 @@ export function EmailOrdersPage() {
                   }}
                 />
               ))}
+              {order.facturarOkAt && !order.invoicedAt && (
+                <span className="rounded-full bg-ink px-2.5 py-1 text-xs font-semibold text-cream dark:bg-cream dark:text-ink">
+                  {t.emailOrders.facturarOk}
+                </span>
+              )}
             </div>
           </button>
         ))}
@@ -443,10 +491,8 @@ function OrderDetail({ order, onClose }: { order: EmailOrder; onClose: () => voi
   const year = order.orderDate ? new Date(order.orderDate).getUTCFullYear() : null
   const quoteDocCategory = order.quoteCategory ? QUOTE_CATEGORY_TO_DOC[order.quoteCategory] : null
 
-  async function downloadPdf() {
-    const { data } = await api.get(`/email-orders/${order.id}/pdf`, { responseType: 'blob' })
-    const url = URL.createObjectURL(data)
-    window.open(url, '_blank')
+  function previewDocument(category: DocCategory, year: number, number: string) {
+    openPdf(`/documents/${category}/file`, { year, number, ext: 'pdf' })
   }
 
   const hasMissingLink =
@@ -486,6 +532,12 @@ function OrderDetail({ order, onClose }: { order: EmailOrder; onClose: () => voi
             <p className="flex items-center gap-1 text-graphite dark:text-graphite-dark">
               {t.emailOrders.albaranNumber}: <span className="text-ink dark:text-cream">{order.albaranNumber}</span>
               {year && <PreviewButton onClick={() => previewDocument('albaran', year, order.albaranNumber!)} />}
+            </p>
+          )}
+          {order.albaranSentAt && (
+            <p className="text-graphite dark:text-graphite-dark">
+              {t.emailOrders.albaranSent}:{' '}
+              <span className="text-ink dark:text-cream">{new Date(order.albaranSentAt).toLocaleDateString(locale)}</span>
             </p>
           )}
           {order.facturaNumber && (
@@ -541,11 +593,11 @@ function OrderDetail({ order, onClose }: { order: EmailOrder; onClose: () => voi
 
           <button
             type="button"
-            onClick={downloadPdf}
+            onClick={() => openPdf(`/email-orders/${order.id}/pdf`)}
             className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-line text-sm font-semibold text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
           >
-            <FileDown className="h-4 w-4" />
-            {t.emailOrders.downloadPdf}
+            <FileText className="h-4 w-4" />
+            {t.emailOrders.viewPdf}
           </button>
 
           {hasMissingLink && (
