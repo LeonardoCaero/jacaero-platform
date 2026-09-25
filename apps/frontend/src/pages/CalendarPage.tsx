@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, Building2, ChevronLeft, ChevronRight, Image as ImageIcon, Lock, Pencil, Plus, Trash2, Users, X } from 'lucide-react'
+import { ArrowLeft, Bell, Building2, ChevronLeft, ChevronRight, Image as ImageIcon, Lock, Pencil, Plus, Trash2, Users, X } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -73,6 +73,7 @@ export function CalendarPage() {
   const [color, setColor] = useState(COLORS[0])
   const [audience, setAudience] = useState<Audience>('me')
   const [sharedWith, setSharedWith] = useState<string[]>([])
+  const [notify, setNotify] = useState<string[]>([])
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([])
   const [previewNote, setPreviewNote] = useState<CalendarNote | null>(null)
 
@@ -105,6 +106,7 @@ export function CalendarPage() {
     setColor(COLORS[0])
     setAudience('me')
     setSharedWith([])
+    setNotify([])
     setPendingPhotos([])
   }
 
@@ -123,6 +125,7 @@ export function CalendarPage() {
     setColor(n.color ?? COLORS[0])
     setAudience(audienceOf(n))
     setSharedWith(n.sharedWith.map((p) => p.id))
+    setNotify([])
     setPendingPhotos([])
     setFormOpen(true)
   }
@@ -145,6 +148,9 @@ export function CalendarPage() {
     resetForm()
   }
 
+  const others = people.filter((p) => p.id !== user?.id)
+  const notifyCandidates = audience === 'all' ? others : audience === 'some' ? others.filter((p) => sharedWith.includes(p.id)) : []
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -155,6 +161,7 @@ export function CalendarPage() {
         color,
         visibility: audience === 'all' ? 'COMPANY' : 'PERSONAL',
         sharedWith: audience === 'some' ? sharedWith : [],
+        notify: notifyCandidates.filter((p) => notify.includes(p.id)).map((p) => p.id),
       }
       const note = editingId
         ? (await api.patch<CalendarNote>(`/calendar/${editingId}`, payload)).data
@@ -504,6 +511,39 @@ export function CalendarPage() {
                           {p.fullName}
                         </label>
                       ))}
+                  </div>
+                </div>
+              )}
+
+              {notifyCandidates.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <p className="flex items-center gap-1 text-xs text-graphite dark:text-graphite-dark">
+                      <Bell className="h-3.5 w-3.5" />
+                      {t.calendar.notifyPeople}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setNotify(notifyCandidates.every((p) => notify.includes(p.id)) ? [] : notifyCandidates.map((p) => p.id))
+                      }
+                      className="text-xs font-medium text-ink underline dark:text-cream"
+                    >
+                      {t.calendar.notifyAll}
+                    </button>
+                  </div>
+                  <div className="mt-1 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-line p-2 dark:border-line-dark">
+                    {notifyCandidates.map((p) => (
+                      <label key={p.id} className="flex items-center gap-2 px-1 py-1 text-sm text-ink dark:text-cream">
+                        <input
+                          type="checkbox"
+                          checked={notify.includes(p.id)}
+                          onChange={(e) => setNotify((prev) => (e.target.checked ? [...prev, p.id] : prev.filter((id) => id !== p.id)))}
+                          className="h-4 w-4 rounded border-line accent-yellow dark:border-line-dark"
+                        />
+                        {p.fullName}
+                      </label>
+                    ))}
                   </div>
                 </div>
               )}
