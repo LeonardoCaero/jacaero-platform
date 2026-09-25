@@ -7,6 +7,7 @@ import { userHasPermission } from "../../common/middlewares/require-permission.m
 import type { calendarEventSchema } from "./calendar.schema.js";
 import { visibilityFilter } from "./calendar.visibility.js";
 import { photosDir } from "./photo-upload.js";
+import { notifyUser } from "../push-subscriptions/push-subscriptions.service.js";
 import type { z } from "zod";
 
 type Input = z.infer<typeof calendarEventSchema>;
@@ -63,11 +64,26 @@ function toData(input: Input, authorId: string) {
   };
 }
 
+async function notifyChosen(event: EventWithAssignees, input: Input, requesterId: string) {
+  const allowed =
+    event.visibility === "COMPANY"
+      ? (await prisma.user.findMany({ where: { id: { in: input.notify }, status: "ACTIVE" }, select: { id: true } })).map((u) => u.id)
+      : event.assignees.map((a) => a.userId).filter((id) => input.notify.includes(id));
+  const targets = allowed.filter((id) => id !== requesterId);
+  if (targets.length === 0) return;
+
+  const author = await prisma.user.findUnique({ where: { id: requesterId }, select: { fullName: true } });
+  const day = event.date.toISOString().slice(0, 10).split("-").reverse().slice(0, 2).join("/");
+  const payload = { title: "Calendario", body: `${author?.fullName ?? ""} te avisa: «${event.title}» (${day})` };
+  await Promise.all(targets.map((id) => notifyUser(id, payload)));
+}
+
 export async function create(requesterId: string, input: Input) {
   const event = await prisma.calendarEvent.create({
     data: { ...toData(input, requesterId), createdBy: requesterId },
     include,
   });
+  await notifyChosen(event, input, requesterId);
   return (await serialize([event], requesterId))[0];
 }
 
@@ -85,6 +101,7 @@ export async function update(id: string, requesterId: string, input: Input) {
     data: { ...data, assignees: { deleteMany: {}, ...data.assignees } },
     include,
   });
+  await notifyChosen(event, input, requesterId);
   return (await serialize([event], requesterId))[0];
 }
 

@@ -1,7 +1,7 @@
 export const changelog: { date: string; notes: string[] }[] = [
   {
     date: '2026-09-24',
-    notes: ['Calendario con notas: solo para ti, compartidas con algunas personas o con toda la empresa.', 'Las notas del calendario admiten fotos.', 'Varias fotos en una nota o en un fichaje se ven en cuadrícula y se abren a pantalla completa.'],
+    notes: ['Calendario con notas: solo para ti, compartidas con algunas personas o con toda la empresa.', 'Las notas del calendario admiten fotos.', 'Varias fotos en una nota o en un fichaje se ven en cuadrícula y se abren a pantalla completa.', 'Al guardar una nota puedes elegir a quién notificar.'],
   },
   {
     date: '2026-08-24',
