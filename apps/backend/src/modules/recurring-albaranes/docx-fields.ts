@@ -151,3 +151,29 @@ export function withMonth(text: string, from: string, to: string) {
     .replace(new RegExp(from.toUpperCase(), "g"), to.toUpperCase())
     .replace(new RegExp(from, "gi"), to);
 }
+
+const TABLE = /<w:tbl>(?:(?!<w:tbl>)[\s\S])*?<\/w:tbl>/g;
+const AFTER_SIZE = /<w:(?:highlight|u|effect|bdr|shd|fitText|vertAlign|rtl|cs|em|lang|eastAsianLayout|specVanish|oMath)[ />]/;
+
+function withFont(rPr: string, font: string, halfPoints: number) {
+  let inner = rPr
+    .replace(/^<w:rPr>|<\/w:rPr>$/g, "")
+    .replace(/<w:rFonts[^>]*\/>/g, "")
+    .replace(/<w:sz(?:Cs)?\s[^>]*\/>/g, "");
+  const fonts = `<w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:cs="${font}"/>`;
+  const size = `<w:sz w:val="${halfPoints}"/><w:szCs w:val="${halfPoints}"/>`;
+  const style = inner.match(/^<w:rStyle[^>]*\/>/)?.[0] ?? "";
+  inner = style + fonts + inner.slice(style.length);
+  const at = inner.search(AFTER_SIZE);
+  inner = at < 0 ? inner + size : inner.slice(0, at) + size + inner.slice(at);
+  return `<w:rPr>${inner}</w:rPr>`;
+}
+
+export function setTableFont(xml: string, containing: RegExp, font: string, halfPoints: number): string {
+  return xml.replace(TABLE, (table) => {
+    if (!containing.test(paragraphTexts(table).join("\n"))) return table;
+    return table
+      .replace(/<w:rPr>[\s\S]*?<\/w:rPr>/g, (rPr) => withFont(rPr, font, halfPoints))
+      .replace(/<w:r>(?!<w:rPr>)/g, `<w:r>${withFont("<w:rPr></w:rPr>", font, halfPoints)}`);
+  });
+}

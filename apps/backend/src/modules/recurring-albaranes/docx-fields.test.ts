@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyReplacements, extractFields, formatAmount, formatDateEs, paragraphTexts, withMonth } from "./docx-fields.js";
+import { applyReplacements, extractFields, formatAmount, formatDateEs, paragraphTexts, setTableFont, withMonth } from "./docx-fields.js";
 
 const p = (...runs: string[]) => `<w:p><w:pPr/>${runs.map((r) => `<w:r><w:t>${r}</w:t></w:r>`).join("")}</w:p>`;
 
@@ -51,6 +51,18 @@ describe("docx fields", () => {
     expect(paragraphTexts(longer)[0]).toBe(`FACTURA Nº  001${" ".repeat(6)}FECHA : 30 de septiembre de 2026`);
     const shorter = applyReplacements(line, [{ paragraph: 0, from: "1 de mayo de 2026", to: "1 de mayo 2026" }]);
     expect(paragraphTexts(shorter)[0]).toBe(`FACTURA Nº  001${" ".repeat(24)}FECHA : 1 de mayo 2026`);
+  });
+
+  it("sets font and size on every run of the table that holds the label only", () => {
+    const cell = (run: string) => `<w:tc><w:p>${run}</w:p></w:tc>`;
+    const header = `<w:tbl><w:tr>${cell('<w:r><w:rPr><w:b/><w:sz w:val="28"/><w:szCs w:val="28"/><w:lang w:val="es-ES"/></w:rPr><w:t>Nº albarán</w:t></w:r>')}${cell("<w:r><w:t>001</w:t></w:r>")}</w:tr></w:tbl>`;
+    const other = `<w:tbl><w:tr>${cell('<w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t>CONCEPTO</w:t></w:r>')}</w:tr></w:tbl>`;
+    const out = setTableFont(header + other, /^Nº albar[aá]n$/im, "Arial", 24);
+    const fonts = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>';
+    const size = '<w:sz w:val="24"/><w:szCs w:val="24"/>';
+    expect(out).toContain(`<w:rPr>${fonts}<w:b/>${size}<w:lang w:val="es-ES"/></w:rPr><w:t>Nº albarán</w:t>`);
+    expect(out).toContain(`<w:r><w:rPr>${fonts}${size}</w:rPr><w:t>001</w:t>`);
+    expect(out).toContain(other);
   });
 
   it("formats dates and amounts like the originals", () => {

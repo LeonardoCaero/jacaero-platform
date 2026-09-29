@@ -14,6 +14,7 @@ import {
   extractFields,
   formatAmount,
   formatDateEs,
+  setTableFont,
   monthIndex,
   monthName,
   parseAmount,
@@ -270,7 +271,8 @@ async function render(order: Order, kind: DocKind, body: DraftBody) {
   ];
 
   const zip = new PizZip(docx);
-  zip.file("word/document.xml", applyReplacements(xml, replacements));
+  const filled = applyReplacements(xml, replacements);
+  zip.file("word/document.xml", kind === "albaran" ? setTableFont(filled, /^Nº albar[aá]n$/im, "Arial", 24) : filled);
   return zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
