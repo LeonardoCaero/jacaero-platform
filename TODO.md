@@ -1,6 +1,6 @@
 # TODO
 
-Última actualización: 24/09/2026. El detalle del día a día está en el historial de commits.
+Última actualización: 29/09/2026. El detalle del día a día está en el historial de commits.
 
 ## Estado actual
 
@@ -13,7 +13,7 @@ La plataforma vieja (`platform-api`/`platform-frontend`) está apagada. Esta ocu
 - **Despliegue**: Docker Compose con healthchecks, migraciones al arrancar (`docker-entrypoint.sh`), CI con lint/test/build en cada push y deploy automático en push a `main`.
 - **Dominio y TLS**: nginx del sistema como proxy (`/api/` al backend, `/` al frontend). Certificado de Let's Encrypt con renovación automática.
 - **DNS**: gestionado en Cloudflare desde el 02/09/2026, después de que cambiara la IP del NAS y la web se quedara caída desde fuera. El registro de `plataforma.caero.group` lo actualiza el DDNS de UGOS (Panel de Control > Acceso Remoto > DDNS). Los registros de correo (Google Workspace y Resend) se comprobaron tras la migración.
-- **Documentos**: `DOCS_ROOT_PATH` apunta a un bind mount del NAS (`/ruta/a/documentos` montado en `/docs`). No hizo falta CIFS.
+- **Documentos**: `DOCS_ROOT_PATH` apunta a un bind mount de la carpeta de documentos del NAS, montada en `/docs`. No hizo falta CIFS.
 - **Seguridad**: `helmet`, rate limit en `/auth/login`, logs con timestamp y `trust proxy` activado para que el rate limit vea la IP real detrás de nginx.
 - **Backup de Postgres**: cron de root a las 3:00, `pg_dump` comprimido en `~/backups/jacaero-platform/`, se guardan 30 días.
 - **Notificaciones push** (VAPID + service worker): pedido nuevo, invitación enviada, alguien entra al equipo y horas registradas. Van por dispositivo, así que el que hace la acción no se notifica a sí mismo. En Equipo se puede desactivar el aviso de horas por usuario (`User.notifyTimeEntries`) sin quitarle `TIME:VIEW_ALL`.
@@ -29,7 +29,8 @@ La plataforma vieja (`platform-api`/`platform-frontend`) está apagada. Esta ocu
 - **Ver pedidos**: el ojo de la tarjeta y "Ver PDF" abren el PDF con `window.open(blob)`, como en Documentos. Un `<iframe>` en un modal no funciona en móvil, así que no vale la pena volver a probarlo.
 - **Compartir documentos**: el botón "Compartir" genera un enlace a la app y usa `navigator.share()` o, si no hay, lo copia. El enlace pide login y, tras entrar, vuelve al documento. Se descartó un enlace público con token porque son datos sensibles.
 - **FACTURAR OK automático**: `syncFacturarOk()` se ejecuta al arrancar y cada hora. Busca en Enviados los albaranes (`NNN ALBARÁN ...`) y guarda la fecha de envío en `albaranSentAt`. A las 48 h sin factura pone la etiqueta `FACTURAR OK` al correo del pedido. Cuando se vincula la factura, pone `Factura` y quita `Albarán` y `FACTURAR OK`. Ojo: ImapFlow ya entrecomilla los nombres de etiqueta, así que no hay que añadir comillas. Solo funciona si el albarán ya está vinculado al pedido.
-- **Calendario** (`/calendar`): notas con título, detalles, color y rango de fechas para ausencias. Hay tres visibilidades: solo yo, algunas personas (`CalendarEventAssignee`) y toda la empresa (`COMPANY`). Solo el autor edita. Con `CALENDAR:MANAGE` se ve y edita todo, también las notas privadas. `GET /calendar/people` da la lista de usuarios para compartir. Las notas admiten fotos igual que el fichaje. El código de subida está en `common/utils/photo-upload.ts` y las miniaturas en `components/Photos.tsx`.
+- **Calendario** (`/calendar`): notas con título, detalles, color y rango de fechas para ausencias. Hay tres visibilidades: solo yo, algunas personas (`CalendarEventAssignee`) y toda la empresa (`COMPANY`). Solo el autor edita. Con `CALENDAR:MANAGE` se ve y edita todo, también las notas privadas. `GET /calendar/people` da la lista de usuarios para compartir. Las notas admiten fotos igual que el fichaje. El código de subida está en `common/utils/photo-upload.ts` y las miniaturas en `components/Photos.tsx`. Con varias fotos la vista previa es una cuadrícula (`PhotoGallery`) y al pulsar una se abre a pantalla completa, con flechas y Esc. Al guardar se puede elegir a quién avisar (`notify`): les llega un push, pero solo si pueden ver la nota.
+- **Albarán y factura mensuales** (`/papeleo/generacion`): los pedidos mensuales se dan de alta desde la propia pantalla (cliente, número de pedido y etiqueta). Cada uno guarda en `RecurringAlbaranTemplate` la ruta de su último albarán y su última factura, y ese documento hace de plantilla: se leen el número, la fecha, las líneas con el mes y los importes, y se abre un formulario ya relleno con el mes elegido para editarlo todo antes de generar el docx y el pdf. Si falta el puntero o el fichero ya no existe, se busca el último docx del pedido en la carpeta. La factura avisa, sin bloquear, si no hay albarán de ese mes o si todavía no han pasado 48 h. El reemplazo toca solo los `<w:t>`, así que se conservan los tabs y el formato.
 - **Detalles de interfaz**: favicon con el logo recortado y skeletons de carga en Documentos y Pedidos.
 
 ## Pendiente

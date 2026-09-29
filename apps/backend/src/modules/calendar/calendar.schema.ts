@@ -14,5 +14,7 @@ export const calendarEventSchema = z
     visibility: z.enum(["PERSONAL", "COMPANY"]),
     // With PERSONAL: empty = only me, otherwise shared with these people. Ignored with COMPANY.
     sharedWith: z.array(z.string()).max(100).default([]),
+    // People to push-notify about this save. Only those who can see the note get it.
+    notify: z.array(z.string()).max(100).default([]),
   })
   .refine((d) => !d.endDate || d.endDate >= d.date, { message: "endDate must be on or after date", path: ["endDate"] });
