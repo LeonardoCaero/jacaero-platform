@@ -1,9 +1,16 @@
 import type { Request, Response } from "express";
-import { createOrderSchema, draftQuerySchema, generateBodySchema, parsePeriod } from "./recurring-albaranes.schema.js";
+import {
+  draftQuerySchema,
+  generateBodySchema,
+  kindQuerySchema,
+  parsePeriod,
+  periodQuerySchema,
+} from "./recurring-albaranes.schema.js";
 import * as recurringAlbaranesService from "./recurring-albaranes.service.js";
 
-export async function listHandler(_req: Request, res: Response) {
-  res.json(await recurringAlbaranesService.list());
+export async function listHandler(req: Request, res: Response) {
+  const { period } = periodQuerySchema.parse(req.query);
+  res.json(await recurringAlbaranesService.list(parsePeriod(period)));
 }
 
 export async function draftHandler(req: Request<{ id: string }>, res: Response) {
@@ -12,26 +19,19 @@ export async function draftHandler(req: Request<{ id: string }>, res: Response) 
 }
 
 export async function previewHandler(req: Request<{ id: string }>, res: Response) {
-  const { kind, ...body } = generateBodySchema.parse(req.body);
+  const { kind, period: _period, ...body } = generateBodySchema.parse(req.body);
   const pdf = await recurringAlbaranesService.previewPdf(req.params.id, kind, body);
   res.setHeader("Content-Type", "application/pdf");
   res.send(pdf);
 }
 
+export async function existingPdfHandler(req: Request<{ id: string }>, res: Response) {
+  const { kind } = kindQuerySchema.parse(req.query);
+  res.setHeader("Content-Type", "application/pdf");
+  res.send(await recurringAlbaranesService.existingPdf(req.params.id, kind));
+}
+
 export async function generateHandler(req: Request<{ id: string }>, res: Response) {
   const { kind, period, ...body } = generateBodySchema.parse(req.body);
   res.json(await recurringAlbaranesService.generate(req.params.id, kind, parsePeriod(period), body));
-}
-
-export async function clientsHandler(_req: Request, res: Response) {
-  res.json(await recurringAlbaranesService.clients());
-}
-
-export async function createHandler(req: Request, res: Response) {
-  res.status(201).json(await recurringAlbaranesService.create(createOrderSchema.parse(req.body)));
-}
-
-export async function removeHandler(req: Request<{ id: string }>, res: Response) {
-  await recurringAlbaranesService.remove(req.params.id);
-  res.status(204).end();
 }
