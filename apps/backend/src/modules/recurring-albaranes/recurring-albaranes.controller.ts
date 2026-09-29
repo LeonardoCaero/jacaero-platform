@@ -2,7 +2,6 @@ import type { Request, Response } from "express";
 import {
   draftQuerySchema,
   generateBodySchema,
-  kindQuerySchema,
   parsePeriod,
   periodQuerySchema,
 } from "./recurring-albaranes.schema.js";
@@ -25,10 +24,14 @@ export async function previewHandler(req: Request<{ id: string }>, res: Response
   res.send(pdf);
 }
 
-export async function existingPdfHandler(req: Request<{ id: string }>, res: Response) {
-  const { kind } = kindQuerySchema.parse(req.query);
+export async function existingPdfHandler(req: Request<{ docId: string }>, res: Response) {
   res.setHeader("Content-Type", "application/pdf");
-  res.send(await recurringAlbaranesService.existingPdf(req.params.id, kind));
+  res.send(await recurringAlbaranesService.existingPdf(req.params.docId));
+}
+
+export async function syncHandler(req: Request<{ id: string }>, res: Response) {
+  await recurringAlbaranesService.syncDocuments(req.params.id);
+  res.status(204).end();
 }
 
 export async function generateHandler(req: Request<{ id: string }>, res: Response) {

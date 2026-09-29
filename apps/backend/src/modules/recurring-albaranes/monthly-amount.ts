@@ -10,7 +10,6 @@ export type OrderLine = {
 
 export type AmountSource = "deliveryDate" | "description" | "unitPrice";
 
-// Picks the base amount for one month out of a yearly order's lines.
 export function monthlyAmountFromLines(lines: OrderLine[], period: Date): { amount: number; source: AmountSource } | null {
   const year = period.getUTCFullYear();
   const month = period.getUTCMonth();

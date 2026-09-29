@@ -572,7 +572,7 @@ export function EmailOrdersPage() {
                   ...freeResourcesFor(resourceOrder).filter((r) => r.id !== resourceOrder.contractResource?.id),
                 ].map((r) => (
                   <option key={r.id} value={r.id}>
-                    {`${r.client.name} > ${r.name}`}
+                    {`${r.client.name} -> ${r.name}`}
                   </option>
                 ))}
               </select>

@@ -12,7 +12,7 @@ La plataforma vieja (`platform-api`/`platform-frontend`) está apagada. Esta ocu
 
 - **Despliegue**: Docker Compose con healthchecks, migraciones al arrancar (`docker-entrypoint.sh`), CI con lint/test/build en cada push y deploy automático en push a `main`.
 - **Dominio y TLS**: nginx del sistema como proxy (`/api/` al backend, `/` al frontend). Certificado de Let's Encrypt con renovación automática.
-- **DNS**: gestionado en Cloudflare desde el 02/09/2026, después de que cambiara la IP del NAS y la web se quedara caída desde fuera. El registro de `plataforma.caero.group` lo actualiza el DDNS de UGOS (Panel de Control > Acceso Remoto > DDNS). Los registros de correo (Google Workspace y Resend) se comprobaron tras la migración.
+- **DNS**: gestionado en Cloudflare desde el 02/09/2026, después de que cambiara la IP del NAS y la web se quedara caída desde fuera. El registro de `plataforma.caero.group` lo actualiza el DDNS de UGOS (Panel de Control -> Acceso Remoto -> DDNS). Los registros de correo (Google Workspace y Resend) se comprobaron tras la migración.
 - **Documentos**: `DOCS_ROOT_PATH` apunta a un bind mount de la carpeta de documentos del NAS, montada en `/docs`. No hizo falta CIFS.
 - **Seguridad**: `helmet`, rate limit en `/auth/login`, logs con timestamp y `trust proxy` activado para que el rate limit vea la IP real detrás de nginx.
 - **Backup de Postgres**: cron de root a las 3:00, `pg_dump` comprimido en `~/backups/jacaero-platform/`, se guardan 30 días.
@@ -34,7 +34,7 @@ La plataforma vieja (`platform-api`/`platform-frontend`) está apagada. Esta ocu
 
 ## Pendiente
 
-- [ ] En Papeleo > Pedidos, vincular los 2 pedidos anuales a su recurso (botón de recurso mensual). Antes, comprobar en Clientes que el cliente tiene un pedido / contrato activo por cada recurso.
+- [ ] En Papeleo -> Pedidos, vincular los 2 pedidos anuales a su recurso (botón de recurso mensual). Antes, comprobar en Clientes que el cliente tiene un pedido / contrato activo por cada recurso.
 - [ ] Decidir si hacen falta logs de acceso HTTP (`morgan` o parecido).
 - [ ] Vincular a mano los pedidos que sigan pendientes en `/papeleo/pedidos` de meses que no sean agosto de 2026.
 

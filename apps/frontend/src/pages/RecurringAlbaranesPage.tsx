@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ArrowLeft, Check, Eye, FileText, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, Eye, FileText, RefreshCw, X } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 
@@ -17,9 +17,26 @@ type Summary = {
   total: string
 }
 
-type LastDoc = { filename: string; period: string | null; at: string; summary: Summary | null } | null
+type MonthlyDoc = {
+  id: string
+  kind: Kind
+  period: string
+  number: string
+  filename: string
+  nameMismatch: boolean
+  at: string
+}
 
-type ResourceOrder = { id: string; orderNumber: string; albaran: LastDoc; factura: LastDoc }
+type SelectedDoc = (MonthlyDoc & { summary: Summary | null }) | null
+
+type ResourceOrder = {
+  id: string
+  orderNumber: string
+  year: number
+  documents: MonthlyDoc[]
+  albaran: SelectedDoc
+  factura: SelectedDoc
+}
 
 type ClientResources = {
   id: string
@@ -71,7 +88,7 @@ function storeClient(id: string) {
   try {
     localStorage.setItem(CLIENT_KEY, id)
   } catch {
-    // the choice just isn't remembered
+    return
   }
 }
 
@@ -109,6 +126,16 @@ export function RecurringAlbaranesPage() {
       setError(message ?? r.error)
     }
   }
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const orderIds = client?.resources.flatMap((res) => (res.order ? [res.order.id] : [])) ?? []
+      await Promise.all(orderIds.map((id) => api.post(`/recurring-albaranes/${id}/sync`)))
+    },
+    onMutate: () => setError(null),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['recurring-albaranes'] }),
+    onError: (err) => setError(apiError(err)),
+  })
 
   const openMutation = useMutation({
     mutationFn: async ({ order, kind, resourceName }: { order: ResourceOrder; kind: Kind; resourceName: string }) => {
@@ -190,6 +217,7 @@ export function RecurringAlbaranesPage() {
 
   function DocColumn({ order, kind, resourceName }: { order: ResourceOrder; kind: Kind; resourceName: string }) {
     const doc = order[kind]
+    const last = order.documents.filter((d) => d.kind === kind).at(-1)
     const loading = openMutation.isPending && openMutation.variables?.order.id === order.id && openMutation.variables.kind === kind
 
     return (
@@ -202,6 +230,7 @@ export function RecurringAlbaranesPage() {
               <Check className="h-3.5 w-3.5" />
               {r.doneThisMonth.replace('{number}', doc.summary.number)}
             </p>
+            {doc.nameMismatch && <p className="text-rust dark:text-rust-dark">{r.nameMismatch}</p>}
             <p className={mutedClass}>{doc.summary.date}</p>
             {doc.summary.conceptLines.map((line) => (
               <p key={line} className="truncate">
@@ -214,7 +243,7 @@ export function RecurringAlbaranesPage() {
           </div>
         ) : (
           <p className={`truncate ${mutedClass}`}>
-            {r.last}: {doc ? `${doc.filename} · ${new Date(doc.at).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}` : r.never}
+            {r.last}: {last ? last.filename : r.never}
           </p>
         )}
 
@@ -222,7 +251,7 @@ export function RecurringAlbaranesPage() {
           {doc?.summary && (
             <button
               type="button"
-              onClick={() => openBlob(api.get(`/recurring-albaranes/${order.id}/pdf`, { params: { kind }, responseType: 'blob' }))}
+              onClick={() => openBlob(api.get(`/recurring-albaranes/documents/${doc.id}/pdf`, { responseType: 'blob' }))}
               className={secondaryButtonClass}
             >
               <Eye className="h-4 w-4" />
@@ -276,7 +305,7 @@ export function RecurringAlbaranesPage() {
       )}
 
       {client && (
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           {clients.length === 1 ? (
             <p className="text-sm font-semibold text-ink dark:text-cream">{client.name}</p>
           ) : (
@@ -295,6 +324,10 @@ export function RecurringAlbaranesPage() {
               ))}
             </select>
           )}
+          <button type="button" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending} className={secondaryButtonClass}>
+            <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            {syncMutation.isPending ? r.syncing : r.sync}
+          </button>
         </div>
       )}
 

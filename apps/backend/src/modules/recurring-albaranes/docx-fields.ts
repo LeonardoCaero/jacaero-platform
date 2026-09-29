@@ -25,10 +25,9 @@ const MONTHS = [
   "diciembre",
 ];
 
-// Innermost paragraphs only: text boxes nest <w:p> inside <w:p>.
 const PARAGRAPH = /<w:p[ >](?:(?!<w:p[ >])[\s\S])*?<\/w:p>/g;
 const TEXT_RUN = /(<w:t(?:\s[^>]*)?>)([^<]*)(<\/w:t>)/g;
-const DATE = /\d{1,2} de [a-záéíóú]+ (?:de )?\d{4}/i;
+const DATE = /\d{1,2} de [a-záéíóú]+\s+(?:de\s+)?\d{4}/i;
 const AMOUNT = /\d{1,3}(?:\.\d{3})+,\d{2} ?€|\d+,\d{2} ?€/g;
 
 const decode = (s: string) =>
@@ -82,9 +81,6 @@ export function extractFields(xml: string, kind: DocKind): DocFields {
   return { number, date, month, conceptLines, amounts: amounts.slice(0, 3) };
 }
 
-// Replaces text inside one paragraph without touching its runs' formatting:
-// the new text goes into the first <w:t> the match starts in, the rest of the
-// matched characters are removed from the following <w:t>s.
 function replaceInParagraph(para: string, from: string, to: string): string {
   const runs = [...para.matchAll(TEXT_RUN)].map((m) => ({ index: m.index!, match: m, text: decode(m[2]) }));
   const full = runs.map((r) => r.text).join("");
@@ -116,11 +112,22 @@ function replaceInParagraph(para: string, from: string, to: string): string {
 
 export type Replacement = { paragraph: number; from: string; to: string };
 
+function keepPaddedWidth(para: string, delta: number): string {
+  if (delta === 0) return para;
+  const text = [...para.matchAll(TEXT_RUN)].map((m) => decode(m[2])).join("");
+  const padding = text.match(/ {8,}/g)?.sort((a, b) => b.length - a.length)[0];
+  if (!padding) return para;
+  const width = delta > 0 ? Math.max(1, padding.length - delta * 2) : padding.length + Math.floor(-delta * 1.5);
+  return replaceInParagraph(para, padding, " ".repeat(width));
+}
+
 export function applyReplacements(xml: string, replacements: Replacement[]): string {
   let i = -1;
   return xml.replace(PARAGRAPH, (para) => {
     i++;
-    return replacements.filter((r) => r.paragraph === i).reduce((p, r) => replaceInParagraph(p, r.from, r.to), para);
+    const own = replacements.filter((r) => r.paragraph === i);
+    const delta = own.reduce((sum, r) => sum + r.to.length - r.from.length, 0);
+    return own.reduce((p, r) => replaceInParagraph(p, r.from, r.to), keepPaddedWidth(para, delta));
   });
 }
 

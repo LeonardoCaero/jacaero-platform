@@ -25,6 +25,7 @@ import type { DraftBody } from "./recurring-albaranes.schema.js";
 
 const execFileAsync = promisify(execFile);
 const IVA = 0.21;
+const KINDS: DocKind[] = ["albaran", "factura"];
 
 async function docxToPdf(docxBuffer: Buffer): Promise<Buffer> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "albaran-"));
@@ -53,33 +54,7 @@ const exists = (p: string) =>
 
 const documentXml = (docx: Buffer) => new PizZip(docx).file("word/document.xml")!.asText();
 
-const pointerKeys = (kind: DocKind) =>
-  kind === "albaran"
-    ? ({ path: "lastAlbaranPath", period: "lastAlbaranPeriod", at: "lastAlbaranAt" } as const)
-    : ({ path: "lastFacturaPath", period: "lastFacturaPeriod", at: "lastFacturaAt" } as const);
-
-async function findLatest(orderNumber: string, kind: DocKind) {
-  const year = new Date().getFullYear();
-  for (const y of [year, year - 1]) {
-    const folder = await getCategoryFolderPath(y, kind).catch(() => null);
-    if (!folder) continue;
-
-    const files = (await fs.readdir(folder))
-      .filter((f) => /^\d+\s.*\.docx$/i.test(f))
-      .sort((a, b) => parseInt(b) - parseInt(a));
-
-    for (const f of files) {
-      const xml = documentXml(await fs.readFile(path.join(folder, f)));
-      if (!xml.includes(orderNumber) || !/MES DE/.test(xml)) continue;
-      const fields = extractFields(xml, kind);
-      return {
-        relPath: path.relative(docsRoot(), path.join(folder, f)),
-        period: new Date(Date.UTC(y, monthIndex(fields.month), 1)),
-      };
-    }
-  }
-  return null;
-}
+const periodOf = (year: number, month: number) => new Date(Date.UTC(year, month, 1));
 
 async function getOrder(id: string) {
   const order = await prisma.emailOrder.findUnique({
@@ -94,54 +69,76 @@ async function getOrder(id: string) {
 }
 
 type Order = Awaited<ReturnType<typeof getOrder>>;
-type Pointer = { relPath: string; period: Date | null; at: Date | null };
-type PointerFields = {
-  lastAlbaranPath: string | null;
-  lastAlbaranPeriod: Date | null;
-  lastAlbaranAt: Date | null;
-  lastFacturaPath: string | null;
-  lastFacturaPeriod: Date | null;
-  lastFacturaAt: Date | null;
-};
 
-function storedPointer(order: PointerFields, kind: DocKind): Pointer | null {
-  const keys = pointerKeys(kind);
-  const relPath = order[keys.path];
-  return relPath ? { relPath, period: order[keys.period], at: order[keys.at] } : null;
-}
+export async function syncDocuments(orderId: string) {
+  const order = await getOrder(orderId);
+  const year = orderYear(order);
+  const found: { kind: DocKind; period: Date; number: string; path: string; nameMismatch: boolean; at: Date }[] = [];
 
-// Last monthly document of this kind for the order. A missing or stale pointer
-// is refreshed by searching the folder for the order number; a new year's order
-// with nothing yet falls back to the previous order of the same resource, so
-// the document format carries over.
-async function lastDocument(order: Order, kind: DocKind): Promise<Pointer | null> {
-  const stored = storedPointer(order, kind);
-  if (stored && (await exists(path.join(docsRoot(), stored.relPath)))) return stored;
+  for (const kind of KINDS) {
+    const folder = await getCategoryFolderPath(year, kind).catch(() => null);
+    if (!folder) continue;
 
-  const found = await findLatest(order.orderNumber, kind);
-  if (found) {
-    const keys = pointerKeys(kind);
-    await prisma.emailOrder.update({
-      where: { id: order.id },
-      data: { [keys.path]: found.relPath, [keys.period]: found.period, [keys.at]: null },
-    });
-    return { ...found, at: null };
+    for (const f of await fs.readdir(folder)) {
+      const nameMonth = f.match(/MES DE ([A-ZÁÉÍÓÚ]+)/i)?.[1];
+      if (!/^\d+\s.*\.docx$/i.test(f) || !nameMonth) continue;
+
+      const fullPath = path.join(folder, f);
+      const xml = documentXml(await fs.readFile(fullPath));
+      if (!xml.includes(order.orderNumber)) continue;
+
+      const fileMonth = monthIndex(nameMonth);
+      let contentMonth = fileMonth;
+      try {
+        contentMonth = monthIndex(extractFields(xml, kind).month);
+      } catch {
+        contentMonth = fileMonth;
+      }
+      if (contentMonth < 0) continue;
+      found.push({
+        kind,
+        period: periodOf(year, contentMonth),
+        number: f.match(/^(\d+)/)![1],
+        path: path.relative(docsRoot(), fullPath),
+        nameMismatch: fileMonth >= 0 && fileMonth !== contentMonth,
+        at: (await fs.stat(fullPath)).mtime,
+      });
+    }
   }
 
-  const previous = await prisma.emailOrder.findMany({
-    where: { contractResourceId: order.contractResourceId, id: { not: order.id } },
-    omit: { pdfAttachment: true, rawContent: true },
-    orderBy: [{ orderDate: "desc" }, { receivedAt: "desc" }],
+  await prisma.$transaction([
+    prisma.monthlyDocument.deleteMany({ where: { emailOrderId: order.id, path: { notIn: found.map((d) => d.path) } } }),
+    ...found.map((d) =>
+      prisma.monthlyDocument.upsert({
+        where: { path: d.path },
+        create: { emailOrderId: order.id, ...d },
+        update: { emailOrderId: order.id, kind: d.kind, period: d.period, number: d.number, nameMismatch: d.nameMismatch },
+      }),
+    ),
+  ]);
+}
+
+async function documentsOf(order: Order) {
+  return prisma.monthlyDocument.findMany({ where: { emailOrderId: order.id }, orderBy: [{ period: "asc" }, { number: "asc" }] });
+}
+
+type MonthlyDoc = Awaited<ReturnType<typeof documentsOf>>[number];
+
+async function templateDocument(order: Order, kind: DocKind) {
+  const candidates = await prisma.monthlyDocument.findMany({
+    where: { kind, emailOrder: { contractResourceId: order.contractResourceId }, nameMismatch: false },
+    include: { emailOrder: { select: { id: true } } },
+    orderBy: [{ period: "desc" }, { number: "desc" }],
   });
-  for (const p of previous) {
-    const pointer = storedPointer(p, kind);
-    if (pointer && (await exists(path.join(docsRoot(), pointer.relPath)))) return { ...pointer, period: null, at: null };
+  const own = candidates.filter((d) => d.emailOrderId === order.id);
+  for (const d of [...own, ...candidates.filter((c) => c.emailOrderId !== order.id)]) {
+    if (await exists(path.join(docsRoot(), d.path))) return d;
   }
   return null;
 }
 
-async function summarize(relPath: string, kind: DocKind) {
-  const fields = extractFields(documentXml(await fs.readFile(path.join(docsRoot(), relPath))), kind);
+async function summarize(doc: MonthlyDoc) {
+  const fields = extractFields(documentXml(await fs.readFile(path.join(docsRoot(), doc.path))), doc.kind);
   const [base, iva, total] = fields.amounts.map((a) => a.value);
   return {
     number: fields.number.value,
@@ -153,18 +150,32 @@ async function summarize(relPath: string, kind: DocKind) {
   };
 }
 
-const samePeriod = (a: Date | null, b: Date) =>
-  !!a && a.getUTCFullYear() === b.getUTCFullYear() && a.getUTCMonth() === b.getUTCMonth();
+const samePeriod = (a: Date, b: Date) =>
+  a.getUTCFullYear() === b.getUTCFullYear() && a.getUTCMonth() === b.getUTCMonth();
 
-async function describe(order: Order, kind: DocKind, period: Date) {
-  const doc = await lastDocument(order, kind);
-  if (!doc) return null;
-  const at = doc.at ?? (await fs.stat(path.join(docsRoot(), doc.relPath))).mtime;
+const docDto = (d: MonthlyDoc) => ({
+  id: d.id,
+  kind: d.kind,
+  period: d.period,
+  number: d.number,
+  filename: path.basename(d.path, ".docx"),
+  nameMismatch: d.nameMismatch,
+  at: d.at,
+});
+
+async function describeOrder(order: Order, period: Date) {
+  const docs = await documentsOf(order);
+  const selected = async (kind: DocKind) => {
+    const doc = docs.filter((d) => d.kind === kind && samePeriod(d.period, period)).at(-1);
+    return doc ? { ...docDto(doc), summary: await summarize(doc).catch(() => null) } : null;
+  };
   return {
-    filename: path.basename(doc.relPath, ".docx"),
-    period: doc.period,
-    at,
-    summary: samePeriod(doc.period, period) ? await summarize(doc.relPath, kind) : null,
+    id: order.id,
+    orderNumber: order.orderNumber,
+    year: orderYear(order),
+    documents: docs.map(docDto),
+    albaran: await selected("albaran"),
+    factura: await selected("factura"),
   };
 }
 
@@ -192,17 +203,10 @@ export async function list(period: Date) {
           .flatMap((c) => c.resources)
           .map(async (resource) => {
             const linked = resource.emailOrders.find((o) => orderYear(o) === year);
-            if (!linked) return { id: resource.id, name: resource.name, order: null };
-            const order = await getOrder(linked.id);
             return {
               id: resource.id,
               name: resource.name,
-              order: {
-                id: order.id,
-                orderNumber: order.orderNumber,
-                albaran: await describe(order, "albaran", period),
-                factura: await describe(order, "factura", period),
-              },
+              order: linked ? await describeOrder(await getOrder(linked.id), period) : null,
             };
           }),
       ),
@@ -211,13 +215,14 @@ export async function list(period: Date) {
 }
 
 async function loadSource(order: Order, kind: DocKind) {
-  const doc = await lastDocument(order, kind);
+  const doc = await templateDocument(order, kind);
   if (!doc) {
-    throw new ApiError(404, `No hay ningún ${kind === "albaran" ? "albarán" : "factura"} anterior de este recurso`);
+    const doc = kind === "albaran" ? "albarán" : "factura";
+    throw new ApiError(404, `No hay ningún ${doc} anterior de este recurso. Pulsa "Sincronizar" para leerlos del NAS.`);
   }
-  const docx = await fs.readFile(path.join(docsRoot(), doc.relPath));
+  const docx = await fs.readFile(path.join(docsRoot(), doc.path));
   const xml = documentXml(docx);
-  return { docx, xml, fields: extractFields(xml, kind), filename: path.basename(doc.relPath, ".docx") };
+  return { docx, xml, fields: extractFields(xml, kind), filename: path.basename(doc.path, ".docx") };
 }
 
 export async function draft(orderId: string, kind: DocKind, period: Date) {
@@ -273,16 +278,14 @@ export async function previewPdf(orderId: string, kind: DocKind, body: DraftBody
   return docxToPdf(await render(await getOrder(orderId), kind, body));
 }
 
-export async function existingPdf(orderId: string, kind: DocKind) {
-  const doc = storedPointer(await getOrder(orderId), kind);
-  if (!doc) throw new ApiError(404, "No hay documento generado");
-  const pdfPath = path.join(docsRoot(), doc.relPath.replace(/\.docx$/i, ".pdf"));
+export async function existingPdf(documentId: string) {
+  const doc = await prisma.monthlyDocument.findUnique({ where: { id: documentId } });
+  if (!doc) throw new ApiError(404, "Documento no encontrado");
+  const pdfPath = path.join(docsRoot(), doc.path.replace(/\.docx$/i, ".pdf"));
   if (!(await exists(pdfPath))) throw new ApiError(404, "No se encontró el PDF de este documento");
   return fs.readFile(pdfPath);
 }
 
-// Two people generating the same number at the same instant would collide;
-// the exists check turns that into a 409 instead of an overwrite.
 export async function generate(orderId: string, kind: DocKind, period: Date, body: DraftBody) {
   const order = await getOrder(orderId);
   const docx = await render(order, kind, body);
@@ -301,10 +304,15 @@ export async function generate(orderId: string, kind: DocKind, period: Date, bod
   await fs.writeFile(docxPath, docx);
   await fs.writeFile(pdfPath, pdf);
 
-  const keys = pointerKeys(kind);
-  await prisma.emailOrder.update({
-    where: { id: order.id },
-    data: { [keys.path]: path.relative(docsRoot(), docxPath), [keys.period]: period, [keys.at]: new Date() },
+  await prisma.monthlyDocument.create({
+    data: {
+      emailOrderId: order.id,
+      kind,
+      period,
+      number: body.number,
+      path: path.relative(docsRoot(), docxPath),
+      at: new Date(),
+    },
   });
 
   return { filename };

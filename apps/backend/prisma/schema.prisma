@@ -331,16 +331,30 @@ model EmailOrder {
 
   contractResourceId String?
   contractResource   ContractResource? @relation(fields: [contractResourceId], references: [id], onDelete: SetNull)
-  lastAlbaranPath    String?
-  lastAlbaranPeriod  DateTime?
-  lastAlbaranAt      DateTime?
-  lastFacturaPath    String?
-  lastFacturaPeriod  DateTime?
-  lastFacturaAt      DateTime?
 
-  lines EmailOrderLine[]
+  lines       EmailOrderLine[]
+  monthlyDocs MonthlyDocument[]
 
   @@index([contractResourceId])
+}
+
+enum MonthlyDocKind {
+  albaran
+  factura
+}
+
+model MonthlyDocument {
+  id           String         @id @default(cuid())
+  emailOrderId String
+  emailOrder   EmailOrder     @relation(fields: [emailOrderId], references: [id], onDelete: Cascade)
+  kind         MonthlyDocKind
+  period       DateTime
+  number       String
+  path         String         @unique
+  nameMismatch Boolean        @default(false)
+  at           DateTime
+
+  @@index([emailOrderId, kind, period])
 }
 
 model EmailOrderLine {
