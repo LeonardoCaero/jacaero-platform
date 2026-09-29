@@ -483,7 +483,11 @@ async function reconcileDocumentsInner(year: number) {
 export async function list() {
   return prisma.emailOrder.findMany({
     omit: { pdfAttachment: true, rawContent: true },
-    include: { lines: true, client: { select: { id: true, name: true } } },
+    include: {
+      lines: true,
+      client: { select: { id: true, name: true } },
+      contractResource: { select: { id: true, name: true } },
+    },
     orderBy: { receivedAt: "desc" },
   });
 }
@@ -525,6 +529,52 @@ export async function setQuoteStatus(id: string, category: "pending" | "presupue
       quotedAt: category === "pending" ? null : new Date(),
       quoteCategory: category === "pending" ? null : UI_TO_QUOTE_CATEGORY[category],
     },
+  });
+}
+
+export const orderYear = (order: { orderDate: Date | null; receivedAt: Date }) =>
+  (order.orderDate ?? order.receivedAt).getUTCFullYear();
+
+export async function listResources() {
+  const resources = await prisma.contractResource.findMany({
+    where: { contract: { status: "ACTIVE", client: { status: "ACTIVE" } } },
+    include: {
+      contract: { select: { client: { select: { id: true, name: true } } } },
+      emailOrders: { select: { id: true, orderDate: true, receivedAt: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  return resources.map((r) => ({
+    id: r.id,
+    name: r.name,
+    client: r.contract.client,
+    orders: r.emailOrders.map((o) => ({ id: o.id, year: orderYear(o) })),
+  }));
+}
+
+export async function setResource(id: string, contractResourceId: string | null) {
+  const order = await get(id);
+  if (!contractResourceId) {
+    return prisma.emailOrder.update({ where: { id }, data: { contractResourceId: null } });
+  }
+
+  if (!order.orderNumber) throw new ApiError(400, "Este pedido no tiene número de pedido");
+
+  const resource = await prisma.contractResource.findUnique({
+    where: { id: contractResourceId },
+    include: { contract: true, emailOrders: { select: { id: true, orderDate: true, receivedAt: true } } },
+  });
+  if (!resource || resource.contract.status !== "ACTIVE") throw new ApiError(404, "Recurso no encontrado");
+
+  const year = orderYear(order);
+  if (resource.emailOrders.some((o) => o.id !== id && orderYear(o) === year)) {
+    throw new ApiError(409, `Este recurso ya tiene un pedido vinculado para ${year}`);
+  }
+
+  return prisma.emailOrder.update({
+    where: { id },
+    data: { contractResourceId, clientId: resource.contract.clientId },
   });
 }
 

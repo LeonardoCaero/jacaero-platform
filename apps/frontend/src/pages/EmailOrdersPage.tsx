@@ -2,7 +2,7 @@ import { useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, RefreshCw, FileText, X, Check, Link2, Eye, Star, Search } from 'lucide-react'
+import { ArrowLeft, RefreshCw, FileText, X, Check, Link2, Eye, Star, Search, Repeat } from 'lucide-react'
 import { api } from '../lib/axios'
 import { Skeleton } from '../components/Skeleton'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -92,7 +92,17 @@ type EmailOrder = {
   receivedAt: string
   lines: EmailOrderLine[]
   client: { id: string; name: string } | null
+  contractResource: { id: string; name: string } | null
 }
+
+type Resource = {
+  id: string
+  name: string
+  client: { id: string; name: string }
+  orders: { id: string; year: number }[]
+}
+
+const orderYearOf = (o: EmailOrder) => new Date(o.orderDate ?? o.receivedAt).getUTCFullYear()
 
 const cardClass =
   'rounded-2xl border border-line bg-surface p-4 shadow-sm dark:border-line-dark dark:bg-surface-dark'
@@ -221,6 +231,9 @@ export function EmailOrdersPage() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<QuoteCategory | 'all'>('all')
   const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [resourceOrder, setResourceOrder] = useState<EmailOrder | null>(null)
+  const [chosenResource, setChosenResource] = useState('')
+  const [resourceError, setResourceError] = useState<string | null>(null)
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['email-orders'],
@@ -278,6 +291,32 @@ export function EmailOrdersPage() {
     mutationFn: ({ id, category }: { id: string; category: QuoteCategory }) =>
       api.patch(`/email-orders/${id}/quote-status`, { category }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-orders'] }),
+  })
+
+  const { data: resources = [] } = useQuery({
+    queryKey: ['email-orders', 'resources'],
+    queryFn: async () => (await api.get<Resource[]>('/email-orders/resources')).data,
+  })
+
+  const freeResourcesFor = (order: EmailOrder) =>
+    resources.filter((r) => !r.orders.some((o) => o.year === orderYearOf(order) && o.id !== order.id))
+
+  function openResource(order: EmailOrder) {
+    const free = freeResourcesFor(order)
+    setResourceError(null)
+    setChosenResource(order.contractResource?.id ?? (free.length === 1 ? free[0].id : ''))
+    setResourceOrder(order)
+  }
+
+  const resourceMutation = useMutation({
+    mutationFn: ({ id, contractResourceId }: { id: string; contractResourceId: string | null }) =>
+      api.patch(`/email-orders/${id}/resource`, { contractResourceId }),
+    onSuccess: () => {
+      setResourceOrder(null)
+      queryClient.invalidateQueries({ queryKey: ['email-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['recurring-albaranes'] })
+    },
+    onError: (err: any) => setResourceError(err?.response?.data?.error ?? 'Error'),
   })
 
   const favoriteMutation = useMutation({
@@ -414,6 +453,23 @@ export function EmailOrdersPage() {
                     favoriteMutation.mutate({ id: order.id, favorite: !order.favorite })
                   }}
                 />
+                {(order.contractResource || (order.orderNumber && freeResourcesFor(order).length > 0)) && (
+                  <span
+                    role="button"
+                    title={t.emailOrders.monthlyResource}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openResource(order)
+                    }}
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition ${
+                      order.contractResource
+                        ? 'text-ink dark:text-cream'
+                        : 'text-graphite/40 hover:text-graphite dark:text-graphite-dark/40 dark:hover:text-graphite-dark'
+                    }`}
+                  >
+                    <Repeat className="h-4 w-4" />
+                  </span>
+                )}
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-ink dark:text-cream">
                     {order.orderNumber ?? order.subject}
@@ -421,6 +477,11 @@ export function EmailOrdersPage() {
                   <p className="truncate text-xs text-graphite dark:text-graphite-dark">
                     {order.senderEmail} · {formatDate(order.orderDate)}
                   </p>
+                  {order.contractResource && (
+                    <p className="truncate text-xs font-semibold text-ink dark:text-cream">
+                      {t.emailOrders.resourceTag.replace('{name}', order.contractResource.name)}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -481,6 +542,63 @@ export function EmailOrdersPage() {
       )}
 
       {selected && <OrderDetail order={selected} onClose={() => setSelectedId(null)} />}
+
+      {resourceOrder &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={() => setResourceOrder(null)}>
+            <form
+              className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl dark:bg-surface-dark"
+              onClick={(e) => e.stopPropagation()}
+              onSubmit={(e) => {
+                e.preventDefault()
+                resourceMutation.mutate({ id: resourceOrder.id, contractResourceId: chosenResource })
+              }}
+            >
+              <p className="font-semibold text-ink dark:text-cream">{t.emailOrders.monthlyResource}</p>
+              <p className="mt-1 text-xs text-graphite dark:text-graphite-dark">
+                {t.emailOrders.monthlyResourceHint.replace('{order}', resourceOrder.orderNumber ?? '')}
+              </p>
+              <select
+                required
+                value={chosenResource}
+                onChange={(e) => setChosenResource(e.target.value)}
+                className="mt-4 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+              >
+                <option value="" disabled hidden>
+                  {t.emailOrders.chooseResource}
+                </option>
+                {[
+                  ...resources.filter((r) => r.id === resourceOrder.contractResource?.id),
+                  ...freeResourcesFor(resourceOrder).filter((r) => r.id !== resourceOrder.contractResource?.id),
+                ].map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {`${r.client.name} > ${r.name}`}
+                  </option>
+                ))}
+              </select>
+              {resourceError && <p className="mt-2 text-sm text-rust dark:text-rust-dark">{resourceError}</p>}
+              <div className="mt-5 flex justify-end gap-2">
+                {resourceOrder.contractResource && (
+                  <button
+                    type="button"
+                    onClick={() => resourceMutation.mutate({ id: resourceOrder.id, contractResourceId: null })}
+                    className="h-10 rounded-xl border border-line px-4 text-sm font-semibold text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
+                  >
+                    {t.emailOrders.unlinkResource}
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={!chosenResource || resourceMutation.isPending}
+                  className="h-10 rounded-xl bg-ink px-4 text-sm font-semibold text-cream disabled:opacity-50 dark:bg-cream dark:text-ink"
+                >
+                  {t.emailOrders.linkResource}
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

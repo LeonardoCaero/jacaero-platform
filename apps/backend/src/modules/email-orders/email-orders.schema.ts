@@ -13,6 +13,10 @@ export const setFavoriteSchema = z.object({
   favorite: z.boolean(),
 });
 
+export const setResourceSchema = z.object({
+  contractResourceId: z.string().min(1).nullable(),
+});
+
 export const syncQuerySchema = z.object({
   full: z.coerce.boolean().optional().default(false),
 });

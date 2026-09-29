@@ -137,7 +137,6 @@ model Client {
   contracts   ClientContract[]
   timeEntries TimeEntry[]
   emailOrders EmailOrder[]
-  recurringAlbaranTemplates RecurringAlbaranTemplate[]
 }
 
 enum ClientStatus {
@@ -193,6 +192,7 @@ model ContractResource {
 
   rates       ContractResourceRate[]
   timeEntries TimeEntry[]
+  emailOrders EmailOrder[]
 }
 
 model ContractResourceRate {
@@ -232,7 +232,7 @@ model TimeEntry {
   clientLocationId   String?
   clientLocation     ClientLocation?   @relation(fields: [clientLocationId], references: [id])
   contractResourceId String?
-  contractResource   ContractResource? @relation(fields: [contractResourceId], references: [id])
+  contractResource   ContractResource? @relation(fields: [contractResourceId], references: [id], onDelete: SetNull)
 
   createdBy String
   createdAt DateTime @default(now())
@@ -329,7 +329,18 @@ model EmailOrder {
   receivedAt      DateTime
   createdAt       DateTime         @default(now())
 
+  contractResourceId String?
+  contractResource   ContractResource? @relation(fields: [contractResourceId], references: [id], onDelete: SetNull)
+  lastAlbaranPath    String?
+  lastAlbaranPeriod  DateTime?
+  lastAlbaranAt      DateTime?
+  lastFacturaPath    String?
+  lastFacturaPeriod  DateTime?
+  lastFacturaAt      DateTime?
+
   lines EmailOrderLine[]
+
+  @@index([contractResourceId])
 }
 
 model EmailOrderLine {
@@ -369,17 +380,3 @@ model PushSubscription {
   createdAt DateTime @default(now())
 }
 
-model RecurringAlbaranTemplate {
-  id                String    @id @default(cuid())
-  clientId          String
-  client            Client    @relation(fields: [clientId], references: [id])
-  orderNumber       String    @unique
-  label             String
-  lastAlbaranPath   String?
-  lastAlbaranPeriod DateTime?
-  lastAlbaranAt     DateTime?
-  lastFacturaPath   String?
-  lastFacturaPeriod DateTime?
-  lastFacturaAt     DateTime?
-  createdAt         DateTime  @default(now())
-}

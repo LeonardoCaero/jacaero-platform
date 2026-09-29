@@ -11,6 +11,8 @@ import {
   setQuoteStatusHandler,
   setFavoriteHandler,
   linkDocumentHandler,
+  listResourcesHandler,
+  setResourceHandler,
 } from "./email-orders.controller.js";
 
 export const emailOrdersRoutes = Router();
@@ -20,9 +22,11 @@ emailOrdersRoutes.use(authMiddleware, requirePermission("ORDERS:MANAGE"));
 emailOrdersRoutes.post("/sync", syncHandler);
 emailOrdersRoutes.post("/reconcile", reconcileHandler);
 emailOrdersRoutes.get("/", listHandler);
+emailOrdersRoutes.get("/resources", listResourcesHandler);
 emailOrdersRoutes.get("/:id", getHandler);
 emailOrdersRoutes.get("/:id/pdf", getPdfHandler);
 emailOrdersRoutes.patch("/:id/milestone", setMilestoneHandler);
 emailOrdersRoutes.patch("/:id/quote-status", setQuoteStatusHandler);
 emailOrdersRoutes.patch("/:id/favorite", setFavoriteHandler);
+emailOrdersRoutes.patch("/:id/resource", setResourceHandler);
 emailOrdersRoutes.patch("/:id/link", linkDocumentHandler);

@@ -4,6 +4,8 @@ const period = z.string().regex(/^\d{4}-\d{2}$/);
 const kind = z.enum(["albaran", "factura"]);
 
 export const draftQuerySchema = z.object({ period, kind });
+export const periodQuerySchema = z.object({ period });
+export const kindQuerySchema = z.object({ kind });
 
 export const draftBodySchema = z.object({
   number: z.string().regex(/^\d{1,4}$/),
@@ -16,12 +18,6 @@ export const draftBodySchema = z.object({
     .min(1)
     .max(200)
     .regex(/^[^\\/:*?"<>|]+$/, "El nombre no puede llevar \\ / : * ? \" < > |"),
-});
-
-export const createOrderSchema = z.object({
-  clientId: z.string().min(1),
-  orderNumber: z.string().trim().min(1).max(30),
-  label: z.string().trim().min(1).max(100),
 });
 
 export type DraftBody = z.infer<typeof draftBodySchema>;

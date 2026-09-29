@@ -3,6 +3,7 @@ import {
   setMilestoneSchema,
   setQuoteStatusSchema,
   setFavoriteSchema,
+  setResourceSchema,
   syncQuerySchema,
   reconcileQuerySchema,
   linkDocumentSchema,
@@ -51,4 +52,13 @@ export async function setFavoriteHandler(req: Request<{ id: string }>, res: Resp
 export async function linkDocumentHandler(req: Request<{ id: string }>, res: Response) {
   const { category, number } = linkDocumentSchema.parse(req.body);
   res.json(await emailOrdersService.linkDocument(req.params.id, category, number));
+}
+
+export async function listResourcesHandler(_req: Request, res: Response) {
+  res.json(await emailOrdersService.listResources());
+}
+
+export async function setResourceHandler(req: Request<{ id: string }>, res: Response) {
+  const { contractResourceId } = setResourceSchema.parse(req.body);
+  res.json(await emailOrdersService.setResource(req.params.id, contractResourceId));
 }
