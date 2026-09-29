@@ -39,6 +39,7 @@ services:
     volumes:
       - ${DOCS_HOST_PATH:-./local-docs}:/docs
       - ./uploads:/uploads
+      - ./fonts:/usr/share/fonts/custom:ro
     depends_on:
       db:
         condition: service_healthy

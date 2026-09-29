@@ -35,6 +35,7 @@ La plataforma vieja (`platform-api`/`platform-frontend`) está apagada. Esta ocu
 ## Pendiente
 
 - [ ] En Papeleo -> Pedidos, vincular los 2 pedidos anuales a su recurso (botón de recurso mensual). Antes, comprobar en Clientes que el cliente tiene un pedido / contrato activo por cada recurso.
+- [ ] Copiar `arial*.ttf` de `C:\Windows\Fonts` a la carpeta `fonts/` del proyecto en el NAS (no va en git) y reiniciar el backend, para que los PDF generados usen Arial y no una fuente parecida.
 - [ ] Decidir si hacen falta logs de acceso HTTP (`morgan` o parecido).
 - [ ] Vincular a mano los pedidos que sigan pendientes en `/papeleo/pedidos` de meses que no sean agosto de 2026.
 

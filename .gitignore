@@ -9,5 +9,6 @@ build/
 DOCS/
 local-docs/
 uploads/
+fonts/
 CLAUDE.md
 .claude/
