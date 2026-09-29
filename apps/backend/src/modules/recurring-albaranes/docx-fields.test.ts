@@ -45,8 +45,17 @@ describe("docx fields", () => {
     expect(out).toContain("<w:tab/>");
   });
 
+  it("keeps a space-padded line the same width when the text changes length", () => {
+    const line = p("FACTURA Nº  001", " ".repeat(20), "FECHA : 1 de mayo de 2026");
+    const longer = applyReplacements(line, [{ paragraph: 0, from: "1 de mayo de 2026", to: "30 de septiembre de 2026" }]);
+    expect(paragraphTexts(longer)[0]).toBe(`FACTURA Nº  001${" ".repeat(6)}FECHA : 30 de septiembre de 2026`);
+    const shorter = applyReplacements(line, [{ paragraph: 0, from: "1 de mayo de 2026", to: "1 de mayo 2026" }]);
+    expect(paragraphTexts(shorter)[0]).toBe(`FACTURA Nº  001${" ".repeat(24)}FECHA : 1 de mayo 2026`);
+  });
+
   it("formats dates and amounts like the originals", () => {
     expect(formatDateEs("2026-01-05")).toBe("5 de enero de 2026");
+    expect(extractFields(factura.replace("iembre 2026", "iembre  2026"), "factura").date.value).toBe("1 de septiembre  2026");
     expect(formatAmount(1500, "1.234,00€")).toBe("1.500,00€");
     expect(formatAmount(210.5, "12,00 €")).toBe("210,50 €");
   });

@@ -6,6 +6,7 @@ import {
   draftHandler,
   previewHandler,
   existingPdfHandler,
+  syncHandler,
   generateHandler,
 } from "./recurring-albaranes.controller.js";
 
@@ -16,5 +17,6 @@ recurringAlbaranesRoutes.use(authMiddleware, requirePermission("ORDERS:MANAGE"))
 recurringAlbaranesRoutes.get("/", listHandler);
 recurringAlbaranesRoutes.get("/:id/draft", draftHandler);
 recurringAlbaranesRoutes.post("/:id/preview", previewHandler);
-recurringAlbaranesRoutes.get("/:id/pdf", existingPdfHandler);
+recurringAlbaranesRoutes.get("/documents/:docId/pdf", existingPdfHandler);
+recurringAlbaranesRoutes.post("/:id/sync", syncHandler);
 recurringAlbaranesRoutes.post("/:id/generate", generateHandler);

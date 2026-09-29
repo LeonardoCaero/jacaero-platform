@@ -54,7 +54,7 @@ jacaero-platform/
 - **Home screen**: a permission-filtered module grid — a user only sees tiles for what they're allowed to do.
 - **Time Tracker**: log hours, edit/delete own entries; admins can view and edit everyone's hours for a given day.
 - **Clients & Contracts**: client records with locations and contacts, and per-client contracts (rate, dates, active/expired status).
-- **Documents ("Papeleo")**: purchase-order emails are parsed automatically (PDF attachment → order data) as they arrive; a manual reconciliation screen links a captured order to its budget/delivery-note/invoice documents on the NAS.
+- **Documents ("Papeleo")**: purchase-order emails are parsed automatically (PDF attachment -> order data) as they arrive; a manual reconciliation screen links a captured order to its budget/delivery-note/invoice documents on the NAS.
 - **Team**: invite members (multi-language invitation emails), assign roles, activate/deactivate or permanently delete a member.
 - **Notifications**: web push (VAPID) for new orders, invitations, new team members, and logged hours — scoped per device, and the device that triggered an action doesn't notify itself.
 - **Installable app (PWA)**: manifest + service worker, an "About" screen showing the deployed version, and self-reload when a new deploy is detected.
@@ -70,7 +70,7 @@ Modules exist as routes today but render a "coming soon" placeholder. Still to b
 2. **Notes** — quick personal notes.
 3. **Audit Log** — who changed what, viewable by admins (the model already exists).
 4. **Monthly delivery note ("albarán") generation** — from `TimeEntry` + `ContractResourceRate`, modeled in the schema already, not built.
-5. **Email-orders → NAS documents**: today `email-orders` only reads/matches existing documents; writing new ones back to the NAS is not implemented.
+5. **Email-orders -> NAS documents**: today `email-orders` only reads/matches existing documents; writing new ones back to the NAS is not implemented.
 
 ## Getting started
 

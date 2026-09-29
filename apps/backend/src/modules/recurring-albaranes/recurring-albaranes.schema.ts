@@ -5,7 +5,6 @@ const kind = z.enum(["albaran", "factura"]);
 
 export const draftQuerySchema = z.object({ period, kind });
 export const periodQuerySchema = z.object({ period });
-export const kindQuerySchema = z.object({ kind });
 
 export const draftBodySchema = z.object({
   number: z.string().regex(/^\d{1,4}$/),
