@@ -370,14 +370,16 @@ model PushSubscription {
 }
 
 model RecurringAlbaranTemplate {
-  id            String    @id @default(cuid())
-  clientId      String
-  client        Client    @relation(fields: [clientId], references: [id])
-  orderNumber   String    @unique
-  label         String
-  titleTemplate String
-  templateDocx  Bytes
-  lastPeriod    DateTime?
-  lastNumber    String?
-  createdAt     DateTime  @default(now())
+  id                String    @id @default(cuid())
+  clientId          String
+  client            Client    @relation(fields: [clientId], references: [id])
+  orderNumber       String    @unique
+  label             String
+  lastAlbaranPath   String?
+  lastAlbaranPeriod DateTime?
+  lastAlbaranAt     DateTime?
+  lastFacturaPath   String?
+  lastFacturaPeriod DateTime?
+  lastFacturaAt     DateTime?
+  createdAt         DateTime  @default(now())
 }
