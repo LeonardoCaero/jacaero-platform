@@ -13,7 +13,9 @@ export function AppLayout() {
   const location = useLocation()
   const knownVersion = useRef<string | null>(null)
 
-  const isWide = location.pathname.endsWith('/reconcile')
+  const isWide =
+    location.pathname.endsWith('/reconcile') ||
+    /^\/papeleo\/(presupuestos|albaranes|pedidos-material|facturas|horas)$/.test(location.pathname)
 
   // Reload automatically when a new version has been deployed, checked on each navigation.
   useEffect(() => {
