@@ -342,11 +342,12 @@ model PresupuestoSent {
   id         String   @id @default(cuid())
   year       Int
   number     Int
+  name       String
   sentAt     DateTime
   recipients String
   viaClient  Boolean  @default(false)
 
-  @@unique([year, number])
+  @@unique([year, name])
 }
 
 enum MonthlyDocKind {

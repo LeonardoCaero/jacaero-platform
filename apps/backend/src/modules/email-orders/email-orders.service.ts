@@ -15,7 +15,7 @@ function allowedSenders() {
   return (env.ORDERS_SENDER_ALLOWLIST ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-async function extractPdfText(buffer: Buffer) {
+export async function extractPdfText(buffer: Buffer) {
   const parser = new PDFParse({ data: buffer });
   const { text } = await parser.getText();
   await parser.destroy();
@@ -61,7 +61,15 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
     ? new Date(last.sentAt.getTime() - 24 * 60 * 60 * 1000)
     : new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
 
-  type Found = { year: number; number: number; sentAt: Date; recipients: string; viaClient: boolean; from: string };
+  type Found = {
+    year: number;
+    number: number;
+    name: string;
+    sentAt: Date;
+    recipients: string;
+    viaClient: boolean;
+    from: string;
+  };
   const found: Found[] = [];
   const lock = await client.getMailboxLock(allPath);
   try {
@@ -75,7 +83,8 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
         for (const name of attachmentNames(msg.bodyStructure)) {
           const number = documentNumberFromFilename(name, "presupuesto");
           if (number === undefined) continue;
-          found.push({ year: date.getFullYear(), number, sentAt: date, recipients, viaClient: from !== own, from });
+          const fileName = name.replace(/\.[^.]+$/, "");
+          found.push({ year: date.getFullYear(), number, name: fileName, sentAt: date, recipients, viaClient: from !== own, from });
         }
       }
     }
@@ -95,7 +104,7 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
     if (sent.viaClient && !clientDomains.has(domainOf(from))) continue;
     const data = sent.viaClient ? { ...sent, recipients: "" } : sent;
     const existing = await prisma.presupuestoSent.findUnique({
-      where: { year_number: { year: sent.year, number: sent.number } },
+      where: { year_name: { year: sent.year, name: sent.name } },
     });
     if (!existing) await prisma.presupuestoSent.create({ data });
     else if (sent.sentAt < existing.sentAt) await prisma.presupuestoSent.update({ where: { id: existing.id }, data });
@@ -401,7 +410,7 @@ async function linkCategory(
     if (!f.hasPdf) continue;
 
     try {
-      const filePath = await getCategoryFile(category, year, f.number, "pdf");
+      const filePath = await getCategoryFile(category, year, f.number, "pdf", f.name);
       const buffer = await fs.readFile(filePath);
       const text = await extractPdfText(buffer);
       const orderNumber = extractOrderNumber(text);
@@ -447,7 +456,7 @@ async function buildOriginIndex(year: number): Promise<OriginDoc[]> {
     for (const f of files) {
       if (!f.hasPdf) continue;
       try {
-        const filePath = await getCategoryFile(category, year, f.number, "pdf");
+        const filePath = await getCategoryFile(category, year, f.number, "pdf", f.name);
         const text = await extractPdfText(await fs.readFile(filePath));
         index.push({
           category,
