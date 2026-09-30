@@ -1,8 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Eye, Download, Search, Share2 } from 'lucide-react'
+import {
+  ArrowDownUp,
+  ArrowLeft,
+  Building2,
+  CalendarDays,
+  ChevronDown,
+  Download,
+  Eye,
+  FileText,
+  Info,
+  List,
+  Search,
+  Send,
+  Share2,
+  ShoppingCart,
+  Users,
+  X,
+} from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { translations } from '../lib/translations'
@@ -13,43 +30,59 @@ type PapeleoKey = keyof (typeof translations)['en']['papeleo']
 
 type DocFile = {
   number: string
-  name: string
+  name?: string
   title: string
   hasPdf: boolean
   hasDocx: boolean
   orderNumbers?: string[]
+  orders?: { id: string; orderNumber: string; linked: boolean }[]
   sent?: { at: string; to: string; viaClient: boolean } | null
   client?: string | null
 }
 
 type QuoteFilter = 'all' | 'noOrder' | 'notSent'
 
-const cardClass =
-  'flex items-center justify-between rounded-2xl border border-line bg-surface p-4 shadow-sm dark:border-line-dark dark:bg-surface-dark'
+const rowClass =
+  'group rounded-2xl border border-line bg-surface px-4 py-3 shadow-sm transition hover:border-yellow/60 dark:border-line-dark dark:bg-surface-dark dark:hover:border-yellow/40'
 
-const badgeClass =
-  'max-w-full truncate rounded-md bg-ink/5 px-1.5 py-0.5 font-semibold text-ink dark:bg-cream/10 dark:text-cream'
-const mutedBadgeClass = 'rounded-md px-1.5 py-0.5 text-graphite/70 dark:text-graphite-dark/70'
+const pillClass =
+  'inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition'
+const pillIdleClass =
+  'border-line bg-surface text-graphite hover:text-ink dark:border-line-dark dark:bg-surface-dark dark:text-graphite-dark dark:hover:text-cream'
+const pillActiveClass = 'border-yellow bg-yellow text-ink'
+
+const iconButtonClass =
+  'flex h-8 w-8 items-center justify-center rounded-lg border border-line text-graphite transition hover:border-yellow hover:text-ink lg:h-9 lg:w-9 lg:rounded-xl dark:border-line-dark dark:text-graphite-dark dark:hover:border-yellow/60 dark:hover:text-cream'
 
 const currentYear = new Date().getFullYear()
 const years = [currentYear, currentYear - 1]
 
-function FileCardSkeleton({ delay }: { delay: number }) {
+const docKey = (f: DocFile) => f.name ?? f.number
+
+function RowSkeleton({ delay }: { delay: number }) {
   return (
-    <div className={`${cardClass} animate-fade-up`} style={{ animationDelay: `${delay}ms` }}>
-      <Skeleton className="h-4 w-56" />
-      <Skeleton className="h-4 w-4 shrink-0 rounded" />
+    <div className={`${rowClass} flex items-center gap-3 animate-fade-up`} style={{ animationDelay: `${delay}ms` }}>
+      <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-4 w-2/3" />
+        <Skeleton className="h-3 w-1/3" />
+      </div>
+      <Skeleton className="hidden h-9 w-28 rounded-xl sm:block" />
     </div>
   )
 }
 
 export function DocumentsPage({ category, titleKey }: { category: DocCategory; titleKey: PapeleoKey }) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const [searchParams] = useSearchParams()
   const [year, setYear] = useState(() => Number(searchParams.get('year')) || currentYear)
   const [search, setSearch] = useState('')
   const [quoteFilter, setQuoteFilter] = useState<QuoteFilter>('all')
   const [clientFilter, setClientFilter] = useState('')
+  const [newestFirst, setNewestFirst] = useState(true)
+  const [detail, setDetail] = useState<DocFile | null>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
   const isQuote = category === 'presupuesto'
   const [toast, setToast] = useState<string | null>(null)
   function showToast(message: string) {
@@ -62,12 +95,31 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     queryFn: async () => (await api.get<DocFile[]>(`/documents/${category}`, { params: { year } })).data,
   })
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const query = search.trim().toLowerCase()
-  const filteredFiles = files
-    .filter((f) => !query || `${f.number} ${f.title}`.toLowerCase().includes(query))
+  const matchesSearch = (f: DocFile) =>
+    !query || [f.number, f.title, f.client ?? '', ...(f.orderNumbers ?? [])].join(' ').toLowerCase().includes(query)
+  const matchesClient = (f: DocFile) => !clientFilter || f.client === clientFilter
+  const base = files.filter((f) => matchesSearch(f) && matchesClient(f))
+  const counts = {
+    all: base.length,
+    noOrder: base.filter((f) => !f.orderNumbers?.length).length,
+    notSent: base.filter((f) => !f.sent).length,
+  }
+  const filteredFiles = base
     .filter((f) => quoteFilter !== 'noOrder' || !f.orderNumbers?.length)
     .filter((f) => quoteFilter !== 'notSent' || !f.sent)
-    .filter((f) => !clientFilter || f.client === clientFilter)
+    .sort((a, b) => (Number(b.number) - Number(a.number)) * (newestFirst ? 1 : -1))
   const clientOptions = [...new Set(files.map((f) => f.client).filter((c): c is string => !!c))].sort()
 
   async function openFile(number: string, ext: 'pdf' | 'docx', name?: string, sameTab = false) {
@@ -90,16 +142,25 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function shareFile(number: string, name: string, title: string, ext: 'pdf' | 'docx') {
+  async function previewOrder(id: string) {
+    try {
+      const { data } = await api.get(`/email-orders/${id}/pdf`, { responseType: 'blob' })
+      window.open(URL.createObjectURL(data), '_blank')
+    } catch {
+      showToast(t.documents.orderPdfMissing)
+    }
+  }
+
+  function shareFile(f: DocFile) {
     const url = new URL(window.location.pathname, window.location.origin)
     url.searchParams.set('open', '1')
     url.searchParams.set('year', String(year))
-    url.searchParams.set('number', number)
-    url.searchParams.set('name', name)
-    url.searchParams.set('ext', ext)
+    url.searchParams.set('number', f.number)
+    if (f.name) url.searchParams.set('name', f.name)
+    url.searchParams.set('ext', 'pdf')
 
     if (navigator.share) {
-      navigator.share({ title, url: url.toString() }).catch(() => {
+      navigator.share({ title: `${f.number} · ${f.title}`, url: url.toString() }).catch(() => {
         // user cancelled the share sheet, nothing to do
       })
       return
@@ -107,6 +168,8 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
 
     navigator.clipboard.writeText(url.toString()).then(() => showToast(t.documents.linkCopied))
   }
+
+  const shortDate = (iso: string) => new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'numeric' })
 
   return (
     <div>
@@ -119,133 +182,223 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
           {t.documents.back}
         </Link>
 
-        <select
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-          className="h-9 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
-        >
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
+        <label className={`${pillClass} ${pillIdleClass} relative cursor-pointer`}>
+          <CalendarDays className="h-4 w-4" />
+          <span className="text-ink dark:text-cream">{year}</span>
+          <ChevronDown className="h-4 w-4" />
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            aria-label={t.documents.year}
+            className="absolute inset-0 cursor-pointer opacity-0"
+          >
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
-      <h1 className="mt-4 font-display text-2xl font-semibold tracking-wide text-ink dark:text-cream">
+      <h1 className="mt-4 font-display text-3xl font-semibold tracking-wide text-ink dark:text-cream">
         {t.papeleo[titleKey].label}
       </h1>
+      <p className="mt-0.5 text-sm text-graphite dark:text-graphite-dark">{t.papeleo[titleKey].description}</p>
 
-      <div className="relative mt-3">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
+      <div className="relative mt-4">
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
         <input
+          ref={searchRef}
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={t.documents.searchPlaceholder}
-          className="h-10 w-full rounded-xl border border-line bg-paper pl-9 pr-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+          placeholder={isQuote ? t.documents.searchQuotePlaceholder : t.documents.searchPlaceholder}
+          className="h-12 w-full rounded-2xl border border-line bg-surface pl-11 pr-20 text-sm text-ink shadow-sm outline-none transition focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-surface-dark dark:text-cream"
         />
+        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-line px-1.5 py-0.5 font-mono text-[11px] text-graphite sm:block dark:border-line-dark dark:text-graphite-dark">
+          Ctrl K
+        </kbd>
       </div>
 
       {isQuote && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {(['all', 'noOrder', 'notSent'] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setQuoteFilter(f)}
-              className={`h-8 rounded-full border px-3 text-xs font-semibold transition ${
-                quoteFilter === f
-                  ? 'border-ink bg-ink text-cream dark:border-cream dark:bg-cream dark:text-ink'
-                  : 'border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
-              }`}
-            >
-              {t.documents.quoteFilters[f]}
-            </button>
-          ))}
+        <div className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+          {(['all', 'noOrder', 'notSent'] as const).map((f) => {
+            const Icon = f === 'all' ? List : f === 'noOrder' ? FileText : Send
+            const active = quoteFilter === f
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setQuoteFilter(f)}
+                className={`${pillClass} shrink-0 ${active ? pillActiveClass : pillIdleClass}`}
+              >
+                <Icon className="h-4 w-4" />
+                {t.documents.quoteFilters[f]}
+                <span
+                  className={`rounded-full px-1.5 py-px font-mono text-[11px] ${
+                    active ? 'bg-ink/15 text-ink' : 'bg-ink/5 text-ink dark:bg-cream/10 dark:text-cream'
+                  }`}
+                >
+                  {counts[f]}
+                </span>
+              </button>
+            )
+          })}
           {clientOptions.length > 1 && (
-            <select
-              value={clientFilter}
-              onChange={(e) => setClientFilter(e.target.value)}
-              className="h-8 max-w-full rounded-full border border-line bg-paper px-3 text-xs font-semibold text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
-            >
-              <option value="">{t.documents.allClients}</option>
-              {clientOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <label className={`${pillClass} relative shrink-0 cursor-pointer ${clientFilter ? pillActiveClass : pillIdleClass}`}>
+              <Users className="h-4 w-4" />
+              <span className="max-w-48 truncate">{clientFilter || t.documents.allClients}</span>
+              <ChevronDown className="h-4 w-4" />
+              <select
+                value={clientFilter}
+                onChange={(e) => setClientFilter(e.target.value)}
+                aria-label={t.documents.allClients}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              >
+                <option value="">{t.documents.allClients}</option>
+                {clientOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
+        </div>
+      )}
+
+      {!isLoading && !isError && files.length > 0 && (
+        <div className="mt-4 flex items-center justify-between text-xs text-graphite dark:text-graphite-dark">
+          <span>{t.documents.found.replace('{count}', String(filteredFiles.length))}</span>
+          <button
+            type="button"
+            onClick={() => setNewestFirst((v) => !v)}
+            className="inline-flex items-center gap-1.5 font-semibold hover:text-ink dark:hover:text-cream"
+          >
+            <ArrowDownUp className="h-3.5 w-3.5" />
+            {newestFirst ? t.documents.newestFirst : t.documents.oldestFirst}
+          </button>
         </div>
       )}
 
       {isLoading && (
         <div className="mt-4 space-y-2">
           {Array.from({ length: 6 }, (_, i) => (
-            <FileCardSkeleton key={i} delay={i * 50} />
+            <RowSkeleton key={i} delay={i * 50} />
           ))}
         </div>
       )}
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-2 space-y-2">
         {!isLoading &&
-          filteredFiles.map((f) => (
-            <div key={f.name} className={cardClass}>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-ink dark:text-cream">
-                  {f.number} · {f.title}
-                </p>
-                {isQuote && (
-                  <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
-                    {f.client && <span className={mutedBadgeClass}>{f.client}</span>}
-                    <span className={f.orderNumbers?.length ? badgeClass : mutedBadgeClass}>
-                      {f.orderNumbers?.length
-                        ? `${t.documents.order} ${f.orderNumbers.join(', ')}`
-                        : t.documents.noOrder}
-                    </span>
-                    <span className={f.sent ? badgeClass : mutedBadgeClass} title={f.sent?.to}>
-                      {f.sent
-                        ? `${t.documents.sent} ${new Date(f.sent.at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}${f.sent.viaClient ? ` · ${t.documents.viaClient}` : f.sent.to ? ` -> ${f.sent.to}` : ''}`
-                        : t.documents.notSent}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
+          filteredFiles.map((f, i) => {
+            const orderCount = f.orderNumbers?.length ?? 0
+            const pendingCount = f.orders?.filter((o) => !o.linked).length ?? 0
+            const orderChip =
+              orderCount > 0 ? (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-yellow/70 bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                  {orderCount === 1 ? t.documents.order : t.documents.orders.replace('{count}', String(orderCount))}
+                </span>
+              ) : pendingCount > 0 ? (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed border-yellow/80 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                  {t.documents.toLink}
+                </span>
+              ) : (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-semibold text-graphite dark:border-line-dark dark:text-graphite-dark">
+                  <span className="h-1.5 w-1.5 rounded-full bg-graphite/60 dark:bg-graphite-dark/60" />
+                  {t.documents.noOrder}
+                </span>
+              )
+            const sentChip = f.sent ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink dark:text-cream">
+                <Send className="h-3.5 w-3.5" />
+                {t.documents.sent} {shortDate(f.sent.at)}
+              </span>
+            ) : (
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-rust dark:text-rust-dark">
+                <Send className="h-3.5 w-3.5" />
+                {t.documents.notSent}
+              </span>
+            )
+            const actions = (
+              <>
                 {f.hasPdf && (
-                  <button
-                    type="button"
-                    title={t.documents.viewPdf}
-                    onClick={() => openFile(f.number, 'pdf', f.name)}
-                    className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-                  >
+                  <button type="button" title={t.documents.viewPdf} onClick={() => openFile(f.number, 'pdf', f.name)} className={iconButtonClass}>
                     <Eye className="h-4 w-4" />
                   </button>
                 )}
-                {f.hasPdf && (
-                  <button
-                    type="button"
-                    title={t.documents.share}
-                    onClick={() => shareFile(f.number, f.name, `${f.number} · ${f.title}`, 'pdf')}
-                    className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-                  >
-                    <Share2 className="h-4 w-4" />
+                {isQuote ? (
+                  <button type="button" title={t.documents.details} onClick={() => setDetail(f)} className={iconButtonClass}>
+                    <Info className="h-4 w-4" />
                   </button>
+                ) : (
+                  <>
+                    {f.hasPdf && (
+                      <button type="button" title={t.documents.share} onClick={() => shareFile(f)} className={iconButtonClass}>
+                        <Share2 className="h-4 w-4" />
+                      </button>
+                    )}
+                    {f.hasDocx && (
+                      <button type="button" title={t.documents.downloadWord} onClick={() => openFile(f.number, 'docx', f.name)} className={iconButtonClass}>
+                        <Download className="h-4 w-4" />
+                      </button>
+                    )}
+                  </>
                 )}
-                {f.hasDocx && (
-                  <button
-                    type="button"
-                    title={t.documents.downloadWord}
-                    onClick={() => openFile(f.number, 'docx', f.name)}
-                    className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+              </>
+            )
+            const heading = (
+              <div className="flex min-w-0 items-start gap-3 lg:items-center">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow/15 text-ink dark:text-yellow">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p
+                    title={`${f.number} · ${f.title}`}
+                    className="line-clamp-2 font-display text-[15px] font-semibold leading-snug tracking-wide text-ink lg:line-clamp-1 dark:text-cream"
                   >
-                    <Download className="h-4 w-4" />
-                  </button>
-                )}
+                    <span className="font-mono text-[13px] text-yellow">{f.number}</span> {f.title}
+                  </p>
+                  {f.client && (
+                    <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-graphite dark:text-graphite-dark">
+                      <Building2 className="h-3.5 w-3.5 shrink-0" />
+                      {f.client}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+
+            return (
+              <div key={docKey(f)} className={`${rowClass} animate-fade-up`} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}>
+                <div className="hidden items-center gap-4 lg:flex">
+                  <div className="min-w-0 flex-1">{heading}</div>
+                  {isQuote && <div className="w-32 shrink-0">{orderChip}</div>}
+                  {isQuote && <div className="w-32 shrink-0">{sentChip}</div>}
+                  <div className="flex shrink-0 items-center justify-end gap-2">{actions}</div>
+                </div>
+
+                <div className="lg:hidden">
+                  <div className="flex items-start justify-between gap-2">
+                    {heading}
+                    {!isQuote && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
+                  </div>
+                  {isQuote && (
+                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3 dark:border-line-dark">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+                        {orderChip}
+                        {sentChip}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
       </div>
 
       {isError && <p className="mt-6 text-center text-sm text-rust dark:text-rust-dark">{t.documents.unreachable}</p>}
@@ -255,6 +408,134 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       {!isLoading && !isError && files.length > 0 && filteredFiles.length === 0 && (
         <p className="mt-6 text-center text-sm text-graphite dark:text-graphite-dark">{t.documents.noResults}</p>
       )}
+
+      {detail &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 sm:items-center sm:p-4" onClick={() => setDetail(null)}>
+            <div
+              className="max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-xl animate-scale-in sm:max-w-md sm:rounded-2xl dark:bg-surface-dark"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-display text-lg font-semibold leading-snug tracking-wide text-ink dark:text-cream">
+                    <span className="font-mono text-base text-yellow">{detail.number}</span> {detail.title}
+                  </p>
+                  {detail.client && (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-graphite dark:text-graphite-dark">
+                      <Building2 className="h-3.5 w-3.5 shrink-0" />
+                      {detail.client}
+                    </p>
+                  )}
+                </div>
+                <button type="button" onClick={() => setDetail(null)} className={iconButtonClass}>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
+                {t.documents.columnOrder}
+              </p>
+              {detail.orders?.length ? (
+                <div className="mt-2 space-y-2">
+                  {detail.orders.map((o) =>
+                    o.linked ? (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => previewOrder(o.id)}
+                        className="flex w-full items-center justify-between gap-2 rounded-xl border border-yellow/60 bg-yellow/10 px-3 py-2.5 text-left text-sm font-semibold text-ink transition hover:bg-yellow/20 dark:text-cream"
+                      >
+                        <span className="flex items-center gap-2">
+                          <ShoppingCart className="h-4 w-4 text-ink dark:text-yellow" />
+                          <span className="font-mono">{o.orderNumber}</span>
+                        </span>
+                        <span className="flex items-center gap-1 text-xs text-graphite dark:text-graphite-dark">
+                          <Eye className="h-3.5 w-3.5" />
+                          {t.documents.previewOrder}
+                        </span>
+                      </button>
+                    ) : (
+                      <div
+                        key={o.id}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-dashed border-yellow/70 px-3 py-2 text-sm"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => previewOrder(o.id)}
+                          className="flex min-w-0 items-center gap-2 font-semibold text-ink dark:text-cream"
+                        >
+                          <ShoppingCart className="h-4 w-4 shrink-0 text-ink dark:text-yellow" />
+                          <span className="font-mono">{o.orderNumber}</span>
+                          <Eye className="h-3.5 w-3.5 shrink-0 text-graphite dark:text-graphite-dark" />
+                        </button>
+                        <Link
+                          to={`/papeleo/pedidos/${o.id}/reconcile`}
+                          className="shrink-0 rounded-lg bg-yellow px-2.5 py-1 text-xs font-semibold text-ink transition hover:bg-yellow/90"
+                        >
+                          {t.documents.link}
+                        </Link>
+                      </div>
+                    ),
+                  )}
+                  {detail.orders.some((o) => !o.linked) && (
+                    <p className="text-xs text-graphite dark:text-graphite-dark">{t.documents.toLinkHint}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{t.documents.noOrder}</p>
+              )}
+
+              <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
+                {t.documents.columnSent}
+              </p>
+              {detail.sent ? (
+                <div className="mt-2 rounded-xl border border-line px-3 py-2.5 text-sm dark:border-line-dark">
+                  <p className="flex items-center gap-2 font-semibold text-ink dark:text-cream">
+                    <Send className="h-4 w-4" />
+                    {new Date(detail.sent.at).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                  <p className="mt-1 break-all text-xs text-graphite dark:text-graphite-dark">
+                    {detail.sent.viaClient ? t.documents.viaClient : `${t.documents.to} ${detail.sent.to}`}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm font-semibold text-rust dark:text-rust-dark">{t.documents.notSent}</p>
+              )}
+
+              <div className="mt-6 grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  disabled={!detail.hasPdf}
+                  onClick={() => openFile(detail.number, 'pdf', detail.name)}
+                  className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
+                >
+                  <Eye className="h-4 w-4" />
+                  {t.documents.viewPdf}
+                </button>
+                <button
+                  type="button"
+                  disabled={!detail.hasPdf}
+                  onClick={() => shareFile(detail)}
+                  className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
+                >
+                  <Share2 className="h-4 w-4" />
+                  {t.documents.share}
+                </button>
+                <button
+                  type="button"
+                  disabled={!detail.hasDocx}
+                  onClick={() => openFile(detail.number, 'docx', detail.name)}
+                  className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
+                >
+                  <Download className="h-4 w-4" />
+                  {t.documents.downloadWord}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {toast &&
         createPortal(

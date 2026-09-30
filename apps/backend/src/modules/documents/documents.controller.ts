@@ -81,12 +81,17 @@ async function withQuoteStatus(files: DocFile[], year: number) {
       where: {
         quoteRef: { not: null },
         orderNumber: { not: null },
-        OR: [
-          { orderDate: { gte: yearStart, lt: yearEnd } },
-          { orderDate: null, receivedAt: { gte: yearStart, lt: yearEnd } },
+        AND: [
+          { OR: [{ quoteCategory: "PRESUPUESTO" }, { quoteCategory: null }] },
+          {
+            OR: [
+              { orderDate: { gte: yearStart, lt: yearEnd } },
+              { orderDate: null, receivedAt: { gte: yearStart, lt: yearEnd } },
+            ],
+          },
         ],
       },
-      select: { quoteRef: true, orderNumber: true, totalAmount: true, senderEmail: true },
+      select: { id: true, quoteRef: true, orderNumber: true, totalAmount: true, senderEmail: true, quoteCategory: true },
     }),
     prisma.presupuestoSent.findMany({ where: { year } }),
     quoteDetails(files, year).catch(() => ({ clients: new Map<string, string>(), totals: new Map<string, number | undefined>() })),
@@ -110,7 +115,7 @@ async function withQuoteStatus(files: DocFile[], year: number) {
         const byClient = candidates.filter((c) => company && normalize(details.clients.get(c.name) ?? "").includes(company));
         return byClient.length !== 1 || byClient[0].name === f.name;
       })
-      .map((o) => o.orderNumber!);
+      .map((o) => ({ id: o.id, orderNumber: o.orderNumber!, linked: o.quoteCategory === "PRESUPUESTO" }));
   };
 
   const sentFor = (f: DocFile) => {
@@ -124,9 +129,11 @@ async function withQuoteStatus(files: DocFile[], year: number) {
 
   return files.map((f) => {
     const sentDoc = sentFor(f);
+    const fileOrders = ordersFor(f);
     return {
       ...f,
-      orderNumbers: ordersFor(f),
+      orders: fileOrders,
+      orderNumbers: fileOrders.filter((o) => o.linked).map((o) => o.orderNumber),
       sent: sentDoc ? { at: sentDoc.sentAt, to: sentDoc.recipients, viaClient: sentDoc.viaClient } : null,
       client: details.clients.get(f.name) ?? null,
     };
