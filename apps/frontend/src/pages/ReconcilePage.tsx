@@ -23,6 +23,7 @@ type EmailOrder = {
 
 type DocFile = {
   number: string
+  name: string
   title: string
   hasPdf: boolean
   hasDocx: boolean
@@ -82,7 +83,7 @@ export function ReconcilePage() {
 
   const [activeTarget, setActiveTarget] = useState<Target | null>(null)
   const [activeCategory, setActiveCategory] = useState<DocCategory | null>(null)
-  const [selected, setSelected] = useState<{ category: DocCategory; number: string } | null>(null)
+  const [selected, setSelected] = useState<{ category: DocCategory; number: string; name: string } | null>(null)
   const docPreview = usePdfPreview()
 
   const year = order
@@ -126,10 +127,12 @@ export function ReconcilePage() {
     setSelected(null)
   }
 
-  function selectDoc(category: DocCategory, number: string) {
-    setSelected({ category, number })
+  function selectDoc(category: DocCategory, number: string, name: string) {
+    setSelected({ category, number, name })
     docPreview.load(
-      async () => (await api.get(`/documents/${category}/file`, { params: { year, number, ext: 'pdf' }, responseType: 'blob' })).data,
+      async () =>
+        (await api.get(`/documents/${category}/file`, { params: { year, number, name, ext: 'pdf' }, responseType: 'blob' }))
+          .data,
     )
   }
 
@@ -188,11 +191,11 @@ export function ReconcilePage() {
                   )}
                   {docs.map((doc) => (
                     <button
-                      key={doc.number}
+                      key={doc.name}
                       type="button"
-                      onClick={() => selectDoc(activeCategory, doc.number)}
+                      onClick={() => selectDoc(activeCategory, doc.number, doc.name)}
                       className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs ${
-                        selected?.category === activeCategory && selected?.number === doc.number
+                        selected?.category === activeCategory && selected?.name === doc.name
                           ? 'bg-yellow/20 text-ink dark:text-cream'
                           : 'text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10'
                       }`}

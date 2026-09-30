@@ -62,6 +62,7 @@ export async function getCategoryFolderPath(year: number, category: DocCategory)
 
 export type DocFile = {
   number: string;
+  name: string;
   title: string;
   hasPdf: boolean;
   hasDocx: boolean;
@@ -72,21 +73,22 @@ async function lookupCategory(yearPath: string, category: DocCategory): Promise<
   if (!folder) return [];
 
   const files = await fs.readdir(folder);
-  const byNumber = new Map<string, DocFile>();
+  const byName = new Map<string, DocFile>();
 
   for (const f of files) {
     const number = docNumber(f);
     const ext = path.extname(f).toLowerCase();
     if (!number || (ext !== ".pdf" && ext !== ".docx")) continue;
 
-    const title = f.replace(/^\d+\s*/, "").replace(/\.(pdf|docx)$/i, "");
-    const entry = byNumber.get(number) ?? { number, title, hasPdf: false, hasDocx: false };
+    const name = f.slice(0, -ext.length);
+    const title = name.replace(/^\d+\s*/, "");
+    const entry = byName.get(name) ?? { number, name, title, hasPdf: false, hasDocx: false };
     if (ext === ".pdf") entry.hasPdf = true;
     if (ext === ".docx") entry.hasDocx = true;
-    byNumber.set(number, entry);
+    byName.set(name, entry);
   }
 
-  return [...byNumber.values()].sort((a, b) => Number(b.number) - Number(a.number));
+  return [...byName.values()].sort((a, b) => Number(b.number) - Number(a.number) || a.name.localeCompare(b.name));
 }
 
 export async function listCategory(category: DocCategory, year: number): Promise<DocFile[]> {
@@ -101,20 +103,34 @@ export async function listCategory(category: DocCategory, year: number): Promise
   }
 }
 
-async function lookupCategoryFile(yearPath: string, category: DocCategory, number: string, ext: "pdf" | "docx") {
+async function lookupCategoryFile(
+  yearPath: string,
+  category: DocCategory,
+  number: string,
+  ext: "pdf" | "docx",
+  name?: string,
+) {
   const folder = await findFolder(yearPath, CATEGORY_KEYWORDS[category]);
   if (!folder) throw new Error("Category folder not found");
 
   const padded = number.padStart(3, "0");
   const files = await fs.readdir(folder);
-  const match = files.find((f) => docNumber(f) === padded && f.toLowerCase().endsWith(`.${ext}`));
+  const match = name
+    ? files.find((f) => f.toLowerCase() === `${name}.${ext}`.toLowerCase())
+    : files.find((f) => docNumber(f) === padded && f.toLowerCase().endsWith(`.${ext}`));
   if (!match) throw new Error("File not found");
   return path.join(folder, match);
 }
 
-export async function getCategoryFile(category: DocCategory, year: number, number: string, ext: "pdf" | "docx") {
+export async function getCategoryFile(
+  category: DocCategory,
+  year: number,
+  number: string,
+  ext: "pdf" | "docx",
+  name?: string,
+) {
   if (!env.DOCS_ROOT_PATH) throw new Error("DOCS_ROOT_PATH is not configured");
   const yearPath = path.join(env.DOCS_ROOT_PATH, String(year));
-  return withTimeout(lookupCategoryFile(yearPath, category, number, ext), FS_TIMEOUT_MS);
+  return withTimeout(lookupCategoryFile(yearPath, category, number, ext, name), FS_TIMEOUT_MS);
 }
 

@@ -13,6 +13,7 @@ type PapeleoKey = keyof (typeof translations)['en']['papeleo']
 
 type DocFile = {
   number: string
+  name: string
   title: string
   hasPdf: boolean
   hasDocx: boolean
@@ -69,9 +70,9 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     .filter((f) => !clientFilter || f.client === clientFilter)
   const clientOptions = [...new Set(files.map((f) => f.client).filter((c): c is string => !!c))].sort()
 
-  async function openFile(number: string, ext: 'pdf' | 'docx', sameTab = false) {
+  async function openFile(number: string, ext: 'pdf' | 'docx', name?: string, sameTab = false) {
     const { data } = await api.get(`/documents/${category}/file`, {
-      params: { year, number, ext },
+      params: { year, number, ext, name },
       responseType: 'blob',
     })
     const url = URL.createObjectURL(data)
@@ -85,15 +86,16 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     const number = searchParams.get('number')
     const ext = searchParams.get('ext')
     if (!searchParams.get('open') || !number || (ext !== 'pdf' && ext !== 'docx')) return
-    openFile(number, ext, true).catch(() => showToast(t.documents.unreachable))
+    openFile(number, ext, searchParams.get('name') ?? undefined, true).catch(() => showToast(t.documents.unreachable))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function shareFile(number: string, title: string, ext: 'pdf' | 'docx') {
+  function shareFile(number: string, name: string, title: string, ext: 'pdf' | 'docx') {
     const url = new URL(window.location.pathname, window.location.origin)
     url.searchParams.set('open', '1')
     url.searchParams.set('year', String(year))
     url.searchParams.set('number', number)
+    url.searchParams.set('name', name)
     url.searchParams.set('ext', ext)
 
     if (navigator.share) {
@@ -189,7 +191,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       <div className="mt-4 space-y-2">
         {!isLoading &&
           filteredFiles.map((f) => (
-            <div key={f.number} className={cardClass}>
+            <div key={f.name} className={cardClass}>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-ink dark:text-cream">
                   {f.number} · {f.title}
@@ -215,7 +217,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                   <button
                     type="button"
                     title={t.documents.viewPdf}
-                    onClick={() => openFile(f.number, 'pdf')}
+                    onClick={() => openFile(f.number, 'pdf', f.name)}
                     className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
                   >
                     <Eye className="h-4 w-4" />
@@ -225,7 +227,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                   <button
                     type="button"
                     title={t.documents.share}
-                    onClick={() => shareFile(f.number, `${f.number} · ${f.title}`, 'pdf')}
+                    onClick={() => shareFile(f.number, f.name, `${f.number} · ${f.title}`, 'pdf')}
                     className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
                   >
                     <Share2 className="h-4 w-4" />
@@ -235,7 +237,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                   <button
                     type="button"
                     title={t.documents.downloadWord}
-                    onClick={() => openFile(f.number, 'docx')}
+                    onClick={() => openFile(f.number, 'docx', f.name)}
                     className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
                   >
                     <Download className="h-4 w-4" />

@@ -12,4 +12,5 @@ export const getDocumentFileSchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
   number: z.string().regex(/^\d+$/),
   ext: z.enum(["pdf", "docx"]),
+  name: z.string().min(1).max(300).optional(),
 });
