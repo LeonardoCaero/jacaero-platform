@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyReplacements, extractFields, formatAmount, formatDateEs, paragraphTexts, setTableFont, withMonth } from "./docx-fields.js";
+import { applyReplacements, clientFromDocx, extractFields, formatAmount, formatDateEs, paragraphTexts, setTableFont, withMonth } from "./docx-fields.js";
 
 const p = (...runs: string[]) => `<w:p><w:pPr/>${runs.map((r) => `<w:r><w:t>${r}</w:t></w:r>`).join("")}</w:p>`;
 
@@ -63,6 +63,12 @@ describe("docx fields", () => {
     expect(out).toContain(`<w:rPr>${fonts}<w:b/>${size}<w:lang w:val="es-ES"/></w:rPr><w:t>Nº albarán</w:t>`);
     expect(out).toContain(`<w:r><w:rPr>${fonts}${size}</w:rPr><w:t>001</w:t>`);
     expect(out).toContain(other);
+  });
+
+  it("reads the client from a table cell or an inline label", () => {
+    expect(clientFromDocx(p("Fecha") + p("1 de enero de 2026") + p("Cliente") + p("Cliente Ejemplo S.L."))).toBe("CLIENTE EJEMPLO S.L.");
+    expect(clientFromDocx(p("CLIENTE: Persona Ejemplo"))).toBe("PERSONA EJEMPLO");
+    expect(clientFromDocx(p("Sin datos"))).toBeNull();
   });
 
   it("formats dates and amounts like the originals", () => {

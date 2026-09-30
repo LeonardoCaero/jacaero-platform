@@ -177,3 +177,13 @@ export function setTableFont(xml: string, containing: RegExp, font: string, half
       .replace(/<w:r>(?!<w:rPr>)/g, `<w:r>${withFont("<w:rPr></w:rPr>", font, halfPoints)}`);
   });
 }
+
+export function clientFromDocx(xml: string): string | null {
+  const texts = paragraphTexts(xml).map((t) => t.trim()).filter(Boolean);
+  for (const [i, t] of texts.entries()) {
+    const inline = t.match(/^cliente\s*:\s*(.+)$/i);
+    if (inline) return inline[1].trim().toUpperCase();
+    if (/^cliente\s*:?$/i.test(t) && texts[i + 1]) return texts[i + 1].toUpperCase();
+  }
+  return null;
+}

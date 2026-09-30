@@ -18,6 +18,7 @@ type DocFile = {
   hasDocx: boolean
   orderNumbers?: string[]
   sent?: { at: string; to: string } | null
+  client?: string | null
 }
 
 type QuoteFilter = 'all' | 'noOrder' | 'notSent'
@@ -47,6 +48,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
   const [year, setYear] = useState(() => Number(searchParams.get('year')) || currentYear)
   const [search, setSearch] = useState('')
   const [quoteFilter, setQuoteFilter] = useState<QuoteFilter>('all')
+  const [clientFilter, setClientFilter] = useState('')
   const isQuote = category === 'presupuesto'
   const [toast, setToast] = useState<string | null>(null)
   function showToast(message: string) {
@@ -64,6 +66,8 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     .filter((f) => !query || `${f.number} ${f.title}`.toLowerCase().includes(query))
     .filter((f) => quoteFilter !== 'noOrder' || !f.orderNumbers?.length)
     .filter((f) => quoteFilter !== 'notSent' || !f.sent)
+    .filter((f) => !clientFilter || f.client === clientFilter)
+  const clientOptions = [...new Set(files.map((f) => f.client).filter((c): c is string => !!c))].sort()
 
   async function openFile(number: string, ext: 'pdf' | 'docx', sameTab = false) {
     const { data } = await api.get(`/documents/${category}/file`, {
@@ -142,7 +146,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       </div>
 
       {isQuote && (
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {(['all', 'noOrder', 'notSent'] as const).map((f) => (
             <button
               key={f}
@@ -157,6 +161,20 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
               {t.documents.quoteFilters[f]}
             </button>
           ))}
+          {clientOptions.length > 1 && (
+            <select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              className="h-8 max-w-full rounded-full border border-line bg-paper px-3 text-xs font-semibold text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+            >
+              <option value="">{t.documents.allClients}</option>
+              {clientOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
 
@@ -178,6 +196,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 </p>
                 {isQuote && (
                   <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                    {f.client && <span className={mutedBadgeClass}>{f.client}</span>}
                     <span className={f.orderNumbers?.length ? badgeClass : mutedBadgeClass}>
                       {f.orderNumbers?.length
                         ? `${t.documents.order} ${f.orderNumbers.join(', ')}`
