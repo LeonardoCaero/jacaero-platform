@@ -123,8 +123,8 @@ export function parsePurchaseOrderText(fullText: string): ParsedPurchaseOrder {
   };
 }
 
-// "001 ALBARÁN TRABAJOS EJEMPLO.pdf" -> 1
-export function albaranNumberFromFilename(name: string) {
-  const match = name.normalize("NFD").replace(/\p{Diacritic}/gu, "").match(/^(\d+)\s*albaran/i);
+export function documentNumberFromFilename(name: string, keyword: "albaran" | "presupuesto") {
+  const plain = name.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  const match = plain.match(new RegExp(`^(\\d+)\\s*${keyword}`, "i"));
   return match ? Number(match[1]) : undefined;
 }

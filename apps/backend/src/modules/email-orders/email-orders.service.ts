@@ -8,7 +8,7 @@ import { ApiError } from "../../common/errors/api-error.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../common/services/logger.js";
 import { notifyPermission } from "../push-subscriptions/push-subscriptions.service.js";
-import { parsePurchaseOrderText, extractOrderNumber, extractDocumentTotal, extractDeclaredNumber, albaranNumberFromFilename } from "./po-parser.js";
+import { parsePurchaseOrderText, extractOrderNumber, extractDocumentTotal, extractDeclaredNumber, documentNumberFromFilename } from "./po-parser.js";
 import { listCategory, getCategoryFile, type DocCategory } from "../../common/services/nas-documents.service.js";
 
 function allowedSenders() {
@@ -53,6 +53,42 @@ export async function syncFacturarOk() {
 // Sent folder tells us when each one was sent. Two days after that, if there's still no factura,
 // the order's email gets the Gmail label FACTURAR OK. Once the factura is linked, it swaps
 // Albarán / FACTURAR OK for Factura.
+export async function recordSentPresupuestos(client: ImapFlow, sentPath: string) {
+  const last = await prisma.presupuestoSent.findFirst({ orderBy: { sentAt: "desc" }, select: { sentAt: true } });
+  const since = last
+    ? new Date(last.sentAt.getTime() - 24 * 60 * 60 * 1000)
+    : new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+
+  const found: { year: number; number: number; sentAt: Date; recipients: string }[] = [];
+  const lock = await client.getMailboxLock(sentPath);
+  try {
+    const uids = await client.search({ since, gmraw: "has:attachment presupuesto" }, { uid: true });
+    if (uids && uids.length > 0) {
+      for await (const msg of client.fetch(uids, { envelope: true, bodyStructure: true }, { uid: true })) {
+        const date = msg.envelope?.date;
+        if (!date || !msg.bodyStructure) continue;
+        const recipients = (msg.envelope?.to ?? []).map((a) => a.address).filter(Boolean).join(", ");
+        for (const name of attachmentNames(msg.bodyStructure)) {
+          const number = documentNumberFromFilename(name, "presupuesto");
+          if (number !== undefined) found.push({ year: date.getFullYear(), number, sentAt: date, recipients });
+        }
+      }
+    }
+  } finally {
+    lock.release();
+  }
+
+  for (const sent of found) {
+    const existing = await prisma.presupuestoSent.findUnique({
+      where: { year_number: { year: sent.year, number: sent.number } },
+    });
+    if (!existing) await prisma.presupuestoSent.create({ data: sent });
+    else if (sent.sentAt < existing.sentAt) {
+      await prisma.presupuestoSent.update({ where: { id: existing.id }, data: sent });
+    }
+  }
+}
+
 async function syncFacturarOkInner() {
   const needsSentDate = await prisma.emailOrder.findMany({
     where: { albaranNumber: { not: null }, albaranSentAt: null },
@@ -77,6 +113,8 @@ async function syncFacturarOkInner() {
     const allPath = boxes.find((b) => b.specialUse === "\\All")?.path;
     if (!sentPath || !allPath) throw new Error("Gmail Sent / All Mail folders not found");
 
+    await recordSentPresupuestos(client, sentPath);
+
     if (needsSentDate.length > 0) {
       const since = new Date(Math.min(...needsSentDate.map((o) => o.receivedAt.getTime())));
       const sentDates = new Map<number, Date[]>();
@@ -88,7 +126,7 @@ async function syncFacturarOkInner() {
             const date = msg.envelope?.date;
             if (!date || !msg.bodyStructure) continue;
             for (const name of attachmentNames(msg.bodyStructure)) {
-              const number = albaranNumberFromFilename(name);
+              const number = documentNumberFromFilename(name, "albaran");
               if (number !== undefined) sentDates.set(number, [...(sentDates.get(number) ?? []), date]);
             }
           }

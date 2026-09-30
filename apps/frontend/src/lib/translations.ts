@@ -133,6 +133,11 @@ const en = {
     allLinked: 'Everything is already linked for this order.',
   },
   documents: {
+    order: 'Order',
+    noOrder: 'No order',
+    sent: 'Sent',
+    notSent: 'Not sent',
+    quoteFilters: { all: 'All', noOrder: 'No order', notSent: 'Not sent' },
     back: 'Back',
     year: 'Year',
     empty: 'No documents found for this year.',
@@ -429,6 +434,11 @@ const es = {
     allLinked: 'Ya está todo vinculado para este pedido.',
   },
   documents: {
+    order: 'Pedido',
+    noOrder: 'Sin pedido',
+    sent: 'Enviado',
+    notSent: 'No enviado',
+    quoteFilters: { all: 'Todos', noOrder: 'Sin pedido', notSent: 'No enviados' },
     back: 'Volver',
     year: 'Año',
     empty: 'No hay documentos para este año.',
