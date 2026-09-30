@@ -338,6 +338,17 @@ model EmailOrder {
   @@index([contractResourceId])
 }
 
+model PresupuestoSent {
+  id         String   @id @default(cuid())
+  year       Int
+  number     Int
+  sentAt     DateTime
+  recipients String
+  viaClient  Boolean  @default(false)
+
+  @@unique([year, number])
+}
+
 enum MonthlyDocKind {
   albaran
   factura

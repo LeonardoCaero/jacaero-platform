@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { esNumber, extractOrderNumber, extractDeclaredNumber, extractDocumentTotal, albaranNumberFromFilename } from "./po-parser.js";
+import { esNumber, extractOrderNumber, extractDeclaredNumber, extractDocumentTotal, documentNumberFromFilename } from "./po-parser.js";
 
 describe("esNumber", () => {
   it("parses Spanish thousand/decimal separators", () => {
@@ -42,11 +42,14 @@ describe("extractDocumentTotal", () => {
   });
 });
 
-describe("albaranNumberFromFilename", () => {
+describe("documentNumberFromFilename", () => {
   it("reads the number off sent albarán attachments", () => {
-    expect(albaranNumberFromFilename("001 ALBARÁN TRABAJOS EJEMPLO.pdf")).toBe(1);
-    expect(albaranNumberFromFilename("002 ALBARÁN MES DE ENERO(Extra).pdf")).toBe(2);
-    expect(albaranNumberFromFilename("003 HORAS ENERO.pdf")).toBeUndefined();
-    expect(albaranNumberFromFilename("image001.png")).toBeUndefined();
+    expect(documentNumberFromFilename("001 ALBARÁN TRABAJOS EJEMPLO.pdf", "albaran")).toBe(1);
+    expect(documentNumberFromFilename("002 ALBARÁN MES DE ENERO(Extra).pdf", "albaran")).toBe(2);
+    expect(documentNumberFromFilename("003 HORAS ENERO.pdf", "albaran")).toBeUndefined();
+    expect(documentNumberFromFilename("image001.png", "albaran")).toBeUndefined();
+    expect(documentNumberFromFilename("004 PRESUPUESTO EJEMPLO.pdf", "presupuesto")).toBe(4);
+    expect(documentNumberFromFilename("005 Presupuesto obra ejemplo.pdf", "presupuesto")).toBe(5);
+    expect(documentNumberFromFilename("001 ALBARÁN TRABAJOS EJEMPLO.pdf", "presupuesto")).toBeUndefined();
   });
 });

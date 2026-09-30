@@ -16,10 +16,19 @@ type DocFile = {
   title: string
   hasPdf: boolean
   hasDocx: boolean
+  orderNumbers?: string[]
+  sent?: { at: string; to: string; viaClient: boolean } | null
+  client?: string | null
 }
+
+type QuoteFilter = 'all' | 'noOrder' | 'notSent'
 
 const cardClass =
   'flex items-center justify-between rounded-2xl border border-line bg-surface p-4 shadow-sm dark:border-line-dark dark:bg-surface-dark'
+
+const badgeClass =
+  'max-w-full truncate rounded-md bg-ink/5 px-1.5 py-0.5 font-semibold text-ink dark:bg-cream/10 dark:text-cream'
+const mutedBadgeClass = 'rounded-md px-1.5 py-0.5 text-graphite/70 dark:text-graphite-dark/70'
 
 const currentYear = new Date().getFullYear()
 const years = [currentYear, currentYear - 1]
@@ -38,6 +47,9 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
   const [searchParams] = useSearchParams()
   const [year, setYear] = useState(() => Number(searchParams.get('year')) || currentYear)
   const [search, setSearch] = useState('')
+  const [quoteFilter, setQuoteFilter] = useState<QuoteFilter>('all')
+  const [clientFilter, setClientFilter] = useState('')
+  const isQuote = category === 'presupuesto'
   const [toast, setToast] = useState<string | null>(null)
   function showToast(message: string) {
     setToast(message)
@@ -50,9 +62,12 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
   })
 
   const query = search.trim().toLowerCase()
-  const filteredFiles = query
-    ? files.filter((f) => `${f.number} ${f.title}`.toLowerCase().includes(query))
-    : files
+  const filteredFiles = files
+    .filter((f) => !query || `${f.number} ${f.title}`.toLowerCase().includes(query))
+    .filter((f) => quoteFilter !== 'noOrder' || !f.orderNumbers?.length)
+    .filter((f) => quoteFilter !== 'notSent' || !f.sent)
+    .filter((f) => !clientFilter || f.client === clientFilter)
+  const clientOptions = [...new Set(files.map((f) => f.client).filter((c): c is string => !!c))].sort()
 
   async function openFile(number: string, ext: 'pdf' | 'docx', sameTab = false) {
     const { data } = await api.get(`/documents/${category}/file`, {
@@ -130,6 +145,39 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
         />
       </div>
 
+      {isQuote && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {(['all', 'noOrder', 'notSent'] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setQuoteFilter(f)}
+              className={`h-8 rounded-full border px-3 text-xs font-semibold transition ${
+                quoteFilter === f
+                  ? 'border-ink bg-ink text-cream dark:border-cream dark:bg-cream dark:text-ink'
+                  : 'border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
+              }`}
+            >
+              {t.documents.quoteFilters[f]}
+            </button>
+          ))}
+          {clientOptions.length > 1 && (
+            <select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              className="h-8 max-w-full rounded-full border border-line bg-paper px-3 text-xs font-semibold text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+            >
+              <option value="">{t.documents.allClients}</option>
+              {clientOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
       {isLoading && (
         <div className="mt-4 space-y-2">
           {Array.from({ length: 6 }, (_, i) => (
@@ -146,6 +194,21 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 <p className="truncate text-sm font-semibold text-ink dark:text-cream">
                   {f.number} · {f.title}
                 </p>
+                {isQuote && (
+                  <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                    {f.client && <span className={mutedBadgeClass}>{f.client}</span>}
+                    <span className={f.orderNumbers?.length ? badgeClass : mutedBadgeClass}>
+                      {f.orderNumbers?.length
+                        ? `${t.documents.order} ${f.orderNumbers.join(', ')}`
+                        : t.documents.noOrder}
+                    </span>
+                    <span className={f.sent ? badgeClass : mutedBadgeClass} title={f.sent?.to}>
+                      {f.sent
+                        ? `${t.documents.sent} ${new Date(f.sent.at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}${f.sent.viaClient ? ` · ${t.documents.viaClient}` : f.sent.to ? ` -> ${f.sent.to}` : ''}`
+                        : t.documents.notSent}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 {f.hasPdf && (
