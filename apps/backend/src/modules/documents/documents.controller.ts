@@ -73,7 +73,7 @@ async function withQuoteStatus(files: DocFile[], year: number) {
     return {
       ...f,
       orderNumbers: orders.filter((o) => Number(o.quoteRef!.replace(/\D/g, "")) === number).map((o) => o.orderNumber!),
-      sent: sentDoc ? { at: sentDoc.sentAt, to: sentDoc.recipients } : null,
+      sent: sentDoc ? { at: sentDoc.sentAt, to: sentDoc.recipients, viaClient: sentDoc.viaClient } : null,
       client: clients.get(number) ?? null,
     };
   });

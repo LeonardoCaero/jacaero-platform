@@ -344,6 +344,7 @@ model PresupuestoSent {
   number     Int
   sentAt     DateTime
   recipients String
+  viaClient  Boolean  @default(false)
 
   @@unique([year, number])
 }

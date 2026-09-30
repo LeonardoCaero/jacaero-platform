@@ -5,6 +5,7 @@ CREATE TABLE "PresupuestoSent" (
     "number" INTEGER NOT NULL,
     "sentAt" TIMESTAMP(3) NOT NULL,
     "recipients" TEXT NOT NULL,
+    "viaClient" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "PresupuestoSent_pkey" PRIMARY KEY ("id")
 );

@@ -17,7 +17,7 @@ type DocFile = {
   hasPdf: boolean
   hasDocx: boolean
   orderNumbers?: string[]
-  sent?: { at: string; to: string } | null
+  sent?: { at: string; to: string; viaClient: boolean } | null
   client?: string | null
 }
 
@@ -204,7 +204,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                     </span>
                     <span className={f.sent ? badgeClass : mutedBadgeClass} title={f.sent?.to}>
                       {f.sent
-                        ? `${t.documents.sent} ${new Date(f.sent.at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}${f.sent.to ? ` -> ${f.sent.to}` : ''}`
+                        ? `${t.documents.sent} ${new Date(f.sent.at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}${f.sent.viaClient ? ` · ${t.documents.viaClient}` : f.sent.to ? ` -> ${f.sent.to}` : ''}`
                         : t.documents.notSent}
                     </span>
                   </div>
