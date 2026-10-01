@@ -52,7 +52,10 @@ app.listen(env.PORT, () => {
 });
 
 if (env.ORDERS_EMAIL_ADDRESS && env.ORDERS_EMAIL_APP_PASSWORD) {
-  syncOrders().catch((err) => logger.error("[email-orders] initial sync failed:", err));
+  const runSyncOrders = () =>
+    syncOrders().catch((err) => logger.error("[email-orders] order sync failed:", err));
+  runSyncOrders();
+  setInterval(runSyncOrders, 60 * 60 * 1000);
   startImapIdleListener();
   // Time-based (2 days after the albarán went out), so it needs a clock rather than a mail event.
   const runFacturarOk = () =>
