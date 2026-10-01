@@ -298,38 +298,39 @@ async function syncOrdersInner(options: { full?: boolean } = {}) {
   let skipped = 0;
   let failed = 0;
 
-  const since = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
-  const searchCriteria = options.full ? { since } : { seen: false as const };
+  const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+  const latest = options.full
+    ? null
+    : await prisma.emailOrder.findFirst({ orderBy: { receivedAt: "desc" }, select: { receivedAt: true } });
+  const since = latest ? new Date(latest.receivedAt.getTime() - 2 * 24 * 60 * 60 * 1000) : yearStart;
 
   await client.connect();
   try {
-    const lock = await client.getMailboxLock("INBOX");
+    const allPath = (await client.list()).find((b) => b.specialUse === "\\All")?.path;
+    if (!allPath) throw new Error("Gmail All Mail folder not found");
+
+    const lock = await client.getMailboxLock(allPath);
     try {
-      // Drain the fetch stream fully before issuing any other IMAP command (flags, etc). ImapFlow
-      // deadlocks if you call another client method while still iterating a fetch() response —
-      // this is what was silently hanging the sync and eventually tripping the socket timeout.
+      // Drain the fetch stream fully before issuing any other IMAP command. ImapFlow
+      // deadlocks if you call another client method while still iterating a fetch() response.
       const messages: { uid: number; source: Buffer; from: string }[] = [];
       for (const from of senders) {
-        for await (const msg of client.fetch({ ...searchCriteria, from }, { source: true, uid: true })) {
+        const uids = await client.search({ since, from, gmraw: "has:attachment filename:pdf" }, { uid: true });
+        if (!uids || uids.length === 0) continue;
+        for await (const msg of client.fetch(uids, { source: true, uid: true }, { uid: true })) {
           if (msg.source) messages.push({ uid: msg.uid, source: msg.source, from });
         }
       }
 
-      const seenUids: number[] = [];
       for (const msg of messages) {
         try {
           const wasCreated = await withTimeout(processMessage(msg.source, msg.from), 20_000, "message processing");
           if (wasCreated) created++;
           else skipped++;
-          seenUids.push(msg.uid);
         } catch (err) {
           failed++;
           logger.error(`[email-orders] failed processing uid ${msg.uid}:`, (err as Error).message);
         }
-      }
-
-      if (seenUids.length > 0) {
-        await client.messageFlagsAdd({ uid: seenUids.join(",") }, ["\\Seen"], { uid: true });
       }
     } finally {
       lock.release();
@@ -356,10 +357,9 @@ async function processMessage(source: Buffer, from: string): Promise<boolean> {
 
   const text = await extractPdfText(pdf.content);
   const po = parsePurchaseOrderText(text);
+  if (!po.orderNumber) return false;
 
-  const existing = po.orderNumber
-    ? await prisma.emailOrder.findFirst({ where: { orderNumber: po.orderNumber } })
-    : null;
+  const existing = await prisma.emailOrder.findFirst({ where: { orderNumber: po.orderNumber } });
   if (existing) return false;
 
   await prisma.emailOrder.create({
