@@ -28,6 +28,7 @@ model User {
   notes             Note[]
   calendarEvents    CalendarEventAssignee[]
   pushSubscriptions PushSubscription[]
+  documentNotes     DocumentNote[]
 }
 
 enum UserStatus {
@@ -336,6 +337,36 @@ model EmailOrder {
   monthlyDocs MonthlyDocument[]
 
   @@index([contractResourceId])
+}
+
+model DocumentNote {
+  id        String   @id @default(cuid())
+  category  String
+  year      Int
+  docName   String
+  text      String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([category, year, docName])
+}
+
+enum QuoteState {
+  ANULADO
+  STANDBY
+  SUSTITUIDO
+}
+
+model QuoteStatus {
+  id         String     @id @default(cuid())
+  year       Int
+  docName    String
+  status     QuoteState
+  replacedBy String?
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([year, docName])
 }
 
 model PresupuestoSent {

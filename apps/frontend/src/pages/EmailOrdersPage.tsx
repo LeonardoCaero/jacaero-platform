@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, RefreshCw, FileText, X, Check, Link2, Eye, Star, Search, Repeat } from 'lucide-react'
 import { api } from '../lib/axios'
 import { Skeleton } from '../components/Skeleton'
+import { DocumentNotes } from '../components/DocumentNotes'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
@@ -708,6 +709,8 @@ function OrderDetail({ order, onClose }: { order: EmailOrder; onClose: () => voi
               <span>{Number(order.totalAmount).toLocaleString(locale)}€</span>
             </div>
           )}
+
+          <DocumentNotes category="pedido" year={0} name={order.id} />
 
           <button
             type="button"
