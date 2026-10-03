@@ -14,6 +14,7 @@ import { clientFromDocx } from "../recurring-albaranes/docx-fields.js";
 import { extractPdfText } from "../email-orders/email-orders.service.js";
 import { extractDocumentTotal } from "../email-orders/po-parser.js";
 import { prisma } from "../../db/prisma.js";
+import { noteCounts } from "../notes/notes.service.js";
 
 const CONTENT_TYPES = {
   pdf: "application/pdf",
@@ -24,7 +25,9 @@ export async function listHandler(req: Request<{ category: string }>, res: Respo
   const { category } = categorySchema.parse(req.params);
   const { year } = listDocumentsSchema.parse(req.query);
   const files = await listCategory(category as DocCategory, year);
-  res.json(category === "presupuesto" ? await withQuoteStatus(files, year) : files);
+  const counts = await noteCounts(category, year);
+  const withNotes = files.map((f) => ({ ...f, noteCount: counts.get(f.name) ?? 0 }));
+  res.json(category === "presupuesto" ? await withQuoteStatus(withNotes, year) : withNotes);
 }
 
 const normalize = (s: string) =>
@@ -73,10 +76,10 @@ async function quoteDetails(files: DocFile[], year: number) {
   return { clients, totals };
 }
 
-async function withQuoteStatus(files: DocFile[], year: number) {
+async function withQuoteStatus<T extends DocFile>(files: T[], year: number) {
   const yearStart = new Date(Date.UTC(year, 0, 1));
   const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
-  const [orders, sent, details] = await Promise.all([
+  const [orders, sent, statuses, details] = await Promise.all([
     prisma.emailOrder.findMany({
       where: {
         quoteRef: { not: null },
@@ -94,6 +97,7 @@ async function withQuoteStatus(files: DocFile[], year: number) {
       select: { id: true, quoteRef: true, orderNumber: true, totalAmount: true, senderEmail: true, quoteCategory: true },
     }),
     prisma.presupuestoSent.findMany({ where: { year } }),
+    prisma.quoteStatus.findMany({ where: { year } }),
     quoteDetails(files, year).catch(() => ({ clients: new Map<string, string>(), totals: new Map<string, number | undefined>() })),
   ]);
 
@@ -136,6 +140,9 @@ async function withQuoteStatus(files: DocFile[], year: number) {
       orderNumbers: fileOrders.filter((o) => o.linked).map((o) => o.orderNumber),
       sent: sentDoc ? { at: sentDoc.sentAt, to: sentDoc.recipients, viaClient: sentDoc.viaClient } : null,
       client: details.clients.get(f.name) ?? null,
+      status: (({ status, replacedBy }) => ({ status, replacedBy }))(
+        statuses.find((x) => x.docName === f.name) ?? { status: null, replacedBy: null },
+      ),
     };
   });
 }

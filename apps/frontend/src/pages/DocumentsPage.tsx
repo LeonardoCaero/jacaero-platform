@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDownUp,
   ArrowLeft,
@@ -16,6 +16,7 @@ import {
   Search,
   Send,
   Share2,
+  StickyNote,
   ShoppingCart,
   Users,
   X,
@@ -24,6 +25,7 @@ import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { translations } from '../lib/translations'
 import { Skeleton } from '../components/Skeleton'
+import { DocumentNotes } from '../components/DocumentNotes'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
 type PapeleoKey = keyof (typeof translations)['en']['papeleo']
@@ -38,7 +40,12 @@ type DocFile = {
   orders?: { id: string; orderNumber: string; linked: boolean }[]
   sent?: { at: string; to: string; viaClient: boolean } | null
   client?: string | null
+  noteCount?: number
+  status?: { status: QuoteState | null; replacedBy: string | null }
 }
+
+type QuoteState = 'ANULADO' | 'STANDBY' | 'SUSTITUIDO'
+const closedStates: (QuoteState | null | undefined)[] = ['ANULADO', 'SUSTITUIDO']
 
 type QuoteFilter = 'all' | 'noOrder' | 'notSent'
 
@@ -113,11 +120,11 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
   const base = files.filter((f) => matchesSearch(f) && matchesClient(f))
   const counts = {
     all: base.length,
-    noOrder: base.filter((f) => !f.orderNumbers?.length).length,
+    noOrder: base.filter((f) => !f.orderNumbers?.length && !closedStates.includes(f.status?.status)).length,
     notSent: base.filter((f) => !f.sent).length,
   }
   const filteredFiles = base
-    .filter((f) => quoteFilter !== 'noOrder' || !f.orderNumbers?.length)
+    .filter((f) => quoteFilter !== 'noOrder' || (!f.orderNumbers?.length && !closedStates.includes(f.status?.status)))
     .filter((f) => quoteFilter !== 'notSent' || !f.sent)
     .sort((a, b) => (Number(b.number) - Number(a.number)) * (newestFirst ? 1 : -1))
   const clientOptions = [...new Set(files.map((f) => f.client).filter((c): c is string => !!c))].sort()
@@ -141,6 +148,17 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     openFile(number, ext, searchParams.get('name') ?? undefined, true).catch(() => showToast(t.documents.unreachable))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const queryClient = useQueryClient()
+  const [replacedBy, setReplacedBy] = useState('')
+  const statusMutation = useMutation({
+    mutationFn: async ({ file, status, replaced }: { file: DocFile; status: QuoteState | null; replaced?: string }) =>
+      api.put('/notes/quote-status', { year, name: file.name, status, replacedBy: replaced }),
+    onSuccess: (_d, { status, replaced }) => {
+      setDetail((cur) => cur && { ...cur, status: { status, replacedBy: status === 'SUSTITUIDO' ? replaced ?? null : null } })
+      queryClient.invalidateQueries({ queryKey: ['documents', category, year] })
+    },
+  })
 
   async function previewOrder(id: string) {
     try {
@@ -295,7 +313,20 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
           filteredFiles.map((f, i) => {
             const orderCount = f.orderNumbers?.length ?? 0
             const pendingCount = f.orders?.filter((o) => !o.linked).length ?? 0
-            const orderChip =
+            const state = f.status?.status
+            const orderChip = state ? (
+              <span
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                  state === 'STANDBY'
+                    ? 'border-yellow/70 text-ink dark:text-yellow'
+                    : 'border-line text-graphite line-through decoration-graphite/50 dark:border-line-dark dark:text-graphite-dark'
+                }`}
+              >
+                {state === 'SUSTITUIDO'
+                  ? t.documents.quoteStates.replacedBy.replace('{n}', f.status?.replacedBy ?? '?')
+                  : t.documents.quoteStates[state === 'ANULADO' ? 'cancelled' : 'standby']}
+              </span>
+            ) :
               orderCount > 0 ? (
                 <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-yellow/70 bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
                   <ShoppingCart className="h-3.5 w-3.5" />
@@ -331,7 +362,15 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                   </button>
                 )}
                 {isQuote ? (
-                  <button type="button" title={t.documents.details} onClick={() => setDetail(f)} className={iconButtonClass}>
+                  <button
+                    type="button"
+                    title={t.documents.details}
+                    onClick={() => {
+                      setReplacedBy(f.status?.replacedBy ?? '')
+                      setDetail(f)
+                    }}
+                    className={iconButtonClass}
+                  >
                     <Info className="h-4 w-4" />
                   </button>
                 ) : (
@@ -346,6 +385,9 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                         <Download className="h-4 w-4" />
                       </button>
                     )}
+                    <button type="button" title={t.docNotes.title} onClick={() => setDetail(f)} className={iconButtonClass}>
+                      <StickyNote className="h-4 w-4" />
+                    </button>
                   </>
                 )}
               </>
@@ -362,6 +404,12 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                   >
                     <span className="font-mono text-[13px] text-yellow">{f.number}</span> {f.title}
                   </p>
+                  {!!f.noteCount && (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-ink dark:text-yellow">
+                      <StickyNote className="h-3.5 w-3.5 shrink-0" />
+                      {t.docNotes.count.replace('{count}', String(f.noteCount))}
+                    </p>
+                  )}
                   {f.client && (
                     <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-graphite dark:text-graphite-dark">
                       <Building2 className="h-3.5 w-3.5 shrink-0" />
@@ -433,6 +481,61 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 </button>
               </div>
 
+              {isQuote && (
+                <>
+              <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
+                {t.documents.quoteStates.title}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {([null, 'STANDBY', 'ANULADO', 'SUSTITUIDO'] as const).map((st) => {
+                  const active = (detail.status?.status ?? null) === st
+                  const label =
+                    st === null
+                      ? t.documents.quoteStates.active
+                      : st === 'STANDBY'
+                        ? t.documents.quoteStates.standby
+                        : st === 'ANULADO'
+                          ? t.documents.quoteStates.cancelled
+                          : t.documents.quoteStates.replaced
+                  return (
+                    <button
+                      key={st ?? 'active'}
+                      type="button"
+                      disabled={statusMutation.isPending}
+                      onClick={() =>
+                        st === 'SUSTITUIDO'
+                          ? setDetail({ ...detail, status: { status: 'SUSTITUIDO', replacedBy: detail.status?.replacedBy ?? null } })
+                          : statusMutation.mutate({ file: detail, status: st })
+                      }
+                      className={`h-8 rounded-full border px-3 text-xs font-semibold transition ${
+                        active ? pillActiveClass : pillIdleClass
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+              {detail.status?.status === 'SUSTITUIDO' && (
+                <form
+                  className="mt-2 flex items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    statusMutation.mutate({ file: detail, status: 'SUSTITUIDO', replaced: replacedBy.trim() })
+                  }}
+                >
+                  <input
+                    value={replacedBy}
+                    onChange={(e) => setReplacedBy(e.target.value)}
+                    placeholder={t.documents.quoteStates.replacedPlaceholder}
+                    className="h-9 flex-1 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+                  />
+                  <button type="submit" className="h-9 rounded-xl bg-ink px-3 text-xs font-semibold text-cream dark:bg-cream dark:text-ink">
+                    {t.docNotes.save}
+                  </button>
+                </form>
+              )}
+
               <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
                 {t.documents.columnOrder}
               </p>
@@ -501,6 +604,15 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 </div>
               ) : (
                 <p className="mt-2 text-sm font-semibold text-rust dark:text-rust-dark">{t.documents.notSent}</p>
+              )}
+
+                </>
+              )}
+
+              {detail.name && (
+                <div className="mt-5">
+                  <DocumentNotes category={category} year={year} name={detail.name} />
+                </div>
               )}
 
               <div className="mt-6 grid grid-cols-3 gap-2">
