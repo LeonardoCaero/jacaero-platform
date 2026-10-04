@@ -24,13 +24,13 @@ export const secondaryButtonClass =
   'inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-line px-4 text-sm font-semibold text-graphite transition hover:text-ink active:scale-[0.98] disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
 
 export const smallButtonClass =
-  'inline-flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-xs font-semibold text-graphite transition hover:border-yellow hover:text-ink disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:border-yellow/60 dark:hover:text-cream'
+  'inline-flex h-9 items-center gap-1 rounded-lg border border-line px-2.5 text-xs font-semibold sm:h-8 text-graphite transition hover:border-yellow hover:text-ink disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:border-yellow/60 dark:hover:text-cream'
 
 export const iconButtonClass =
-  'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line text-graphite transition hover:border-yellow hover:text-ink disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:border-yellow/60 dark:hover:text-cream'
+  'inline-flex h-10 w-10 shrink-0 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-line text-graphite transition hover:border-yellow hover:text-ink disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:border-yellow/60 dark:hover:text-cream'
 
 export const dangerIconButtonClass =
-  'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line text-graphite transition hover:border-rust hover:text-rust disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:border-rust-dark dark:hover:text-rust-dark'
+  'inline-flex h-10 w-10 shrink-0 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-line text-graphite transition hover:border-rust hover:text-rust disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:border-rust-dark dark:hover:text-rust-dark'
 
 export const searchInputClass =
   'h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3 text-sm text-ink shadow-sm outline-none transition focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-ink dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-surface-dark dark:text-cream'
@@ -58,6 +58,42 @@ export const segmentOnClass =
   'h-9 rounded-lg border border-ink bg-ink px-2 text-xs font-semibold text-cream transition dark:border-yellow dark:bg-yellow dark:text-ink'
 export const segmentOffClass =
   'h-9 rounded-lg border border-line px-2 text-xs font-semibold text-graphite transition hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
+
+// Filter pill shared by every Papeleo list: optional icon, label and a count badge.
+export function FilterChip({
+  active,
+  onClick,
+  icon,
+  label,
+  count,
+}: {
+  active: boolean
+  onClick: () => void
+  icon?: ReactNode
+  label: ReactNode
+  count?: number
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`${filterClass} shrink-0 ${active ? filterActiveClass : filterIdleClass}`}
+    >
+      {icon}
+      {label}
+      {count !== undefined && (
+        <span
+          className={`rounded-full px-1.5 py-px font-mono text-xs tabular ${
+            active ? 'bg-cream/20 text-cream dark:bg-ink/15 dark:text-ink' : 'bg-ink/5 text-ink dark:bg-cream/10 dark:text-cream'
+          }`}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  )
+}
 
 export function PageHeader({
   backTo,

@@ -274,7 +274,7 @@ function UsersTab() {
           <div className="mt-2 space-y-2">
             {invitations.map((inv) => (
               <div key={inv.id} className="flex items-center justify-between">
-                <p className="min-w-0 break-words text-sm text-graphite dark:text-graphite-dark">
+                <p className="min-w-0 truncate text-sm text-graphite dark:text-graphite-dark" title={`${inv.email} · ${inv.role?.name ?? ''}`}>
                   {inv.email} · {inv.role.name}
                 </p>
                 <div className="flex shrink-0 items-center gap-3">
@@ -384,7 +384,14 @@ function UsersTab() {
                     title={user.status === 'ACTIVE' ? t.team.deactivate : t.team.activate}
                     aria-label={user.status === 'ACTIVE' ? t.team.deactivate : t.team.activate}
                     disabled={toggleStatusMutation.isPending}
-                    onClick={() => toggleStatusMutation.mutate(user)}
+                    onClick={async () => {
+                      if (
+                        user.status === 'ACTIVE' &&
+                        !(await confirm({ message: t.team.confirmDeactivateUser, danger: true, confirmLabel: t.team.deactivate }))
+                      )
+                        return
+                      toggleStatusMutation.mutate(user)
+                    }}
                     className={iconButtonClass}
                   >
                     {user.status === 'ACTIVE' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}

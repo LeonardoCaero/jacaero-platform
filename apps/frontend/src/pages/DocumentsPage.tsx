@@ -27,6 +27,7 @@ import { DocumentNotes } from '../components/DocumentNotes'
 import { ListRow } from '../components/ListRow'
 import { DocumentOrigin, QuoteLinks, type DocOrigin, type LinkedDoc } from '../components/DocumentLinks'
 import {
+  FilterChip,
   Modal,
   PageHeader,
   filterActiveClass as pillActiveClass,
@@ -268,25 +269,15 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {(isQuote ? (['all', 'noOrder', 'notSent'] as const) : (['all', 'notSent'] as const)).map((f) => {
           const Icon = f === 'all' ? List : f === 'noOrder' ? FileText : Send
-          const active = quoteFilter === f
           return (
-            <button
+            <FilterChip
               key={f}
-              type="button"
-              aria-pressed={active}
+              active={quoteFilter === f}
               onClick={() => setQuoteFilter(f)}
-              className={`${pillClass} shrink-0 ${active ? pillActiveClass : pillIdleClass}`}
-            >
-              <Icon className="h-4 w-4" />
-              {t.documents.quoteFilters[f]}
-              <span
-                className={`rounded-full px-1.5 py-px font-mono text-xs tabular ${
-                  active ? 'bg-cream/20 text-cream dark:bg-ink/15 dark:text-ink' : 'bg-ink/5 text-ink dark:bg-cream/10 dark:text-cream'
-                }`}
-              >
-                {counts[f]}
-              </span>
-            </button>
+              icon={<Icon className="h-4 w-4" />}
+              label={t.documents.quoteFilters[f]}
+              count={counts[f]}
+            />
           )
         })}
         {clientOptions.length > 1 && (
@@ -412,7 +403,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 <button
                   type="button"
                   title={t.documents.details}
-                  aria-label={t.documents.details}
+                  aria-label={`${t.documents.details} ${f.number}`}
                   onClick={openDetail}
                   className={`${iconButtonClass} relative z-10`}
                 >

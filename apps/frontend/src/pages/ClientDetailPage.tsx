@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Plus, Trash2, UserCheck, UserX, X } from 'lucide-react'
+import { Archive, ArchiveRestore, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -46,6 +46,7 @@ function toDateInput(iso: string) {
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t } = useLanguage()
+  const { confirm, toast } = useFeedback()
   const queryClient = useQueryClient()
 
   const { data: client } = useQuery({
@@ -85,9 +86,24 @@ export function ClientDetailPage() {
   })
 
   const toggleStatusMutation = useMutation({
-    mutationFn: () => api.patch(`/clients/${id}`, { status: client?.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }),
-    onSuccess: invalidate,
+    mutationFn: (status: 'ACTIVE' | 'INACTIVE') => api.patch(`/clients/${id}`, { status }),
+    onSuccess: (_d, status) => {
+      invalidate()
+      toast(status === 'ACTIVE' ? t.clients.activated : t.clients.deactivated)
+    },
+    onError: () => toast(t.common.saveError, 'error'),
   })
+
+  async function toggleStatus() {
+    if (!client) return
+    if (client.status === 'ACTIVE') {
+      const ok = await confirm({ message: t.clients.confirmDeactivate, danger: true, confirmLabel: t.team.deactivate })
+      if (!ok) return
+      toggleStatusMutation.mutate('INACTIVE')
+    } else {
+      toggleStatusMutation.mutate('ACTIVE')
+    }
+  }
 
   if (!client) return null
 
@@ -161,10 +177,10 @@ export function ClientDetailPage() {
                 title={client.status === 'ACTIVE' ? t.team.deactivate : t.team.activate}
                 aria-label={client.status === 'ACTIVE' ? t.team.deactivate : t.team.activate}
                 disabled={toggleStatusMutation.isPending}
-                onClick={() => toggleStatusMutation.mutate()}
+                onClick={toggleStatus}
                 className={iconButtonClass}
               >
-                {client.status === 'ACTIVE' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                {client.status === 'ACTIVE' ? <Archive className="h-4 w-4" /> : <ArchiveRestore className="h-4 w-4" />}
               </button>
             </>
           }

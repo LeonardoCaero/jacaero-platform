@@ -68,6 +68,10 @@ dialog::backdrop {
   background: rgb(0 0 0 / 0.5);
 }
 
+.dark dialog::backdrop {
+  background: rgb(0 0 0 / 0.75);
+}
+
 dialog[open] {
   animation: scale-in 0.15s ease-out both;
 }

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownUp, CalendarDays, CalendarSearch, ChevronDown, RefreshCw, FileText, Check, Link2, Eye, Info, Star, Search, Repeat } from 'lucide-react'
+import { ArrowDownUp, CalendarDays, CalendarSearch, ChevronDown, Circle, RefreshCw, FileText, Check, Link2, Eye, Info, Sparkles, Star, Search, Repeat } from 'lucide-react'
 import { api } from '../lib/axios'
 import { formatEuro } from '../lib/format'
 import { Skeleton } from '../components/Skeleton'
 import { DocumentNotes } from '../components/DocumentNotes'
 import { ListRow } from '../components/ListRow'
 import {
+  FilterChip,
   Modal,
   PageHeader,
   chipDoneClass,
@@ -378,7 +379,8 @@ export function EmailOrdersPage() {
 
   async function unlinkMilestone(order: EmailOrder, field: MilestoneField) {
     const message = field === 'invoicedAt' ? t.emailOrders.confirmUninvoice : t.emailOrders.confirmUnlinkAlbaran
-    if (!(await confirm({ message, danger: field === 'invoicedAt' }))) return
+    const confirmLabel = field === 'invoicedAt' ? t.emailOrders.uninvoiceAction : t.emailOrders.unlinkDoc
+    if (!(await confirm({ message, danger: field === 'invoicedAt', confirmLabel }))) return
     milestoneMutation.mutate({ id: order.id, field, done: false })
   }
 
@@ -417,7 +419,7 @@ export function EmailOrdersPage() {
               aria-label={t.emailOrders.reconcile}
               className={`${secondaryButtonClass} max-sm:w-10 max-sm:px-0`}
             >
-              <Link2 className="h-4 w-4" />
+              <Sparkles className="h-4 w-4" />
               <span className="max-sm:hidden">
                 {reconcileMutation.isPending ? t.emailOrders.reconciling : t.emailOrders.reconcile}
               </span>
@@ -511,30 +513,22 @@ export function EmailOrdersPage() {
         </button>
       </div>
 
-      <div className="mt-3 hidden sm:block">
-        <div className="flex flex-wrap gap-2">
-          {typeFilters.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              aria-pressed={typeFilter === f.value}
-              onClick={() => setTypeFilter(f.value)}
-              className={`${filterClass} ${typeFilter === f.value ? filterActiveClass : filterIdleClass}`}
-            >
-              {f.label}
-              <span className="font-mono text-xs tabular opacity-70">{countFor(f.value)}</span>
-            </button>
-          ))}
-          <button
-            type="button"
-            aria-pressed={favoritesOnly}
-            onClick={() => setFavoritesOnly((v) => !v)}
-            className={`${filterClass} ${favoritesOnly ? filterActiveClass : filterIdleClass}`}
-          >
-            <Star className="h-3.5 w-3.5" fill={favoritesOnly ? 'currentColor' : 'none'} />
-            {t.emailOrders.filterFavorites}
-          </button>
-        </div>
+      <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
+        {typeFilters.map((f) => (
+          <FilterChip
+            key={f.value}
+            active={typeFilter === f.value}
+            onClick={() => setTypeFilter(f.value)}
+            label={f.label}
+            count={countFor(f.value)}
+          />
+        ))}
+        <FilterChip
+          active={favoritesOnly}
+          onClick={() => setFavoritesOnly((v) => !v)}
+          icon={<Star className="h-4 w-4" fill={favoritesOnly ? 'currentColor' : 'none'} />}
+          label={t.emailOrders.filterFavorites}
+        />
       </div>
 
       {!isLoading && !isError && orders.length > 0 && (
@@ -642,7 +636,7 @@ export function EmailOrdersPage() {
                   <button
                     type="button"
                     title={t.documents.details}
-                    aria-label={t.documents.details}
+                    aria-label={`${t.documents.details} ${order.orderNumber ?? order.subject}`}
                     onClick={() => setSelectedId(order.id)}
                     className={`${iconButtonClass} relative z-10`}
                   >
@@ -664,7 +658,12 @@ export function EmailOrdersPage() {
       <Modal
         open={!!selected}
         onClose={() => setSelectedId(null)}
-        title={<span className="font-mono">{selected?.orderNumber ?? selected?.subject}</span>}
+        title={
+          <>
+            <span className="sr-only">{t.emailOrders.order} </span>
+            <span className="font-mono">{selected?.orderNumber ?? selected?.subject}</span>
+          </>
+        }
         closeLabel={t.common.close}
       >
         {selected && (
@@ -801,14 +800,18 @@ function OrderDetail({
       <section>
         <h3 className={sectionLabelClass}>{t.emailOrders.documents}</h3>
         <div className="mt-2 divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
-          {MILESTONES.map(({ field, labelKey }) => {
+          {MILESTONES.map(({ field }) => {
             const number = field === 'deliveryNoteAt' ? order.albaranNumber : order.facturaNumber
             const docCategory = field === 'deliveryNoteAt' ? 'albaran' : 'factura'
             return (
               <div key={field} className="flex items-center justify-between gap-3 px-3 py-2">
                 <span className="flex min-w-0 items-center gap-2 text-sm text-ink dark:text-cream">
-                  {order[field] ? <Check className="h-4 w-4 shrink-0" /> : <span className="h-4 w-4 shrink-0" />}
-                  {t.emailOrders[labelKey]}
+                  {order[field] ? (
+                    <Check className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <Circle className="h-4 w-4 shrink-0 text-graphite dark:text-graphite-dark" />
+                  )}
+                  {field === 'deliveryNoteAt' ? t.emailOrders.deliveryNote : t.docLinks.invoice}
                   {number ? (
                     <span className="font-mono font-semibold text-yellow-ink dark:text-yellow">{number}</span>
                   ) : (

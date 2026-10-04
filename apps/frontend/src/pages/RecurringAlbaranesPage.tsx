@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Check, Eye, FileText, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Check, ChevronDown, Eye, FileText, RefreshCw } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -12,10 +12,13 @@ import {
   labelClass,
   listCardClass,
   primaryButtonClass,
+  filterClass,
+  filterIdleClass,
   secondaryButtonClass,
   selectClass,
   statusClass,
 } from '../components/ui'
+import { capitalizeFirst } from '../lib/format'
 
 type Kind = 'albaran' | 'factura'
 
@@ -183,6 +186,7 @@ export function RecurringAlbaranesPage() {
       existing &&
       !(await confirm({
         message: r.alreadyExists.replace('{doc}', r[kind]).replace('{number}', existing.number).replace('{month}', monthLabel),
+        confirmLabel: r.createAnother,
       }))
     ) {
       return
@@ -286,13 +290,21 @@ export function RecurringAlbaranesPage() {
         title={t.papeleo.generacion.label}
         subtitle={t.papeleo.generacion.description}
         actions={
-          <input
-            type="month"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            aria-label={r.date}
-            className={selectClass}
-          />
+          <label className={`${filterClass} ${filterIdleClass} relative cursor-pointer`}>
+            <CalendarDays className="h-4 w-4" />
+            <span className="text-ink dark:text-cream">
+              {capitalizeFirst(new Date(`${period}-01T12:00:00`).toLocaleDateString(locale, { month: 'long', year: 'numeric' }))}
+            </span>
+            <ChevronDown className="h-4 w-4" />
+            <input
+              type="month"
+              value={period}
+              onChange={(e) => e.target.value && setPeriod(e.target.value)}
+              onClick={(e) => e.currentTarget.showPicker?.()}
+              aria-label={t.common.month}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+          </label>
         }
       />
 

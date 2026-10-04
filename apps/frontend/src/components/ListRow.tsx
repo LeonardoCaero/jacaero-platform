@@ -28,7 +28,7 @@ export function ListRow({
         highlighted ? 'border-yellow/50 bg-yellow/[0.04] dark:border-yellow/30' : 'border-line dark:border-line-dark'
       }`}
     >
-      <button type="button" onClick={onOpen} aria-label={openLabel} tabIndex={-1} className="absolute inset-0 rounded-2xl" />
+      <button type="button" onClick={onOpen} aria-label={openLabel} aria-hidden="true" tabIndex={-1} className="absolute inset-0 rounded-2xl" />
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
         <div className="flex min-w-0 items-start justify-between gap-3 lg:flex-1 lg:items-center">
           <div className="min-w-0 flex-1">{heading}</div>

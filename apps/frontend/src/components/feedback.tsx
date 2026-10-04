@@ -85,12 +85,12 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
           <>
             {detail && <p className="text-sm text-ink dark:text-cream">{detail}</p>}
             <div className={`${detail ? 'mt-5' : ''} flex justify-end gap-2`}>
-              <button type="button" onClick={() => settle(false)} className={secondaryButtonClass}>
+              <button type="button" autoFocus={pending.danger} onClick={() => settle(false)} className={secondaryButtonClass}>
                 {t.common.cancel}
               </button>
               <button
                 type="button"
-                autoFocus
+                autoFocus={!pending.danger}
                 onClick={() => settle(true)}
                 className={
                   pending.danger
@@ -108,8 +108,6 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       <div
         ref={stack}
         popover="manual"
-        role="status"
-        aria-live="polite"
         className="pointer-events-none inset-x-0 top-auto bottom-4 m-0 w-full max-w-none overflow-visible border-0 bg-transparent p-0 px-4 sm:bottom-6"
       >
         <div className="flex flex-col items-center gap-2">
@@ -118,7 +116,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
             return (
               <div
                 key={x.id}
-                role={x.tone === 'error' ? 'alert' : undefined}
+                role={x.tone === 'error' ? 'alert' : 'status'}
                 className="animate-fade-up pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl border border-line bg-surface py-2.5 pl-2.5 pr-2 text-sm font-medium text-ink shadow-lg dark:border-line-dark dark:bg-surface-dark dark:text-cream"
               >
                 <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${toneIconClass[x.tone]}`}>

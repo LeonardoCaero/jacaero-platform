@@ -5,7 +5,7 @@ import { ArrowUpRight, Eye, Link2, Search, ShoppingCart, X } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useFeedback } from './feedback'
-import { iconButtonClass, searchInputClass, secondaryButtonClass, sectionLabelClass } from './ui'
+import { iconButtonClass, searchInputClass, sectionLabelClass, smallButtonClass } from './ui'
 
 export type LinkedDoc = { id: string; category: 'albaran' | 'factura'; year: number; number: string; name: string }
 export type DocOrigin = {
@@ -158,7 +158,7 @@ export function QuoteLinks({
               onView={() => openDocPdf(l.category, l.year, l.number, l.name).catch(() => toast(t.documents.unreachable, 'error'))}
               onGo={() => go(l.category, l.year, l.name)}
               onRemove={async () => {
-                if (await confirm({ message: t.docLinks.confirmRemove.replace('{doc}', `${docLabel[l.category]} ${l.number}`) }))
+                if (await confirm({ message: t.docLinks.confirmRemove.replace('{doc}', `${docLabel[l.category]} ${l.number}`), confirmLabel: t.docLinks.remove }))
                   removeMutation.mutate(l)
               }}
             />
@@ -210,8 +210,8 @@ export function QuoteLinks({
       ) : (
         <div className="mt-3 flex flex-wrap gap-2">
           {(['albaran', 'factura'] as const).map((c) => (
-            <button key={c} type="button" onClick={() => setPicking(c)} className={secondaryButtonClass}>
-              <Link2 className="h-4 w-4" />
+            <button key={c} type="button" onClick={() => setPicking(c)} className={smallButtonClass}>
+              <Link2 className="h-3.5 w-3.5" />
               {t.docLinks.linkTo.replace('{doc}', docLabel[c].toLowerCase())}
             </button>
           ))}

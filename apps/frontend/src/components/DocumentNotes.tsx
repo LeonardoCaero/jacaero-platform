@@ -4,6 +4,7 @@ import { StickyNote, Trash2 } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeedback } from './feedback'
+import { primaryButtonClass } from './ui'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type Note = {
@@ -92,7 +93,7 @@ export function DocumentNotes({ category, year, name }: { category: string; year
         <button
           type="submit"
           disabled={!text.trim() || addMutation.isPending}
-          className="h-11 shrink-0 rounded-xl bg-ink px-3 text-sm font-semibold text-cream disabled:opacity-50 dark:bg-yellow dark:text-ink"
+          className={`${primaryButtonClass} h-11 shrink-0`}
         >
           {t.docNotes.add}
         </button>
