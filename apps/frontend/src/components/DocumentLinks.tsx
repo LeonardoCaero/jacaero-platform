@@ -137,7 +137,7 @@ export function QuoteLinks({
 
   return (
     <section>
-      <p className={`mt-5 ${sectionLabelClass}`}>{t.docLinks.title}</p>
+      <h3 className={`mt-5 ${sectionLabelClass}`}>{t.docLinks.title}</h3>
       {fromOrders.length + links.length > 0 ? (
         <div className="mt-2 divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
           {fromOrders.map((d) => (
@@ -229,7 +229,7 @@ export function DocumentOrigin({ origin, onPreviewOrder }: { origin: DocOrigin; 
 
   return (
     <section>
-      <p className={`mt-5 ${sectionLabelClass}`}>{t.docLinks.origin}</p>
+      <h3 className={`mt-5 ${sectionLabelClass}`}>{t.docLinks.origin}</h3>
       <div className="mt-2 divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
         {origin.quotes.map((q) => (
           <DocRow

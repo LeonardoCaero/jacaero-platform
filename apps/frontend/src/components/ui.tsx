@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, X } from 'lucide-react'
 
@@ -51,7 +51,16 @@ export const filterClass =
   'inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition'
 export const filterIdleClass =
   'border-line bg-surface text-graphite hover:text-ink dark:border-line-dark dark:bg-surface-dark dark:text-graphite-dark dark:hover:text-cream'
-export const filterActiveClass = 'border-yellow bg-yellow text-ink'
+export const filterActiveClass = 'border-ink bg-ink text-cream dark:border-yellow dark:bg-yellow dark:text-ink'
+
+// One-of-N choice inside detail dialogs (quote type, document state).
+export function segmentClass(active: boolean) {
+  return `h-9 rounded-lg border px-2 text-xs font-semibold transition ${
+    active
+      ? 'border-ink bg-ink text-cream dark:border-yellow dark:bg-yellow dark:text-ink'
+      : 'border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
+  }`
+}
 
 export function PageHeader({
   backTo,
@@ -114,6 +123,7 @@ export function Modal({
   children: ReactNode
 }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
 
   useEffect(() => {
     const dialog = ref.current
@@ -127,6 +137,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
       className={`m-auto max-h-[90dvh] w-[calc(100%-2rem)] ${width} overflow-hidden rounded-2xl border border-line bg-surface p-0 text-ink shadow-xl dark:border-line-dark dark:bg-surface-dark dark:text-cream`}
@@ -134,7 +145,7 @@ export function Modal({
       {open && (
         <div className="flex max-h-[90dvh] flex-col">
           <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4 dark:border-line-dark">
-            <h2 className="min-w-0 font-display text-xl font-semibold">{title}</h2>
+            <h2 id={titleId} className="min-w-0 font-display text-xl font-semibold">{title}</h2>
             <button type="button" onClick={onClose} aria-label={closeLabel} className={iconButtonClass}>
               <X className="h-4 w-4" />
             </button>

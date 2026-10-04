@@ -384,6 +384,8 @@ function LocationsSection({
                 <button
                   type="button"
                   onClick={() => startEdit(loc)}
+                  title={t.team.edit}
+                  aria-label={t.team.edit}
                   className={iconButtonClass}
                 >
                   <Pencil className="h-4 w-4" />
@@ -391,6 +393,8 @@ function LocationsSection({
                 <button
                   type="button"
                   onClick={() => handleRemove(loc.id)}
+                  title={t.clients.delete}
+                  aria-label={t.clients.delete}
                   className={dangerIconButtonClass}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -595,6 +599,8 @@ function ContactsSection({
                 <button
                   type="button"
                   onClick={() => startEdit(c)}
+                  title={t.team.edit}
+                  aria-label={t.team.edit}
                   className={iconButtonClass}
                 >
                   <Pencil className="h-4 w-4" />
@@ -602,6 +608,8 @@ function ContactsSection({
                 <button
                   type="button"
                   onClick={() => handleRemove(c.id)}
+                  title={t.clients.delete}
+                  aria-label={t.clients.delete}
                   className={dangerIconButtonClass}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -848,6 +856,8 @@ function ContractsSection({
                 <button
                   type="button"
                   onClick={() => startEdit(c)}
+                  title={t.team.edit}
+                  aria-label={t.team.edit}
                   className={iconButtonClass}
                 >
                   <Pencil className="h-4 w-4" />

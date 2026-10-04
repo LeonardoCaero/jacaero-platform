@@ -12,6 +12,9 @@ const en = {
   },
   common: {
     close: 'Close',
+    done: 'done',
+    pending: 'pending',
+    today: 'today',
     cancel: 'Cancel',
     confirm: 'Confirm',
     confirmTitle: 'Are you sure?',
@@ -130,6 +133,7 @@ const en = {
     notes: 'Order notes',
     status: 'Status',
     quoteType: 'Quote type',
+    documents: 'Documents',
     markedOn: '{order}: marked as {label}',
     linkDoc: 'Link',
     unlinkDoc: 'Unlink',
@@ -298,6 +302,7 @@ const en = {
     about: 'About',
   },
   timeTracker: {
+    viewHoursOf: 'Show hours of',
     jumpToday: 'Jump to today',
     fullDay: 'Full day',
     halfDay: 'Half day',
@@ -405,6 +410,9 @@ const es = {
   },
   common: {
     close: 'Cerrar',
+    done: 'hecho',
+    pending: 'pendiente',
+    today: 'hoy',
     cancel: 'Cancelar',
     confirm: 'Confirmar',
     confirmTitle: '¿Seguro?',
@@ -523,6 +531,7 @@ const es = {
     notes: 'Notas del pedido',
     status: 'Estado',
     quoteType: 'Tipo de presupuesto',
+    documents: 'Documentos',
     markedOn: '{order}: marcado como {label}',
     linkDoc: 'Vincular',
     unlinkDoc: 'Desvincular',
@@ -691,6 +700,7 @@ const es = {
     about: 'Acerca de',
   },
   timeTracker: {
+    viewHoursOf: 'Ver horas de',
     jumpToday: 'Ir a hoy',
     fullDay: 'Jornada completa',
     halfDay: 'Media jornada',

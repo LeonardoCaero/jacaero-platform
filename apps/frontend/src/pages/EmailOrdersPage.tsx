@@ -22,6 +22,7 @@ import {
   searchInputClass,
   secondaryButtonClass,
   sectionLabelClass,
+  segmentClass,
   smallButtonClass,
   statusClass,
 } from '../components/ui'
@@ -167,10 +168,12 @@ function quoteCategoryOf(order: EmailOrder): QuoteCategory {
 
 // Read-only in the list: changing state happens explicitly in the order detail.
 function StatusChip({ done, label }: { done: boolean; label: string }) {
+  const { t } = useLanguage()
   return (
     <span className={done ? chipDoneClass : chipPendingClass}>
       {done && <Check className="h-3 w-3" />}
       {label}
+      <span className="sr-only">: {done ? t.common.done : t.common.pending}</span>
     </span>
   )
 }
@@ -777,9 +780,8 @@ function OrderDetail({
   return (
     <div className="space-y-5 text-sm">
       <section>
-        <h3 className={sectionLabelClass}>{t.emailOrders.status}</h3>
-        <p className="mt-2 text-xs text-graphite dark:text-graphite-dark">{t.emailOrders.quoteType}</p>
-        <div role="radiogroup" aria-label={t.emailOrders.quoteType} className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        <h3 id="order-quote-type" className={sectionLabelClass}>{t.emailOrders.quoteType}</h3>
+        <div role="radiogroup" aria-labelledby="order-quote-type" className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
           {QUOTE_CATEGORIES.map((category) => (
             <button
               key={category}
@@ -787,17 +789,17 @@ function OrderDetail({
               role="radio"
               aria-checked={currentCategory === category}
               onClick={() => currentCategory !== category && onQuoteCategory(category)}
-              className={`h-9 rounded-lg border px-2 text-xs font-semibold transition ${
-                currentCategory === category
-                  ? 'border-yellow bg-yellow text-ink'
-                  : 'border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
-              }`}
+              className={segmentClass(currentCategory === category)}
             >
               {category === 'pending' ? t.emailOrders.filterTypePending : quoteLabels[category]}
             </button>
           ))}
         </div>
-        <div className="mt-3 divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
+      </section>
+
+      <section>
+        <h3 className={sectionLabelClass}>{t.emailOrders.documents}</h3>
+        <div className="mt-2 divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
           {MILESTONES.map(({ field, labelKey }) => {
             const number = field === 'deliveryNoteAt' ? order.albaranNumber : order.facturaNumber
             const docCategory = field === 'deliveryNoteAt' ? 'albaran' : 'factura'

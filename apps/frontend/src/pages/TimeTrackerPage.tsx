@@ -248,7 +248,7 @@ export function TimeTrackerPage() {
               setSelectedDate(null)
               resetEntryForm()
             }}
-            aria-label={t.timeTracker.team}
+            aria-label={t.timeTracker.viewHoursOf}
             className={selectClass}
           >
             <option value="">{t.timeTracker.myself}</option>
@@ -343,6 +343,9 @@ export function TimeTrackerPage() {
                 key={key}
                 type="button"
                 onClick={() => selectDay(key)}
+                aria-label={[capitalizeFirst(formatDate(key, locale, { weekday: 'long', day: 'numeric', month: 'long' })), isToday && t.common.today].filter(Boolean).join(', ')}
+                aria-pressed={isSelected}
+                aria-current={isToday ? 'date' : undefined}
                 className={[
                   'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl border text-sm transition lg:aspect-auto lg:h-14',
                   isSelected
@@ -562,14 +565,14 @@ export function TimeTrackerPage() {
               ))}
               <label
                 aria-label={t.timeTracker.addPhoto}
-                className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-dashed border-line text-graphite hover:border-yellow hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
+                className="flex h-16 w-16 shrink-0 cursor-pointer focus-within:ring-2 focus-within:ring-ink dark:focus-within:ring-yellow items-center justify-center rounded-lg border border-dashed border-line text-graphite hover:border-yellow hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
               >
                 <ImageIcon className="h-5 w-5" />
                 <input
                   type="file"
                   accept="image/*"
                   multiple
-                  className="hidden"
+                  className="sr-only"
                   onChange={(e) => {
                     const picked = Array.from(e.target.files ?? [])
                     setPendingPhotos((prev) => [...prev, ...picked])

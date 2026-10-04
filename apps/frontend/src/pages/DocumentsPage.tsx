@@ -37,6 +37,8 @@ import {
   primaryButtonClass,
   searchInputClass,
   sectionLabelClass,
+  segmentClass,
+  smallButtonClass,
 } from '../components/ui'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
@@ -487,10 +489,10 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
         {detail && (
           <>
           <>
-          <p className={sectionLabelClass}>
+          <h3 id="doc-state-label" className={sectionLabelClass}>
             {t.documents.quoteStates.title}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
+          </h3>
+          <div role="radiogroup" aria-labelledby="doc-state-label" className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
             {([null, 'STANDBY', 'ANULADO', 'SUSTITUIDO'] as const).map((st) => {
               const active = (detail.status?.status ?? null) === st
               const label =
@@ -511,10 +513,9 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                       ? setDetail({ ...detail, status: { status: 'SUSTITUIDO', replacedBy: detail.status?.replacedBy ?? null } })
                       : statusMutation.mutate({ file: detail, status: st })
                   }
-                  aria-pressed={active}
-                      className={`h-9 rounded-xl border px-3 text-sm font-semibold transition ${
-                    active ? pillActiveClass : pillIdleClass
-                  }`}
+                  role="radio"
+                  aria-checked={active}
+                  className={segmentClass(active)}
                 >
                   {label}
                 </button>
@@ -544,51 +545,38 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
 
           {isQuote && (
             <>
-          <p className={`mt-5 ${sectionLabelClass}`}>
+          <h3 className={`mt-5 ${sectionLabelClass}`}>
             {t.documents.columnOrder}
-          </p>
+          </h3>
           {detail.orders?.length ? (
             <div className="mt-2 space-y-2">
-              {detail.orders.map((o) =>
-                o.linked ? (
-                  <button
-                    key={o.id}
-                    type="button"
-                    onClick={() => previewOrder(o.id)}
-                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-yellow/60 bg-yellow/10 px-3 py-2.5 text-left text-sm font-semibold text-ink transition hover:bg-yellow/20 dark:text-cream"
-                  >
-                    <span className="flex items-center gap-2">
-                      <ShoppingCart className="h-4 w-4 text-ink dark:text-yellow" />
-                      <span className="font-mono">{o.orderNumber}</span>
+              <div className="divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
+                {detail.orders.map((o) => (
+                  <div key={o.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <span className="flex min-w-0 items-center gap-2 text-sm text-ink dark:text-cream">
+                      <ShoppingCart className="h-4 w-4 shrink-0" />
+                      <span className="font-mono font-semibold">{o.orderNumber}</span>
+                      {!o.linked && <span className="text-xs text-graphite dark:text-graphite-dark">{t.documents.toLink}</span>}
                     </span>
-                    <span className="flex items-center gap-1 text-xs text-graphite dark:text-graphite-dark">
-                      <Eye className="h-3.5 w-3.5" />
-                      {t.documents.previewOrder}
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => previewOrder(o.id)}
+                        title={t.documents.previewOrder}
+                        aria-label={`${t.documents.previewOrder} ${o.orderNumber}`}
+                        className={iconButtonClass}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      {!o.linked && (
+                        <Link to={`/papeleo/pedidos/${o.id}/reconcile`} className={smallButtonClass}>
+                          {t.documents.link}
+                        </Link>
+                      )}
                     </span>
-                  </button>
-                ) : (
-                  <div
-                    key={o.id}
-                    className="flex items-center justify-between gap-2 rounded-xl border border-dashed border-yellow/70 px-3 py-2 text-sm"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => previewOrder(o.id)}
-                      className="flex min-w-0 items-center gap-2 font-semibold text-ink dark:text-cream"
-                    >
-                      <ShoppingCart className="h-4 w-4 shrink-0 text-ink dark:text-yellow" />
-                      <span className="font-mono">{o.orderNumber}</span>
-                      <Eye className="h-3.5 w-3.5 shrink-0 text-graphite dark:text-graphite-dark" />
-                    </button>
-                    <Link
-                      to={`/papeleo/pedidos/${o.id}/reconcile`}
-                      className="shrink-0 rounded-lg bg-yellow px-2.5 py-1 text-xs font-semibold text-ink transition hover:bg-yellow/90"
-                    >
-                      {t.documents.link}
-                    </Link>
                   </div>
-                ),
-              )}
+                ))}
+              </div>
               {detail.orders.some((o) => !o.linked) && (
                 <p className="text-xs text-graphite dark:text-graphite-dark">{t.documents.toLinkHint}</p>
               )}
@@ -614,9 +602,9 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
 
           {detail.linkedFrom && <DocumentOrigin origin={detail.linkedFrom} onPreviewOrder={previewOrder} />}
 
-          <p className={`mt-5 ${sectionLabelClass}`}>
+          <h3 className={`mt-5 ${sectionLabelClass}`}>
             {t.documents.columnSent}
-          </p>
+          </h3>
           {detail.sent ? (
             <div className="mt-2 rounded-xl border border-line px-3 py-2.5 text-sm dark:border-line-dark">
               <p className="flex items-center gap-2 font-semibold text-ink dark:text-cream">

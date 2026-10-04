@@ -47,10 +47,10 @@ export function DocumentNotes({ category, year, name }: { category: string; year
 
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
+      <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
         <StickyNote className="h-3.5 w-3.5" />
         {t.docNotes.title}
-      </p>
+      </h3>
       <div className="mt-2 space-y-2">
         {notes.length === 0 && <p className="text-sm text-graphite dark:text-graphite-dark">{t.docNotes.empty}</p>}
         {notes.map((n) => (
