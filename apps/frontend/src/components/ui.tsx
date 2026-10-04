@@ -38,6 +38,10 @@ export const searchInputClass =
 export const statusClass =
   'rounded-xl border border-yellow/40 bg-yellow/10 px-3 py-2 text-sm text-ink dark:text-cream'
 
+// Pinned to the bottom of a dialog's scroll area so file actions never scroll away.
+export const dialogFooterClass =
+  'sticky -bottom-4 -mx-5 -mb-4 mt-6 flex flex-wrap gap-2 border-t border-line bg-surface px-5 py-3 dark:border-line-dark dark:bg-surface-dark'
+
 export const labelClass = 'block text-xs font-medium text-graphite dark:text-graphite-dark'
 
 export const sectionLabelClass =

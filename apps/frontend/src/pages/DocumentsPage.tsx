@@ -26,11 +26,13 @@ import type { translations } from '../lib/translations'
 import { Skeleton } from '../components/Skeleton'
 import { DocumentNotes } from '../components/DocumentNotes'
 import { ListRow } from '../components/ListRow'
-import { DocumentOrigin, QuoteLinks, type DocOrigin, type LinkedDoc } from '../components/DocumentLinks'
+import { DocumentOrigin, OrderFinder, QuoteLinks, type DocOrigin, type LinkedDoc } from '../components/DocumentLinks'
 import {
   FilterChip,
   Modal,
   PageHeader,
+  dialogFooterClass,
+  secondaryButtonClass,
   filterActiveClass as pillActiveClass,
   filterClass as pillClass,
   filterIdleClass as pillIdleClass,
@@ -495,8 +497,8 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 heading={heading}
                 chips={
                   <>
-                    {orderChip && <span className="lg:w-32">{orderChip}</span>}
-                    <span className="lg:w-32">{sentChip}</span>
+                    {orderChip && <span className="lg:w-44 lg:shrink-0">{orderChip}</span>}
+                    <span className="lg:w-32 lg:shrink-0">{sentChip}</span>
                   </>
                 }
                 actions={actions}
@@ -663,7 +665,13 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             </>
           )}
 
-          {detail.linkedFrom && <DocumentOrigin origin={detail.linkedFrom} onPreviewOrder={previewOrder} />}
+          {detail.linkedFrom && (detail.linkedFrom.orders.length > 0 || detail.linkedFrom.quotes.length > 0) ? (
+            <DocumentOrigin origin={detail.linkedFrom} onPreviewOrder={previewOrder} />
+          ) : (
+            tracksLinks && (
+              <OrderFinder category={category as 'albaran' | 'factura'} year={year} docName={detail.name ?? detail.number} />
+            )
+          )}
 
           <h3 className={`mt-5 ${sectionLabelClass}`}>
             {t.documents.columnSent}
@@ -689,12 +697,12 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             </div>
           )}
 
-          <div className="mt-6 grid grid-cols-3 gap-2">
+          <div className={dialogFooterClass}>
             <button
               type="button"
               disabled={!detail.hasPdf}
               onClick={() => openFile(detail.number, 'pdf', detail.name)}
-              className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
+              className={`${secondaryButtonClass} flex-1 whitespace-nowrap px-3`}
             >
               <Eye className="h-4 w-4" />
               {t.documents.viewPdf}
@@ -703,7 +711,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
               type="button"
               disabled={!detail.hasPdf}
               onClick={() => shareFile(detail)}
-              className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
+              className={`${secondaryButtonClass} flex-1 whitespace-nowrap px-3`}
             >
               <Share2 className="h-4 w-4" />
               {t.documents.share}
@@ -712,7 +720,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
               type="button"
               disabled={!detail.hasDocx}
               onClick={() => openFile(detail.number, 'docx', detail.name)}
-              className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
+              className={`${secondaryButtonClass} flex-1 whitespace-nowrap px-3`}
             >
               <Download className="h-4 w-4" />
               {t.documents.downloadWord}

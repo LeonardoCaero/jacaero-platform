@@ -6,6 +6,7 @@ import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useFeedback } from './feedback'
 import { iconButtonClass, searchInputClass, sectionLabelClass, smallButtonClass } from './ui'
+import { formatEuro } from '../lib/format'
 
 export type LinkedDoc = { id: string; category: 'albaran' | 'factura'; year: number; number: string; name: string }
 export type DocOrigin = {
@@ -266,6 +267,101 @@ export function DocumentOrigin({ origin, onPreviewOrder }: { origin: DocOrigin; 
           </div>
         ))}
       </div>
+    </section>
+  )
+}
+
+type OrderCandidate = {
+  id: string
+  orderNumber: string | null
+  orderDate: string | null
+  receivedAt: string
+  totalAmount: string | null
+  deliveryNoteAt: string | null
+  invoicedAt: string | null
+  client: { name: string } | null
+}
+
+// An unlinked albarán / factura can start the linking itself: pick the order and land on the
+// reconcile page with this document already selected for comparison.
+export function OrderFinder({ category, year, docName }: { category: 'albaran' | 'factura'; year: number; docName: string }) {
+  const { t, language } = useLanguage()
+  const locale = language === 'es' ? 'es-ES' : 'en-GB'
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const { data: orders = [] } = useQuery({
+    queryKey: ['email-orders'],
+    queryFn: async () => (await api.get<OrderCandidate[]>('/email-orders')).data,
+    enabled: open,
+  })
+
+  const query = search.trim().toLowerCase()
+  const candidates = orders
+    .filter((o) => o.orderNumber && new Date(o.orderDate ?? o.receivedAt).getUTCFullYear() === year)
+    .filter((o) => (category === 'albaran' ? !o.deliveryNoteAt : !o.invoicedAt))
+    .filter((o) => !query || `${o.orderNumber} ${o.client?.name ?? ''}`.toLowerCase().includes(query))
+
+  return (
+    <section>
+      <h3 className={`mt-5 ${sectionLabelClass}`}>{t.docLinks.orderSection}</h3>
+      <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{t.docLinks.noOrderLinked}</p>
+      {!open ? (
+        <button type="button" onClick={() => setOpen(true)} className={`${smallButtonClass} mt-2`}>
+          <Search className="h-3.5 w-3.5" />
+          {t.docLinks.findOrder}
+        </button>
+      ) : (
+        <div className="mt-2 rounded-xl border border-line p-3 dark:border-line-dark">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-ink dark:text-cream">{t.docLinks.pickOrder}</p>
+            <button type="button" onClick={() => setOpen(false)} aria-label={t.common.close} className={iconButtonClass}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="relative mt-2">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
+            <input
+              type="search"
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t.emailOrders.searchPlaceholder}
+              aria-label={t.emailOrders.searchPlaceholder}
+              className={searchInputClass}
+            />
+          </div>
+          <ul className="mt-2 max-h-56 overflow-y-auto">
+            {candidates.map((o) => (
+              <li key={o.id}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(`/papeleo/pedidos/${o.id}/reconcile?target=${category}&doc=${encodeURIComponent(docName)}`)
+                  }
+                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm text-ink transition hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10"
+                >
+                  <span className="min-w-0">
+                    <span className="font-mono font-semibold">{o.orderNumber}</span>
+                    <span className="ml-2 text-xs text-graphite dark:text-graphite-dark">
+                      {new Date(o.orderDate ?? o.receivedAt).toLocaleDateString(locale)}
+                    </span>
+                  </span>
+                  {o.totalAmount && (
+                    <span className="shrink-0 font-mono text-xs tabular text-graphite dark:text-graphite-dark">
+                      {formatEuro(o.totalAmount, locale)}
+                    </span>
+                  )}
+                </button>
+              </li>
+            ))}
+            {candidates.length === 0 && (
+              <li className="px-2 py-2 text-sm text-graphite dark:text-graphite-dark">{t.docLinks.noCandidates}</li>
+            )}
+          </ul>
+        </div>
+      )}
     </section>
   )
 }

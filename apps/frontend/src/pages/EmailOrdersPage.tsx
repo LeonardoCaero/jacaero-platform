@@ -11,6 +11,7 @@ import {
   FilterChip,
   Modal,
   PageHeader,
+  dialogFooterClass,
   chipDoneClass,
   chipPendingClass,
   filterActiveClass,
@@ -221,6 +222,7 @@ export function EmailOrdersPage() {
   const [newestFirst, setNewestFirst] = useState(true)
   const searchRef = useRef<HTMLInputElement>(null)
   const moreRef = useRef<HTMLDetailsElement>(null)
+  const [moreOpen, setMoreOpen] = useState(false)
 
   // <details> has no light dismiss of its own: close the "Más" menu on Escape or a tap elsewhere.
   useEffect(() => {
@@ -435,8 +437,13 @@ export function EmailOrdersPage() {
                 ))}
               </select>
             </label>
-            <details ref={moreRef} className="group relative sm:hidden">
-              <summary className={`${secondaryButtonClass} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
+            <details ref={moreRef} onToggle={(e) => setMoreOpen(e.currentTarget.open)} className="group relative sm:hidden">
+              <summary
+                role="button"
+                aria-expanded={moreOpen}
+                aria-haspopup="menu"
+                className={`${secondaryButtonClass} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}
+              >
                 <MoreHorizontal className="h-4 w-4" />
                 {t.common.more}
               </summary>
@@ -890,9 +897,13 @@ function OrderDetail({
                     <PreviewButton label={t.emailOrders.previewPdf} onClick={() => previewDocument(docCategory, year, number)} />
                   )}
                   {!number && (
-                    <Link to={`/papeleo/pedidos/${order.id}/reconcile`} className={smallButtonClass}>
-                      <Link2 className="h-3.5 w-3.5" />
-                      {t.emailOrders.linkDoc}
+                    <Link
+                      to={`/papeleo/pedidos/${order.id}/reconcile?target=${docCategory}`}
+                      aria-label={`${t.emailOrders.findDoc} ${field === 'deliveryNoteAt' ? t.emailOrders.deliveryNote : t.docLinks.invoice}`}
+                      className={smallButtonClass}
+                    >
+                      <Search className="h-3.5 w-3.5" />
+                      {t.emailOrders.findDoc}
                     </Link>
                   )}
                   {order[field] && (
@@ -922,7 +933,7 @@ function OrderDetail({
                 : t.emailOrders.monthlyResource}
             </span>
             <button type="button" onClick={onResource} className={smallButtonClass}>
-              {order.contractResource ? t.team.edit : t.emailOrders.linkDoc}
+              {order.contractResource ? t.team.edit : t.emailOrders.assign}
             </button>
           </div>
         )}
@@ -987,17 +998,17 @@ function OrderDetail({
 
       <DocumentNotes category="pedido" year={0} name={order.id} />
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className={dialogFooterClass}>
         <button
           type="button"
           onClick={() => openPdf(`/email-orders/${order.id}/pdf`)}
-          className={secondaryButtonClass}
+          className={`${secondaryButtonClass} flex-1 whitespace-nowrap px-3`}
         >
           <FileText className="h-4 w-4" />
           {t.emailOrders.viewPdf}
         </button>
         {hasMissingLink && (
-          <Link to={`/papeleo/pedidos/${order.id}/reconcile`} className={primaryButtonClass}>
+          <Link to={`/papeleo/pedidos/${order.id}/reconcile`} className={`${secondaryButtonClass} flex-1 whitespace-nowrap px-3`}>
             <Link2 className="h-4 w-4" />
             {t.reconcileManual.title}
           </Link>

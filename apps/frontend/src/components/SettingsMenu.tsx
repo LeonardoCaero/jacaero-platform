@@ -80,11 +80,12 @@ export function SettingsMenu() {
                 key={opt.value}
                 type="button"
                 data-testid={`theme-${opt.value}`}
+                aria-pressed={theme === opt.value}
                 onClick={() => setTheme(opt.value)}
                 className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10"
               >
                 {opt.label}
-                {theme === opt.value && <Check className="h-4 w-4 text-yellow" />}
+                {theme === opt.value && <Check className="h-4 w-4 text-yellow-ink dark:text-yellow" />}
               </button>
             ))}
           </div>
@@ -96,18 +97,20 @@ export function SettingsMenu() {
             <button
               type="button"
               onClick={() => setLanguage('en')}
+              aria-pressed={language === 'en'}
               className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10"
             >
               English
-              {language === 'en' && <Check className="h-4 w-4 text-yellow" />}
+              {language === 'en' && <Check className="h-4 w-4 text-yellow-ink dark:text-yellow" />}
             </button>
             <button
               type="button"
               onClick={() => setLanguage('es')}
+              aria-pressed={language === 'es'}
               className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10"
             >
               Español
-              {language === 'es' && <Check className="h-4 w-4 text-yellow" />}
+              {language === 'es' && <Check className="h-4 w-4 text-yellow-ink dark:text-yellow" />}
             </button>
           </div>
 
@@ -127,7 +130,7 @@ export function SettingsMenu() {
                     <Bell className="h-4 w-4" />
                     {pushEnabled ? t.settings.notificationsOn : t.settings.notificationsOff}
                   </span>
-                  {pushEnabled && <Check className="h-4 w-4 text-yellow" />}
+                  {pushEnabled && <Check className="h-4 w-4 text-yellow-ink dark:text-yellow" />}
                 </button>
               </div>
             </>

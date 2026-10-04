@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Search, Sparkles } from 'lucide-react'
 import { api } from '../lib/axios'
@@ -58,7 +58,8 @@ function usePdfPreview() {
 export function ReconcilePage() {
   const { id } = useParams<{ id: string }>()
   const { t, language } = useLanguage()
-  const { toast } = useFeedback()
+  const { toast, confirm } = useFeedback()
+  const [searchParams] = useSearchParams()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const queryClient = useQueryClient()
   const r = t.reconcileManual
@@ -75,7 +76,11 @@ export function ReconcilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  const [targetKey, setTargetKey] = useState<TargetKey | null>(null)
+  // Arriving from an albarán / factura ("Buscar pedido") or from the order's "Buscar": preselect.
+  const wantedTarget = searchParams.get('target')
+  const [targetKey, setTargetKey] = useState<TargetKey | null>(
+    wantedTarget === 'albaran' ? 'missingAlbaran' : wantedTarget === 'factura' ? 'missingFactura' : null,
+  )
   const [category, setCategory] = useState<DocCategory | null>(null)
   const [selected, setSelected] = useState<{ category: DocCategory; number: string; name: string } | null>(null)
   const [search, setSearch] = useState('')
@@ -105,16 +110,19 @@ export function ReconcilePage() {
     enabled: !!activeCategory && !!id,
   })
   const suggestions = candidates?.suggestions ?? []
+  const wantedDoc = searchParams.get('doc')
+  const preselected = useRef(false)
+  useEffect(() => {
+    if (preselected.current || !wantedDoc || !candidates || !activeCategory) return
+    const doc = candidates.documents.find((d) => d.name === wantedDoc)
+    preselected.current = true
+    if (doc) selectDoc(activeCategory, doc.number, doc.name)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidates, activeCategory, wantedDoc])
   const docs = candidates?.documents ?? []
   const previewRef = useRef<HTMLElement>(null)
 
-  const categoryLabel: Record<DocCategory, string> = {
-    presupuesto: t.papeleo.presupuesto.tab,
-    pedidoMaterial: t.papeleo.pedidoMaterial.tab,
-    horasTrabajo: t.papeleo.horas.tab,
-    albaran: t.papeleo.albaran.tab,
-    factura: t.papeleo.facturas.tab,
-  }
+  const categoryLabel: Record<DocCategory, string> = t.docLinks.singular
   const reasonLabel = { order: r.reasonOrder, quote: r.reasonQuote, amount: r.reasonAmount }
 
   const linkMutation = useMutation({
@@ -156,6 +164,10 @@ export function ReconcilePage() {
 
   if (!order) return null
 
+  const selectedTotal = selected ? (docs.find((d) => d.name === selected.name)?.total ?? null) : null
+  const orderTotal = order.totalAmount != null ? Number(order.totalAmount) : null
+  const amountsMatch = selectedTotal != null && orderTotal != null && Math.abs(selectedTotal - orderTotal) < 0.01
+
   const query = search.trim().toLowerCase()
   const list = docs.filter((d) => !query || `${d.number} ${d.title}`.toLowerCase().includes(query))
   const isSelected = (name: string) => selected?.category === activeCategory && selected?.name === name
@@ -184,6 +196,11 @@ export function ReconcilePage() {
         <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:overflow-hidden">
           {/* Picker: what is missing, likely matches first, then the full searchable list */}
           <section className={`${cardClass} flex flex-col lg:w-[380px] lg:shrink-0 lg:overflow-hidden`}>
+            {targets.length === 1 ? (
+              <p className="text-sm font-semibold text-ink dark:text-cream">
+                {r.missingOne.replace('{doc}', categoryLabel[targets[0].categories[0]])}
+              </p>
+            ) : (
             <div role="radiogroup" aria-label={r.missing} className="flex flex-wrap gap-2">
               {targets.map((x) => (
                 <button
@@ -202,6 +219,7 @@ export function ReconcilePage() {
                 </button>
               ))}
             </div>
+            )}
             {target && target.categories.length > 1 && (
               <div role="radiogroup" aria-label={r.documentType} className="mt-2 flex flex-wrap gap-1.5">
                 {target.categories.map((c) => (
@@ -288,7 +306,7 @@ export function ReconcilePage() {
                       type="button"
                       aria-pressed={isSelected(doc.name)}
                       onClick={() => selectDoc(activeCategory!, doc.number, doc.name)}
-                      className={`w-full rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                      className={`min-h-11 w-full rounded-lg px-2.5 py-2.5 text-left text-sm transition ${
                         isSelected(doc.name)
                           ? 'bg-yellow/15 text-ink dark:text-cream'
                           : 'text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10'
@@ -311,6 +329,19 @@ export function ReconcilePage() {
           {/* Selected document, to check it before linking */}
           <section ref={previewRef} className={`${cardClass} flex min-h-80 scroll-mt-4 flex-col lg:flex-1 lg:overflow-hidden`}>
             <h2 className={sectionLabelClass}>{selected ? `${categoryLabel[selected.category]} ${selected.number}` : r.preview}</h2>
+            {selectedTotal != null && orderTotal != null && (
+              <p
+                className={`mt-2 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
+                  amountsMatch
+                    ? 'bg-yellow/15 text-ink dark:text-yellow'
+                    : 'bg-rust/10 text-rust dark:bg-rust-dark/15 dark:text-rust-dark'
+                }`}
+              >
+                {amountsMatch
+                  ? r.amountMatches.replace('{doc}', formatEuro(selectedTotal, locale))
+                  : r.amountDiffers.replace('{doc}', formatEuro(selectedTotal, locale)).replace('{order}', formatEuro(orderTotal, locale))}
+              </p>
+            )}
             {!selected ? (
               <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{r.selectDocument}</p>
             ) : (
@@ -321,7 +352,13 @@ export function ReconcilePage() {
                 <button
                   type="button"
                   disabled={linkMutation.isPending}
-                  onClick={() => linkMutation.mutate(selected)}
+                  onClick={async () => {
+                    if (!amountsMatch && selectedTotal != null && orderTotal != null) {
+                      const ok = await confirm({ message: r.confirmMismatch, confirmLabel: r.linkButton })
+                      if (!ok) return
+                    }
+                    linkMutation.mutate(selected)
+                  }}
                   className={`${primaryButtonClass} mt-3`}
                 >
                   {linkMutation.isPending ? r.linking : r.linkButton}
