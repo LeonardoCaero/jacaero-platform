@@ -26,7 +26,7 @@ function PapeleoNav() {
             key={s.path}
             to={s.path}
             className={({ isActive }) =>
-              `flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-xs font-semibold transition lg:h-8 lg:flex-row lg:gap-1.5 lg:px-3 lg:py-0 lg:text-sm lg:whitespace-nowrap ${
+              `flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-xs font-semibold transition lg:h-8 lg:flex-row lg:gap-1.5 lg:px-3 lg:py-0 lg:text-sm lg:whitespace-nowrap ${
                 isActive
                   ? 'bg-ink text-cream dark:bg-yellow dark:text-ink'
                   : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'

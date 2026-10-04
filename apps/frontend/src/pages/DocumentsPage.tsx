@@ -37,7 +37,8 @@ import {
   primaryButtonClass,
   searchInputClass,
   sectionLabelClass,
-  segmentClass,
+  segmentOffClass,
+  segmentOnClass,
   smallButtonClass,
 } from '../components/ui'
 
@@ -213,7 +214,10 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       return
     }
 
-    navigator.clipboard.writeText(url.toString()).then(() => showToast(t.documents.linkCopied))
+    navigator.clipboard
+      .writeText(url.toString())
+      .then(() => showToast(t.documents.linkCopied))
+      .catch(() => showToast(t.documents.copyFailed, 'error'))
   }
 
   const shortDate = (iso: string) => new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'numeric' })
@@ -277,7 +281,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
               {t.documents.quoteFilters[f]}
               <span
                 className={`rounded-full px-1.5 py-px font-mono text-xs tabular ${
-                  active ? 'bg-ink/15 text-ink' : 'bg-ink/5 text-ink dark:bg-cream/10 dark:text-cream'
+                  active ? 'bg-cream/20 text-cream dark:bg-ink/15 dark:text-ink' : 'bg-ink/5 text-ink dark:bg-cream/10 dark:text-cream'
                 }`}
               >
                 {counts[f]}
@@ -515,7 +519,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                   }
                   role="radio"
                   aria-checked={active}
-                  className={segmentClass(active)}
+                  className={(active) ? segmentOnClass : segmentOffClass}
                 >
                   {label}
                 </button>

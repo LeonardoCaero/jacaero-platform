@@ -87,7 +87,7 @@ export function DocumentNotes({ category, year, name }: { category: string; year
           onChange={(e) => setText(e.target.value)}
           rows={2}
           placeholder={t.docNotes.placeholder}
-          className="min-h-11 flex-1 resize-y rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+          className="min-h-11 flex-1 resize-y rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-ink dark:focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
         />
         <button
           type="submit"

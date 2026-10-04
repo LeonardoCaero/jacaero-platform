@@ -52,7 +52,8 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     (message: string, tone: Tone = 'success') => {
       const id = nextId.current++
       setToasts((list) => [...list.slice(-2), { id, message, tone }])
-      window.setTimeout(() => dismiss(id), TOAST_MS)
+      // Errors stay until dismissed so they can't be missed.
+      if (tone !== 'error') window.setTimeout(() => dismiss(id), TOAST_MS)
     },
     [dismiss],
   )
@@ -64,6 +65,11 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  // "¿Desmarcar? Las etiquetas…" -> the question is the title, the rest explains it.
+  const splitAt = pending && !pending.title ? pending.message.indexOf('?') + 1 : 0
+  const question = splitAt > 0 ? pending!.message.slice(0, splitAt) : (pending?.message ?? '')
+  const detail = pending?.title ? pending.message : pending?.message.slice(splitAt).trim()
+
   function settle(ok: boolean) {
     resolver.current?.(ok)
     resolver.current = null
@@ -74,11 +80,11 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     <FeedbackContext.Provider value={{ toast, confirm }}>
       {children}
 
-      <Modal open={!!pending} onClose={() => settle(false)} title={pending?.title ?? t.common.confirmTitle} closeLabel={t.common.close} size="sm">
+      <Modal open={!!pending} onClose={() => settle(false)} title={pending?.title ?? question} closeLabel={t.common.close} size="sm">
         {pending && (
           <>
-            <p className="text-sm text-ink dark:text-cream">{pending.message}</p>
-            <div className="mt-5 flex justify-end gap-2">
+            {detail && <p className="text-sm text-ink dark:text-cream">{detail}</p>}
+            <div className={`${detail ? 'mt-5' : ''} flex justify-end gap-2`}>
               <button type="button" onClick={() => settle(false)} className={secondaryButtonClass}>
                 {t.common.cancel}
               </button>
@@ -112,6 +118,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
             return (
               <div
                 key={x.id}
+                role={x.tone === 'error' ? 'alert' : undefined}
                 className="animate-fade-up pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl border border-line bg-surface py-2.5 pl-2.5 pr-2 text-sm font-medium text-ink shadow-lg dark:border-line-dark dark:bg-surface-dark dark:text-cream"
               >
                 <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${toneIconClass[x.tone]}`}>

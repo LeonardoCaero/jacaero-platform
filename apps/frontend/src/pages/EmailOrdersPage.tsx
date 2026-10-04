@@ -22,7 +22,8 @@ import {
   searchInputClass,
   secondaryButtonClass,
   sectionLabelClass,
-  segmentClass,
+  segmentOffClass,
+  segmentOnClass,
   smallButtonClass,
   statusClass,
 } from '../components/ui'
@@ -197,7 +198,7 @@ function FavoriteButton({
       className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition hover:bg-ink/5 dark:hover:bg-cream/10 ${
         favorite
           ? 'text-yellow-ink dark:text-yellow'
-          : 'text-graphite/50 hover:text-graphite dark:text-graphite-dark/50 dark:hover:text-graphite-dark'
+          : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
       }`}
     >
       <Star className="h-4 w-4" fill={favorite ? 'currentColor' : 'none'} />
@@ -592,7 +593,7 @@ export function EmailOrdersPage() {
                       className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition hover:bg-ink/5 dark:hover:bg-cream/10 ${
                         order.contractResource
                           ? 'text-ink dark:text-cream'
-                          : 'text-graphite/50 hover:text-graphite dark:text-graphite-dark/50 dark:hover:text-graphite-dark'
+                          : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
                       }`}
                     >
                       <Repeat className="h-4 w-4" />
@@ -602,7 +603,7 @@ export function EmailOrdersPage() {
                     <p className="truncate font-mono text-sm font-semibold text-ink dark:text-cream">
                       {order.orderNumber ?? order.subject}
                     </p>
-                    <p className="truncate text-xs text-graphite dark:text-graphite-dark">
+                    <p className="line-clamp-2 text-xs text-graphite lg:line-clamp-1 dark:text-graphite-dark">
                       {[order.client?.name, formatDate(order.orderDate), order.quoteRef && `${t.emailOrders.quoteRef} ${order.quoteRef}`]
                         .filter(Boolean)
                         .join(' · ')}
@@ -629,7 +630,7 @@ export function EmailOrdersPage() {
                     <StatusChip key={field} done={!!order[field]} label={t.emailOrders[labelKey]} />
                   ))}
                   {order.facturarOkAt && !order.invoicedAt && (
-                    <span className="inline-flex items-center rounded-full bg-yellow px-2.5 py-1 text-xs font-semibold text-ink">
+                    <span className="inline-flex items-center rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
                       {t.emailOrders.facturarOk}
                     </span>
                   )}
@@ -789,7 +790,7 @@ function OrderDetail({
               role="radio"
               aria-checked={currentCategory === category}
               onClick={() => currentCategory !== category && onQuoteCategory(category)}
-              className={segmentClass(currentCategory === category)}
+              className={(currentCategory === category) ? segmentOnClass : segmentOffClass}
             >
               {category === 'pending' ? t.emailOrders.filterTypePending : quoteLabels[category]}
             </button>
@@ -814,7 +815,7 @@ function OrderDetail({
                     order[field] && <span className="text-xs text-graphite dark:text-graphite-dark">{t.emailOrders.markedNoDoc}</span>
                   )}
                   {field === 'invoicedAt' && order.facturarOkAt && !order.invoicedAt && (
-                    <span className="inline-flex items-center rounded-full bg-yellow px-2.5 py-1 text-xs font-semibold text-ink">
+                    <span className="inline-flex items-center rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
                       {t.emailOrders.facturarOk}
                     </span>
                   )}

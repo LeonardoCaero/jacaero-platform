@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, PieChart, Pencil, Trash2, Image as ImageIcon } from 'lucide-react'
 import { api } from '../lib/axios'
@@ -148,9 +148,15 @@ export function TimeTrackerPage() {
     resetEntryForm()
   }
 
+  const dayPanelRef = useRef<HTMLDivElement>(null)
+
   function selectDay(key: string) {
     setSelectedDate(key)
     resetEntryForm(key)
+    // On phones the day form sits under the calendar; bring it into view so "Guardar" is reachable.
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      requestAnimationFrame(() => dayPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
   }
 
   function jumpToToday() {
@@ -234,7 +240,7 @@ export function TimeTrackerPage() {
         subtitle={t.modules.timeTracker.description}
         actions={
           <span className="rounded-full bg-yellow/15 px-3 py-1 font-mono text-sm font-semibold tabular text-ink dark:text-cream">
-            {monthTotal}h
+            {monthTotal}h <span className="font-sans font-normal">{t.timeTracker.thisMonth}</span>
           </span>
         }
       />
@@ -363,7 +369,7 @@ export function TimeTrackerPage() {
                     isSelected
                       ? ''
                       : isWeekend
-                        ? 'text-graphite/60 dark:text-graphite-dark/60'
+                        ? 'text-graphite dark:text-graphite-dark'
                         : 'text-ink dark:text-cream'
                   }
                 >
@@ -383,7 +389,7 @@ export function TimeTrackerPage() {
       </div>
 
       {selectedDate && (
-        <div className={`${cardClass} mt-4 lg:sticky lg:top-4 lg:mt-0`}>
+        <div ref={dayPanelRef} className={`${cardClass} mt-4 scroll-mt-4 lg:sticky lg:top-4 lg:mt-0`}>
           <p className="font-display text-lg font-semibold tracking-wide text-ink dark:text-cream">
             {capitalizeFirst(formatDate(selectedDate, locale, { weekday: 'long', day: 'numeric', month: 'long' }))}
           </p>
@@ -542,6 +548,9 @@ export function TimeTrackerPage() {
                 className="h-4 w-4 rounded border-line accent-yellow dark:border-line-dark"
               />
               {t.timeTracker.overtime}
+              {selectedDate && isWeekendKey(selectedDate) && !editingId && (
+                <span className="text-xs">({t.timeTracker.weekendHint})</span>
+              )}
             </label>
 
             <div className="flex flex-wrap items-center gap-2">

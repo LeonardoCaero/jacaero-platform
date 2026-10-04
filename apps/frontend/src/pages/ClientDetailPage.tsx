@@ -632,7 +632,8 @@ function ContractsSection({
   contracts: Contract[]
   onChange: () => void
 }) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const [showForm, setShowForm] = useState(false)
   const [label, setLabel] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -840,7 +841,7 @@ function ContractsSection({
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-ink dark:text-cream">{c.label}</p>
                 <p className="truncate text-sm text-graphite dark:text-graphite-dark">
-                  {toDateInput(c.startDate)} – {toDateInput(c.endDate)} · {c.hourlyRate}€/h · {c.overtimeRate}€/h extra
+                  {new Date(c.startDate).toLocaleDateString(locale)} – {new Date(c.endDate).toLocaleDateString(locale)} · {c.hourlyRate}€/h · {c.overtimeRate}€/h extra
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3">

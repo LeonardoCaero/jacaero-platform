@@ -296,7 +296,7 @@ export function CalendarPage() {
                     isSelected
                       ? ''
                       : isWeekendKey(key)
-                        ? 'text-graphite/60 dark:text-graphite-dark/60'
+                        ? 'text-graphite dark:text-graphite-dark'
                         : 'text-ink dark:text-cream'
                   }
                 >

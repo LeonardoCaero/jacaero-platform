@@ -215,7 +215,7 @@ function UsersTab() {
   }
 
   async function handleCancelInvite(id: string) {
-    if (await confirm({ message: t.team.confirmDeleteInvite, danger: true, confirmLabel: t.common.delete })) cancelInviteMutation.mutate(id)
+    if (await confirm({ message: t.team.confirmDeleteInvite, danger: true, confirmLabel: t.team.cancelInviteAction })) cancelInviteMutation.mutate(id)
   }
 
   return (
@@ -274,7 +274,7 @@ function UsersTab() {
           <div className="mt-2 space-y-2">
             {invitations.map((inv) => (
               <div key={inv.id} className="flex items-center justify-between">
-                <p className="min-w-0 truncate text-sm text-graphite dark:text-graphite-dark">
+                <p className="min-w-0 break-words text-sm text-graphite dark:text-graphite-dark">
                   {inv.email} · {inv.role.name}
                 </p>
                 <div className="flex shrink-0 items-center gap-3">

@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, X } from 'lucide-react'
 
 export const inputClass =
-  'h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
+  'h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-ink dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
 
 export const textareaClass =
-  'w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
+  'w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-base text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-ink dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
 
 export const selectClass =
-  'h-10 rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-surface-dark dark:text-cream'
+  'h-10 rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-ink dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-surface-dark dark:text-cream'
 
 export const cardClass =
   'rounded-2xl border border-line bg-surface p-5 shadow-sm dark:border-line-dark dark:bg-surface-dark'
@@ -33,7 +33,7 @@ export const dangerIconButtonClass =
   'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line text-graphite transition hover:border-rust hover:text-rust disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:border-rust-dark dark:hover:text-rust-dark'
 
 export const searchInputClass =
-  'h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3 text-sm text-ink shadow-sm outline-none transition focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-surface-dark dark:text-cream'
+  'h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3 text-sm text-ink shadow-sm outline-none transition focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-ink dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-surface-dark dark:text-cream'
 
 export const statusClass =
   'rounded-xl border border-yellow/40 bg-yellow/10 px-3 py-2 text-sm text-ink dark:text-cream'
@@ -54,13 +54,10 @@ export const filterIdleClass =
 export const filterActiveClass = 'border-ink bg-ink text-cream dark:border-yellow dark:bg-yellow dark:text-ink'
 
 // One-of-N choice inside detail dialogs (quote type, document state).
-export function segmentClass(active: boolean) {
-  return `h-9 rounded-lg border px-2 text-xs font-semibold transition ${
-    active
-      ? 'border-ink bg-ink text-cream dark:border-yellow dark:bg-yellow dark:text-ink'
-      : 'border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
-  }`
-}
+export const segmentOnClass =
+  'h-9 rounded-lg border border-ink bg-ink px-2 text-xs font-semibold text-cream transition dark:border-yellow dark:bg-yellow dark:text-ink'
+export const segmentOffClass =
+  'h-9 rounded-lg border border-line px-2 text-xs font-semibold text-graphite transition hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
 
 export function PageHeader({
   backTo,

@@ -243,6 +243,7 @@ const en = {
     downloadWord: 'Download Word',
     share: 'Share',
     linkCopied: 'Link copied to clipboard',
+    copyFailed: 'Could not copy the link.',
   },
   recurringAlbaranes: {
     back: 'Back',
@@ -302,6 +303,8 @@ const en = {
     about: 'About',
   },
   timeTracker: {
+    thisMonth: 'this month',
+    weekendHint: 'weekend',
     viewHoursOf: 'Show hours of',
     jumpToday: 'Jump to today',
     fullDay: 'Full day',
@@ -379,6 +382,7 @@ const en = {
     systemRole: 'System',
     usersCount: 'users',
     confirmDeleteInvite: 'Cancel this invitation?',
+    cancelInviteAction: 'Cancel invitation',
     previewInvite: 'Preview email',
     resendInvite: 'Resend invitation',
     invitationSent: 'Invitation sent',
@@ -594,7 +598,7 @@ const es = {
     add: 'Añadir',
     save: 'Guardar',
     delete: 'Borrar nota',
-    confirmDelete: '¿Borrar esta nota?',
+    confirmDelete: '¿Eliminar esta nota?',
     count: '{count} notas',
     countOne: '1 nota',
   },
@@ -641,6 +645,7 @@ const es = {
     downloadWord: 'Descargar Word',
     share: 'Compartir',
     linkCopied: 'Enlace copiado',
+    copyFailed: 'No se ha podido copiar el enlace.',
   },
   recurringAlbaranes: {
     back: 'Volver',
@@ -700,6 +705,8 @@ const es = {
     about: 'Acerca de',
   },
   timeTracker: {
+    thisMonth: 'este mes',
+    weekendHint: 'fin de semana',
     viewHoursOf: 'Ver horas de',
     jumpToday: 'Ir a hoy',
     fullDay: 'Jornada completa',
@@ -777,6 +784,7 @@ const es = {
     systemRole: 'Sistema',
     usersCount: 'usuarios',
     confirmDeleteInvite: '¿Cancelar esta invitación?',
+    cancelInviteAction: 'Cancelar invitación',
     previewInvite: 'Vista previa del correo',
     resendInvite: 'Reenviar invitación',
     invitationSent: 'Invitación enviada',
