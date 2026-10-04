@@ -12,32 +12,29 @@ import { papeleoSections } from '../lib/modules'
 function PapeleoNav() {
   const { t } = useLanguage()
   return (
-    <nav
-      aria-label={t.modules.papeleo.label}
-      className="-mx-4 mb-5 flex items-center gap-3 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0"
-    >
+    <nav aria-label={t.modules.papeleo.label} className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
       <Link
         to="/papeleo"
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-md text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+        className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-md text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
       >
         <ArrowLeft className="h-4 w-4" />
         {t.comingSoon.back}
       </Link>
-      <div className="flex w-max shrink-0 gap-1 rounded-xl border border-line bg-surface p-1 dark:border-line-dark dark:bg-surface-dark">
+      <div className="grid grid-cols-4 gap-1 rounded-xl border border-line bg-surface p-1 lg:flex lg:w-max dark:border-line-dark dark:bg-surface-dark">
         {papeleoSections.map((s) => (
           <NavLink
             key={s.path}
             to={s.path}
             className={({ isActive }) =>
-              `inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold whitespace-nowrap transition ${
+              `flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-xs font-semibold transition lg:h-8 lg:flex-row lg:gap-1.5 lg:px-3 lg:py-0 lg:text-sm lg:whitespace-nowrap ${
                 isActive
                   ? 'bg-ink text-cream dark:bg-cream dark:text-ink'
                   : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
               }`
             }
           >
-            <s.icon className="h-3.5 w-3.5" />
-            {t.papeleo[s.key].tab}
+            <s.icon className="h-4 w-4 shrink-0 lg:h-3.5 lg:w-3.5" />
+            <span className="max-w-full truncate">{t.papeleo[s.key].tab}</span>
           </NavLink>
         ))}
       </div>

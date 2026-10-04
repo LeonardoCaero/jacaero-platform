@@ -24,6 +24,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import type { translations } from '../lib/translations'
 import { Skeleton } from '../components/Skeleton'
 import { DocumentNotes } from '../components/DocumentNotes'
+import { ListRow } from '../components/ListRow'
 import { DocumentOrigin, QuoteLinks, type DocOrigin, type LinkedDoc } from '../components/DocumentLinks'
 import {
   Modal,
@@ -258,7 +259,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
         </kbd>
       </div>
 
-      <div className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {(isQuote ? (['all', 'noOrder', 'notSent'] as const) : (['all', 'notSent'] as const)).map((f) => {
           const Icon = f === 'all' ? List : f === 'noOrder' ? FileText : Send
           const active = quoteFilter === f
@@ -326,7 +327,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
         </div>
       )}
 
-      <div className="mt-2 space-y-2">
+      <ul className="mt-2 space-y-2">
         {!isLoading &&
           filteredFiles.map((f, i) => {
             const orderCount = f.orderNumbers?.length ?? 0
@@ -439,35 +440,23 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             )
 
             return (
-              <div key={docKey(f)} className={`${rowClass} relative animate-fade-up`} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}>
-                <button
-                  type="button"
-                  onClick={openDetail}
-                  aria-label={`${t.documents.details} ${f.number}`}
-                  tabIndex={-1}
-                  className="absolute inset-0 rounded-2xl"
-                />
-                <div className="hidden items-center gap-4 lg:flex">
-                  <div className="min-w-0 flex-1">{heading}</div>
-                  <div className="w-32 shrink-0">{orderChip}</div>
-                  <div className="w-32 shrink-0">{sentChip}</div>
-                  <div className="flex shrink-0 items-center justify-end gap-2">{actions}</div>
-                </div>
-
-                <div className="lg:hidden">
-                  {heading}
-                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3 dark:border-line-dark">
-                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-                      {orderChip}
-                      {sentChip}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
-                  </div>
-                </div>
-              </div>
+              <ListRow
+                key={docKey(f)}
+                style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                onOpen={openDetail}
+                openLabel={`${t.documents.details} ${f.number}`}
+                heading={heading}
+                chips={
+                  <>
+                    {orderChip && <span className="lg:w-32">{orderChip}</span>}
+                    <span className="lg:w-32">{sentChip}</span>
+                  </>
+                }
+                actions={actions}
+              />
             )
           })}
-      </div>
+      </ul>
 
       {isError && <p className="mt-6 text-center text-sm text-rust dark:text-rust-dark">{t.documents.unreachable}</p>}
       {!isLoading && !isError && files.length === 0 && (

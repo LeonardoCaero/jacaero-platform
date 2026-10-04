@@ -6,6 +6,7 @@ import { api } from '../lib/axios'
 import { formatEuro } from '../lib/format'
 import { Skeleton } from '../components/Skeleton'
 import { DocumentNotes } from '../components/DocumentNotes'
+import { ListRow } from '../components/ListRow'
 import {
   Modal,
   PageHeader,
@@ -420,8 +421,8 @@ export function EmailOrdersPage() {
         />
       </div>
 
-      <div className="-mx-4 mt-3 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
-        <div className="flex w-max gap-2">
+      <div className="mt-3">
+        <div className="flex flex-wrap gap-2">
           {typeFilters.map((f) => (
             <button
               key={f.value}
@@ -466,21 +467,13 @@ export function EmailOrdersPage() {
       <ul className="mt-4 space-y-2">
         {!isLoading &&
           filteredOrders.map((order) => (
-            <li
+            <ListRow
               key={order.id}
-              className={`${listCardClass} relative py-3 transition hover:border-yellow dark:hover:border-yellow/60 ${
-                order.favorite ? 'border-yellow/50 bg-yellow/[0.04] dark:border-yellow/30' : ''
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => setSelectedId(order.id)}
-                aria-label={`${t.emailOrders.openOrder} ${order.orderNumber ?? order.subject}`}
-                tabIndex={-1}
-                className="absolute inset-0 rounded-2xl"
-              />
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <div className="order-1 flex min-w-0 flex-1 items-center gap-1">
+              onOpen={() => setSelectedId(order.id)}
+              openLabel={`${t.emailOrders.openOrder} ${order.orderNumber ?? order.subject}`}
+              highlighted={order.favorite}
+              heading={
+                <div className="flex min-w-0 items-center gap-1">
                   <FavoriteButton
                     favorite={order.favorite}
                     label={t.emailOrders.favorite}
@@ -516,29 +509,16 @@ export function EmailOrdersPage() {
                     )}
                   </div>
                 </div>
-                <div className="order-2 flex shrink-0 items-center gap-1 lg:order-3">
-                  {order.totalAmount && (
-                    <span className="min-w-24 text-right font-mono text-sm font-semibold tabular text-ink dark:text-cream">
-                      {formatEuro(order.totalAmount, locale)}
-                    </span>
-                  )}
-                  <div className="ml-2 flex items-center gap-2">
-                    <PreviewButton
-                      label={t.emailOrders.previewPdf}
-                      onClick={() => openPdf(`/email-orders/${order.id}/pdf`)}
-                    />
-                    <button
-                      type="button"
-                      title={t.documents.details}
-                      aria-label={t.documents.details}
-                      onClick={() => setSelectedId(order.id)}
-                      className={`${iconButtonClass} relative z-10`}
-                    >
-                      <Info className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="order-3 flex w-full flex-wrap gap-1.5 pl-9 lg:order-2 lg:w-auto lg:justify-end lg:pl-0">
+              }
+              aside={
+                order.totalAmount && (
+                  <span className="block text-right font-mono text-sm font-semibold tabular text-ink lg:min-w-24 dark:text-cream">
+                    {formatEuro(order.totalAmount, locale)}
+                  </span>
+                )
+              }
+              chips={
+                <div className="flex flex-wrap gap-1.5 lg:justify-end">
                   <StatusChip done={quoteCategoryOf(order) !== 'pending'} label={quoteLabels[quoteCategoryOf(order)]} />
                   {MILESTONES.map(({ field, labelKey }) => (
                     <StatusChip key={field} done={!!order[field]} label={t.emailOrders[labelKey]} />
@@ -549,8 +529,22 @@ export function EmailOrdersPage() {
                     </span>
                   )}
                 </div>
-              </div>
-            </li>
+              }
+              actions={
+                <>
+                  <PreviewButton label={t.emailOrders.previewPdf} onClick={() => openPdf(`/email-orders/${order.id}/pdf`)} />
+                  <button
+                    type="button"
+                    title={t.documents.details}
+                    aria-label={t.documents.details}
+                    onClick={() => setSelectedId(order.id)}
+                    className={`${iconButtonClass} relative z-10`}
+                  >
+                    <Info className="h-4 w-4" />
+                  </button>
+                </>
+              }
+            />
           ))}
       </ul>
 
