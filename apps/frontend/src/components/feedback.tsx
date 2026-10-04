@@ -1,5 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AlertTriangle, Check, Info, X } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { Modal, primaryButtonClass, secondaryButtonClass } from './ui'
@@ -36,6 +35,16 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<ConfirmOptions | null>(null)
   const resolver = useRef<((ok: boolean) => void) | null>(null)
   const nextId = useRef(0)
+  const stack = useRef<HTMLDivElement>(null)
+
+  // Open <dialog>s live in the browser top layer, above any z-index. A manual popover joins that layer;
+  // re-showing it on every new toast puts it above whatever dialog is open at that moment.
+  useEffect(() => {
+    const el = stack.current
+    if (!el) return
+    if (el.matches(':popover-open')) el.hidePopover()
+    if (toasts.length > 0) el.showPopover()
+  }, [toasts.length])
 
   const dismiss = useCallback((id: number) => setToasts((list) => list.filter((x) => x.id !== id)), [])
 
@@ -90,12 +99,14 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
         )}
       </Modal>
 
-      {createPortal(
-        <div
-          role="status"
-          aria-live="polite"
-          className="pointer-events-none fixed inset-x-0 bottom-4 z-[70] flex flex-col items-center gap-2 px-4 sm:bottom-6"
-        >
+      <div
+        ref={stack}
+        popover="manual"
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none inset-x-0 top-auto bottom-4 m-0 w-full max-w-none overflow-visible border-0 bg-transparent p-0 px-4 sm:bottom-6"
+      >
+        <div className="flex flex-col items-center gap-2">
           {toasts.map((x) => {
             const Icon = toneIcon[x.tone]
             return (
@@ -118,9 +129,8 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
               </div>
             )
           })}
-        </div>,
-        document.body,
-      )}
+        </div>
+      </div>
     </FeedbackContext.Provider>
   )
 }

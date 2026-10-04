@@ -60,7 +60,7 @@ const closedStates: (QuoteState | null | undefined)[] = ['ANULADO', 'SUSTITUIDO'
 type QuoteFilter = 'all' | 'noOrder' | 'notSent'
 
 const rowClass =
-  'group rounded-2xl border border-line bg-surface px-4 py-3 shadow-sm transition hover:border-yellow/60 dark:border-line-dark dark:bg-surface-dark dark:hover:border-yellow/40'
+  'group cursor-pointer rounded-2xl border border-line bg-surface px-4 py-3 shadow-sm transition hover:border-yellow/60 dark:border-line-dark dark:bg-surface-dark dark:hover:border-yellow/40'
 
 const currentYear = new Date().getFullYear()
 const years = [currentYear, currentYear - 1]
@@ -150,10 +150,21 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
   const statusMutation = useMutation({
     mutationFn: async ({ file, status, replaced }: { file: DocFile; status: QuoteState | null; replaced?: string }) =>
       api.put('/notes/quote-status', { year, name: file.name, status, replacedBy: replaced }),
-    onSuccess: (_d, { status, replaced }) => {
+    onSuccess: (_d, { file, status, replaced }) => {
       setDetail((cur) => cur && { ...cur, status: { status, replacedBy: status === 'SUSTITUIDO' ? replaced ?? null : null } })
       queryClient.invalidateQueries({ queryKey: ['documents', category, year] })
+      const qs = t.documents.quoteStates
+      const state =
+        status === 'SUSTITUIDO'
+          ? qs.replacedBy.replace('{n}', replaced || '?')
+          : status === 'ANULADO'
+            ? qs.cancelled
+            : status === 'STANDBY'
+              ? qs.standby
+              : qs.active
+      showToast(qs.changed.replace('{n}', file.number).replace('{state}', state.toLowerCase()))
     },
+    onError: () => showToast(t.common.saveError, 'error'),
   })
 
   async function previewOrder(id: string) {
@@ -344,43 +355,32 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 {t.documents.notSent}
               </span>
             )
+            const openDetail = () => {
+              setReplacedBy(f.status?.replacedBy ?? '')
+              setDetail(f)
+            }
             const actions = (
               <>
                 {f.hasPdf && (
-                  <button type="button" title={t.documents.viewPdf} aria-label={t.documents.viewPdf} onClick={() => openFile(f.number, 'pdf', f.name)} className={iconButtonClass}>
+                  <button
+                    type="button"
+                    title={t.documents.viewPdf}
+                    aria-label={t.documents.viewPdf}
+                    onClick={() => openFile(f.number, 'pdf', f.name)}
+                    className={`${iconButtonClass} relative z-10`}
+                  >
                     <Eye className="h-4 w-4" />
                   </button>
                 )}
-                {isQuote ? (
-                  <button
-                    type="button"
-                    title={t.documents.details}
-                    aria-label={t.documents.details}
-                    onClick={() => {
-                      setReplacedBy(f.status?.replacedBy ?? '')
-                      setDetail(f)
-                    }}
-                    className={iconButtonClass}
-                  >
-                    <Info className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <>
-                    {f.hasPdf && (
-                      <button type="button" title={t.documents.share} aria-label={t.documents.share} onClick={() => shareFile(f)} className={iconButtonClass}>
-                        <Share2 className="h-4 w-4" />
-                      </button>
-                    )}
-                    {f.hasDocx && (
-                      <button type="button" title={t.documents.downloadWord} aria-label={t.documents.downloadWord} onClick={() => openFile(f.number, 'docx', f.name)} className={iconButtonClass}>
-                        <Download className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button type="button" title={t.docNotes.title} aria-label={t.docNotes.title} onClick={() => setDetail(f)} className={iconButtonClass}>
-                      <StickyNote className="h-4 w-4" />
-                    </button>
-                  </>
-                )}
+                <button
+                  type="button"
+                  title={t.documents.details}
+                  aria-label={t.documents.details}
+                  onClick={openDetail}
+                  className={`${iconButtonClass} relative z-10`}
+                >
+                  <Info className="h-4 w-4" />
+                </button>
               </>
             )
             const heading = (
@@ -409,7 +409,14 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             )
 
             return (
-              <div key={docKey(f)} className={`${rowClass} animate-fade-up`} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}>
+              <div key={docKey(f)} className={`${rowClass} relative animate-fade-up`} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}>
+                <button
+                  type="button"
+                  onClick={openDetail}
+                  aria-label={`${t.documents.details} ${f.number}`}
+                  tabIndex={-1}
+                  className="absolute inset-0 rounded-2xl"
+                />
                 <div className="hidden items-center gap-4 lg:flex">
                   <div className="min-w-0 flex-1">{heading}</div>
                   {isQuote && <div className="w-32 shrink-0">{orderChip}</div>}

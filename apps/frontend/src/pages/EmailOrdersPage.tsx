@@ -1,7 +1,7 @@
 import { useState, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, FileText, Check, Link2, Eye, Star, Search, Repeat } from 'lucide-react'
+import { RefreshCw, FileText, Check, Link2, Eye, Info, Star, Search, Repeat } from 'lucide-react'
 import { api } from '../lib/axios'
 import { formatEuro } from '../lib/format'
 import { Skeleton } from '../components/Skeleton'
@@ -14,6 +14,7 @@ import {
   filterActiveClass,
   filterClass,
   filterIdleClass,
+  iconButtonClass,
   inputClass,
   listCardClass,
   primaryButtonClass,
@@ -68,7 +69,7 @@ function PreviewButton({ onClick, label }: { onClick: (e: MouseEvent) => void; l
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-graphite transition hover:bg-ink/5 hover:text-ink dark:text-graphite-dark dark:hover:bg-cream/10 dark:hover:text-cream"
+      className={`${iconButtonClass} relative z-10`}
     >
       <Eye className="h-4 w-4" />
     </button>
@@ -201,7 +202,7 @@ function FavoriteButton({
 
 export function EmailOrdersPage() {
   const { t, language } = useLanguage()
-  const { confirm } = useFeedback()
+  const { confirm, toast } = useFeedback()
   const queryClient = useQueryClient()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -283,16 +284,31 @@ export function EmailOrdersPage() {
     onError: () => setSyncMessage(t.common.loadError),
   })
 
+  const orderLabel = (id: string) => {
+    const order = orders.find((o) => o.id === id)
+    return order?.orderNumber ?? order?.subject ?? ''
+  }
+
   const milestoneMutation = useMutation({
     mutationFn: ({ id, field, done }: { id: string; field: MilestoneField; done: boolean }) =>
       api.patch(`/email-orders/${id}/milestone`, { field, done }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-orders'] }),
+    onSuccess: (_d, { id, field, done }) => {
+      const label = t.emailOrders[MILESTONES.find((m) => m.field === field)!.labelKey]
+      toast((done ? t.emailOrders.markedOn : t.emailOrders.markedOff).replace('{order}', orderLabel(id)).replace('{label}', label))
+      queryClient.invalidateQueries({ queryKey: ['email-orders'] })
+    },
+    onError: () => toast(t.common.saveError, 'error'),
   })
 
   const quoteStatusMutation = useMutation({
     mutationFn: ({ id, category }: { id: string; category: QuoteCategory }) =>
       api.patch(`/email-orders/${id}/quote-status`, { category }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-orders'] }),
+    onSuccess: (_d, { id, category }) => {
+      const label = category === 'pending' ? t.emailOrders.filterTypePending : quoteLabels[category]
+      toast(t.emailOrders.quoteTypeSet.replace('{order}', orderLabel(id)).replace('{label}', label.toLowerCase()))
+      queryClient.invalidateQueries({ queryKey: ['email-orders'] })
+    },
+    onError: () => toast(t.common.saveError, 'error'),
   })
 
   const { data: resources = [] } = useQuery({
@@ -325,6 +341,7 @@ export function EmailOrdersPage() {
     mutationFn: ({ id, favorite }: { id: string; favorite: boolean }) =>
       api.patch(`/email-orders/${id}/favorite`, { favorite }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-orders'] }),
+    onError: () => toast(t.common.saveError, 'error'),
   })
 
   const selected = orders.find((o) => o.id === selectedId) ?? null
@@ -458,6 +475,7 @@ export function EmailOrdersPage() {
                 type="button"
                 onClick={() => setSelectedId(order.id)}
                 aria-label={`${t.emailOrders.openOrder} ${order.orderNumber ?? order.subject}`}
+                tabIndex={-1}
                 className="absolute inset-0 rounded-2xl"
               />
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -503,10 +521,21 @@ export function EmailOrdersPage() {
                       {formatEuro(order.totalAmount, locale)}
                     </span>
                   )}
-                  <PreviewButton
-                    label={t.emailOrders.previewPdf}
-                    onClick={() => openPdf(`/email-orders/${order.id}/pdf`)}
-                  />
+                  <div className="ml-2 flex items-center gap-2">
+                    <PreviewButton
+                      label={t.emailOrders.previewPdf}
+                      onClick={() => openPdf(`/email-orders/${order.id}/pdf`)}
+                    />
+                    <button
+                      type="button"
+                      title={t.documents.details}
+                      aria-label={t.documents.details}
+                      onClick={() => setSelectedId(order.id)}
+                      className={`${iconButtonClass} relative z-10`}
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="order-3 flex w-full flex-wrap gap-1.5 pl-9 lg:order-2 lg:w-auto lg:justify-end lg:pl-0">
                   <StatusChip done={quoteCategoryOf(order) !== 'pending'} label={quoteLabels[quoteCategoryOf(order)]} />

@@ -40,6 +40,42 @@ export function AboutPage() {
           <button
             type="button"
             className={secondaryButtonClass}
+            onClick={() => toast(t.emailOrders.markedOn.replace('{order}', '4500000000').replace('{label}', t.emailOrders.invoiced))}
+          >
+            Facturado
+          </button>
+          <button
+            type="button"
+            className={secondaryButtonClass}
+            onClick={() => toast(t.emailOrders.markedOff.replace('{order}', '4500000000').replace('{label}', t.emailOrders.invoiced))}
+          >
+            Desmarcar facturado
+          </button>
+          <button
+            type="button"
+            className={secondaryButtonClass}
+            onClick={() =>
+              toast(t.documents.quoteStates.changed.replace('{n}', '000').replace('{state}', t.documents.quoteStates.standby.toLowerCase()))
+            }
+          >
+            Estado presupuesto
+          </button>
+          <button
+            type="button"
+            className={secondaryButtonClass}
+            onClick={async () => {
+              if (!(await confirm({ message: t.emailOrders.confirmUninvoice }))) return
+              toast(t.emailOrders.markedOff.replace('{order}', '4500000000').replace('{label}', t.emailOrders.invoiced))
+            }}
+          >
+            Confirm desmarcar facturado
+          </button>
+          <button type="button" className={secondaryButtonClass} onClick={() => toast(t.common.saveError, 'error')}>
+            Error al guardar
+          </button>
+          <button
+            type="button"
+            className={secondaryButtonClass}
             onClick={async () =>
               toast(
                 (await confirm({ message: '¿Eliminar esta nota?', danger: true, confirmLabel: t.common.delete }))
