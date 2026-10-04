@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, Building2, ChevronLeft, ChevronRight, Image as ImageIcon, Lock, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { api } from '../lib/axios'
+import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { capitalizeFirst } from '../lib/format'
@@ -57,6 +58,7 @@ function audienceOf(n: CalendarNote): Audience {
 
 export function CalendarPage() {
   const { t, language } = useLanguage()
+  const { confirm } = useFeedback()
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
@@ -195,8 +197,8 @@ export function CalendarPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['calendar'] }),
   })
 
-  function handleDelete(id: string) {
-    if (!confirm(t.calendar.confirmDelete)) return
+  async function handleDelete(id: string) {
+    if (!(await confirm({ message: t.calendar.confirmDelete, danger: true, confirmLabel: t.common.delete }))) return
     deleteMutation.mutate(id)
     if (editingId === id) resetForm()
   }
@@ -425,8 +427,8 @@ export function CalendarPage() {
                   <PhotoThumbnail
                     key={filename}
                     url={`/calendar/${editingNote.id}/photos/${filename}`}
-                    onDelete={() => {
-                      if (confirm(t.timeTracker.confirmDeletePhoto)) {
+                    onDelete={async () => {
+                      if (await confirm({ message: t.timeTracker.confirmDeletePhoto, danger: true, confirmLabel: t.common.delete })) {
                         deletePhotoMutation.mutate({ noteId: editingNote.id, filename })
                       }
                     }}

@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, PieChart, Pencil, Trash2, Image as ImageIcon } from 'lucide-react'
 import { api } from '../lib/axios'
+import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { capitalizeFirst } from '../lib/format'
@@ -57,6 +58,7 @@ const quickButtonClass =
 
 export function TimeTrackerPage() {
   const { t, language } = useLanguage()
+  const { confirm } = useFeedback()
   const { user, hasPermission } = useAuth()
   const queryClient = useQueryClient()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
@@ -210,8 +212,8 @@ export function TimeTrackerPage() {
     setPendingPhotos([])
   }
 
-  function handleDelete(id: string) {
-    if (!confirm(t.timeTracker.confirmDelete)) return
+  async function handleDelete(id: string) {
+    if (!(await confirm({ message: t.timeTracker.confirmDelete, danger: true, confirmLabel: t.common.delete }))) return
     deleteMutation.mutate(id)
     if (editingId === id) resetEntryForm()
   }
@@ -544,8 +546,8 @@ export function TimeTrackerPage() {
                 <PhotoThumbnail
                   key={filename}
                   url={`/time-entries/${editingEntry.id}/photos/${filename}`}
-                  onDelete={() => {
-                    if (confirm(t.timeTracker.confirmDeletePhoto)) {
+                  onDelete={async () => {
+                    if (await confirm({ message: t.timeTracker.confirmDeletePhoto, danger: true, confirmLabel: t.common.delete })) {
                       deletePhotoMutation.mutate({ entryId: editingEntry.id, filename })
                     }
                   }}

@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, Pencil, Send, Trash2, UserCheck, UserX, X } from 'lucide-react'
 import { api } from '../lib/axios'
+import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 import {
   Modal,
@@ -91,6 +91,7 @@ export function TeamPage() {
 
 function UsersTab() {
   const { t, language } = useLanguage()
+  const { confirm, toast: showToast } = useFeedback()
   const queryClient = useQueryClient()
 
   const { data: users = [] } = useQuery({
@@ -150,11 +151,6 @@ function UsersTab() {
 
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
 
-  const [toast, setToast] = useState<string | null>(null)
-  function showToast(message: string) {
-    setToast(message)
-    window.setTimeout(() => setToast(null), 3000)
-  }
 
   async function handlePreviewInvite(id: string) {
     const { data } = await api.get<{ html: string }>(`/invitations/${id}/preview`)
@@ -188,17 +184,17 @@ function UsersTab() {
     mutationFn: (user: User) =>
       api.patch(`/users/${user.id}`, { status: user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
-    onError: (err: any) => showToast(err?.response?.data?.error ?? 'Error'),
+    onError: (err: any) => showToast(err?.response?.data?.error ?? 'Error', 'error'),
   })
 
   const deleteUserMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/users/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
-    onError: (err: any) => showToast(err?.response?.data?.error ?? 'Error'),
+    onError: (err: any) => showToast(err?.response?.data?.error ?? 'Error', 'error'),
   })
 
-  function handleDeleteUser(user: User) {
-    if (confirm(t.team.confirmDeleteUser)) deleteUserMutation.mutate(user.id)
+  async function handleDeleteUser(user: User) {
+    if (await confirm({ message: t.team.confirmDeleteUser, danger: true, confirmLabel: t.common.delete })) deleteUserMutation.mutate(user.id)
   }
 
   function handleInviteSubmit(e: FormEvent) {
@@ -218,8 +214,8 @@ function UsersTab() {
     })
   }
 
-  function handleCancelInvite(id: string) {
-    if (confirm(t.team.confirmDeleteInvite)) cancelInviteMutation.mutate(id)
+  async function handleCancelInvite(id: string) {
+    if (await confirm({ message: t.team.confirmDeleteInvite, danger: true, confirmLabel: t.common.delete })) cancelInviteMutation.mutate(id)
   }
 
   return (
@@ -410,15 +406,6 @@ function UsersTab() {
         ))}
       </div>
 
-      {toast &&
-        createPortal(
-          <div role="status" className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
-            <div className="rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cream shadow-lg dark:bg-cream dark:text-ink">
-              {toast}
-            </div>
-          </div>,
-          document.body,
-        )}
 
       <Modal open={!!previewHtml} onClose={() => setPreviewHtml(null)} title={t.team.previewInvite} closeLabel={t.common.close}>
         {previewHtml && (
@@ -431,6 +418,7 @@ function UsersTab() {
 
 function RolesTab() {
   const { t } = useLanguage()
+  const { confirm } = useFeedback()
   const queryClient = useQueryClient()
 
   const { data: roles = [] } = useQuery({
@@ -497,8 +485,8 @@ function RolesTab() {
     onError: (err: any) => setDeleteError(err?.response?.data?.error ?? 'Error'),
   })
 
-  function handleDelete(role: Role) {
-    if (confirm(t.team.confirmDeleteRole)) deleteMutation.mutate(role.id)
+  async function handleDelete(role: Role) {
+    if (await confirm({ message: t.team.confirmDeleteRole, danger: true, confirmLabel: t.common.delete })) deleteMutation.mutate(role.id)
   }
 
   function handleSubmit(e: FormEvent) {

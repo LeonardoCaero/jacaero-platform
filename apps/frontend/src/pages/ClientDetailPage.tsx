@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2, UserCheck, UserX, X } from 'lucide-react'
 import { api } from '../lib/axios'
+import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 
 import {
@@ -206,6 +207,7 @@ function LocationsSection({
   onChange: () => void
 }) {
   const { t } = useLanguage()
+  const { confirm } = useFeedback()
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
@@ -239,8 +241,8 @@ function LocationsSection({
     onSuccess: onChange,
   })
 
-  function handleRemove(locationId: string) {
-    if (confirm(t.clients.confirmDeleteLocation)) removeMutation.mutate(locationId)
+  async function handleRemove(locationId: string) {
+    if (await confirm({ message: t.clients.confirmDeleteLocation, danger: true, confirmLabel: t.common.delete })) removeMutation.mutate(locationId)
   }
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -412,6 +414,7 @@ function ContactsSection({
   onChange: () => void
 }) {
   const { t } = useLanguage()
+  const { confirm } = useFeedback()
   const [showForm, setShowForm] = useState(false)
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -445,8 +448,8 @@ function ContactsSection({
     onSuccess: onChange,
   })
 
-  function handleRemove(contactId: string) {
-    if (confirm(t.clients.confirmDeleteContact)) removeMutation.mutate(contactId)
+  async function handleRemove(contactId: string) {
+    if (await confirm({ message: t.clients.confirmDeleteContact, danger: true, confirmLabel: t.common.delete })) removeMutation.mutate(contactId)
   }
 
   const [editingId, setEditingId] = useState<string | null>(null)

@@ -22,6 +22,7 @@ import {
   sectionLabelClass,
   statusClass,
 } from '../components/ui'
+import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
@@ -200,6 +201,7 @@ function FavoriteButton({
 
 export function EmailOrdersPage() {
   const { t, language } = useLanguage()
+  const { confirm } = useFeedback()
   const queryClient = useQueryClient()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -332,9 +334,9 @@ export function EmailOrdersPage() {
     return new Date(iso).toLocaleDateString(locale)
   }
 
-  function toggleMilestone(order: EmailOrder, field: MilestoneField) {
+  async function toggleMilestone(order: EmailOrder, field: MilestoneField) {
     const done = !order[field]
-    if (field === 'invoicedAt' && !done && !confirm(t.emailOrders.confirmUninvoice)) return
+    if (field === 'invoicedAt' && !done && !(await confirm({ message: t.emailOrders.confirmUninvoice }))) return
     milestoneMutation.mutate({ id: order.id, field, done })
   }
 

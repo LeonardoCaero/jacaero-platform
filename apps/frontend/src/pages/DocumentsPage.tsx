@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -20,6 +19,7 @@ import {
   Users,
 } from 'lucide-react'
 import { api } from '../lib/axios'
+import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { translations } from '../lib/translations'
 import { Skeleton } from '../components/Skeleton'
@@ -91,11 +91,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
   const [detail, setDetail] = useState<DocFile | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const isQuote = category === 'presupuesto'
-  const [toast, setToast] = useState<string | null>(null)
-  function showToast(message: string) {
-    setToast(message)
-    window.setTimeout(() => setToast(null), 3000)
-  }
+  const { toast: showToast } = useFeedback()
 
   const { data: files = [], isLoading, isError } = useQuery({
     queryKey: ['documents', category, year],
@@ -145,7 +141,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     const number = searchParams.get('number')
     const ext = searchParams.get('ext')
     if (!searchParams.get('open') || !number || (ext !== 'pdf' && ext !== 'docx')) return
-    openFile(number, ext, searchParams.get('name') ?? undefined, true).catch(() => showToast(t.documents.unreachable))
+    openFile(number, ext, searchParams.get('name') ?? undefined, true).catch(() => showToast(t.documents.unreachable, 'error'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -165,7 +161,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       const { data } = await api.get(`/email-orders/${id}/pdf`, { responseType: 'blob' })
       window.open(URL.createObjectURL(data), '_blank')
     } catch {
-      showToast(t.documents.orderPdfMissing)
+      showToast(t.documents.orderPdfMissing, 'error')
     }
   }
 
@@ -638,15 +634,6 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
         )}
       </Modal>
 
-      {toast &&
-        createPortal(
-          <div role="status" className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
-            <div className="rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cream shadow-lg dark:bg-cream dark:text-ink">
-              {toast}
-            </div>
-          </div>,
-          document.body,
-        )}
     </div>
   )
 }

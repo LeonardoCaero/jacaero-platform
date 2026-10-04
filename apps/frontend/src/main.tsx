@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 import { ThemeProvider } from './contexts/ThemeContext.tsx'
 import { LanguageProvider } from './contexts/LanguageContext.tsx'
+import { FeedbackProvider } from './components/feedback.tsx'
 import './index.css'
 import App from './App.tsx'
 
@@ -21,7 +22,9 @@ createRoot(document.getElementById('root')!).render(
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <AuthProvider>
-              <App />
+              <FeedbackProvider>
+                <App />
+              </FeedbackProvider>
             </AuthProvider>
           </BrowserRouter>
         </QueryClientProvider>

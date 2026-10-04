@@ -12,6 +12,10 @@ const en = {
   },
   common: {
     close: 'Close',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    confirmTitle: 'Are you sure?',
+    delete: 'Delete',
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
     loadError: 'Could not load the data. Try again in a moment.',
@@ -364,6 +368,10 @@ const es = {
   },
   common: {
     close: 'Cerrar',
+    cancel: 'Cancelar',
+    confirm: 'Confirmar',
+    confirmTitle: '¿Seguro?',
+    delete: 'Eliminar',
     prevMonth: 'Mes anterior',
     nextMonth: 'Mes siguiente',
     loadError: 'No se han podido cargar los datos. Inténtalo de nuevo en un momento.',

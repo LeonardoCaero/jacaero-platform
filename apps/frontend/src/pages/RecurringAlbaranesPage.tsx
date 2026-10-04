@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Check, Eye, FileText, RefreshCw } from 'lucide-react'
 import { api } from '../lib/axios'
+import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 import {
   Modal,
@@ -95,6 +96,7 @@ function storeClient(id: string) {
 
 export function RecurringAlbaranesPage() {
   const { t, language } = useLanguage()
+  const { confirm } = useFeedback()
   const r = t.recurringAlbaranes
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const queryClient = useQueryClient()
@@ -175,9 +177,14 @@ export function RecurringAlbaranesPage() {
     onError: (err) => setError(apiError(err)),
   })
 
-  function create(order: ResourceOrder, kind: Kind, resourceName: string) {
+  async function create(order: ResourceOrder, kind: Kind, resourceName: string) {
     const existing = order[kind]?.summary
-    if (existing && !confirm(r.alreadyExists.replace('{doc}', r[kind]).replace('{number}', existing.number).replace('{month}', monthLabel))) {
+    if (
+      existing &&
+      !(await confirm({
+        message: r.alreadyExists.replace('{doc}', r[kind]).replace('{number}', existing.number).replace('{month}', monthLabel),
+      }))
+    ) {
       return
     }
     openMutation.mutate({ order, kind, resourceName })

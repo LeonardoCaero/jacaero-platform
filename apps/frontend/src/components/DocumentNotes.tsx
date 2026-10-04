@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { StickyNote, Trash2 } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useAuth } from '../contexts/AuthContext'
+import { useFeedback } from './feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type Note = {
@@ -14,6 +15,7 @@ type Note = {
 
 export function DocumentNotes({ category, year, name }: { category: string; year: number; name: string }) {
   const { t, language } = useLanguage()
+  const { confirm } = useFeedback()
   const { user } = useAuth()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const queryClient = useQueryClient()
@@ -59,7 +61,8 @@ export function DocumentNotes({ category, year, name }: { category: string; year
                 <button
                   type="button"
                   title={t.docNotes.delete}
-                  onClick={() => confirm(t.docNotes.confirmDelete) && deleteMutation.mutate(n.id)}
+                  aria-label={t.docNotes.delete}
+                  onClick={async () => (await confirm({ message: t.docNotes.confirmDelete, danger: true, confirmLabel: t.common.delete })) && deleteMutation.mutate(n.id)}
                   className="shrink-0 text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
