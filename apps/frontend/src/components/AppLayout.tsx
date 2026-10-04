@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -11,8 +12,18 @@ import { papeleoSections } from '../lib/modules'
 function PapeleoNav() {
   const { t } = useLanguage()
   return (
-    <nav aria-label={t.modules.papeleo.label} className="-mx-4 mb-5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
-      <div className="flex w-max gap-1 rounded-xl border border-line bg-surface p-1 dark:border-line-dark dark:bg-surface-dark">
+    <nav
+      aria-label={t.modules.papeleo.label}
+      className="-mx-4 mb-5 flex items-center gap-3 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0"
+    >
+      <Link
+        to="/papeleo"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-md text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        {t.comingSoon.back}
+      </Link>
+      <div className="flex w-max shrink-0 gap-1 rounded-xl border border-line bg-surface p-1 dark:border-line-dark dark:bg-surface-dark">
         {papeleoSections.map((s) => (
           <NavLink
             key={s.path}
