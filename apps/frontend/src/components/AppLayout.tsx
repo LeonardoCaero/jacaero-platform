@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, MoreHorizontal } from 'lucide-react'
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -22,9 +22,25 @@ function PapeleoNav() {
   const activeSecondary = secondary.find((s) => location.pathname === s.path)
   const more = useRef<HTMLDetailsElement>(null)
 
+  const [moreOpen, setMoreOpen] = useState(false)
+
   useEffect(() => {
     if (more.current) more.current.open = false
   }, [location.pathname])
+
+  useEffect(() => {
+    function close(e: Event) {
+      const menu = more.current
+      if (!menu?.open) return
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menu.contains(e.target as Node)) menu.open = false
+    }
+    document.addEventListener('keydown', close)
+    document.addEventListener('pointerdown', close)
+    return () => {
+      document.removeEventListener('keydown', close)
+      document.removeEventListener('pointerdown', close)
+    }
+  }, [])
 
   return (
     <nav aria-label={t.modules.papeleo.label} className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -41,15 +57,18 @@ function PapeleoNav() {
         {primary.map((s) => (
           <NavLink key={s.path} to={s.path} className={({ isActive }) => `${tabClass(isActive)} min-h-12 flex-col gap-0.5 px-1 text-xs`}>
             <s.icon className="h-4 w-4 shrink-0" />
-            <span className="max-w-full truncate">{t.papeleo[s.key].tab}</span>
+            <span className="max-w-full truncate">{t.papeleo[s.key].short}</span>
           </NavLink>
         ))}
-        <details ref={more} className="relative">
+        <details ref={more} onToggle={(e) => setMoreOpen(e.currentTarget.open)} className="relative">
           <summary
+            role="button"
+            aria-expanded={moreOpen}
+            aria-haspopup="menu"
             className={`${tabClass(!!activeSecondary)} min-h-12 cursor-pointer list-none flex-col gap-0.5 px-1 text-xs [&::-webkit-details-marker]:hidden`}
           >
             {activeSecondary ? <activeSecondary.icon className="h-4 w-4 shrink-0" /> : <MoreHorizontal className="h-4 w-4 shrink-0" />}
-            <span className="max-w-full truncate">{activeSecondary ? t.papeleo[activeSecondary.key].tab : t.common.more}</span>
+            <span className="max-w-full truncate">{activeSecondary ? t.papeleo[activeSecondary.key].short : t.common.more}</span>
           </summary>
           <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-line bg-surface p-1 shadow-lg dark:border-line-dark dark:bg-surface-dark">
             {secondary.map((s) => (

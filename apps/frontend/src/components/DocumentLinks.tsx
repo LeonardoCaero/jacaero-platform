@@ -14,7 +14,12 @@ export type DocOrigin = {
   orders: { id: string; orderNumber: string | null; quoteRef: string | null }[]
 }
 type QuoteOrder = { id: string; orderNumber: string; albaranNumber?: string | null; facturaNumber?: string | null }
-type PickerFile = { number: string; name: string; title: string }
+type PickerFile = {
+  number: string
+  name: string
+  title: string
+  linkedFrom?: { orders: { orderNumber: string | null }[]; quotes: { number: string }[] }
+}
 
 const ROUTE = { presupuesto: 'presupuestos', albaran: 'albaranes', factura: 'facturas' } as const
 
@@ -142,6 +147,7 @@ export function QuoteLinks({
   const filtered = candidates
     .filter((c) => !links.some((l) => l.category === picking && l.name === c.name))
     .filter((c) => !query || `${c.number} ${c.title}`.toLowerCase().includes(query))
+    .sort((a, b) => Number(!!a.linkedFrom?.orders.length) - Number(!!b.linkedFrom?.orders.length))
     .slice(0, 40)
 
   return (
@@ -199,6 +205,13 @@ export function QuoteLinks({
             <input
               type="search"
               autoFocus
+              onKeyDown={(e) => {
+                // Escape here closes the picker, not the whole dialog.
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setPicking(null)
+                }
+              }}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t.documents.searchPlaceholder}
@@ -216,7 +229,14 @@ export function QuoteLinks({
                   className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-ink transition hover:bg-ink/5 disabled:opacity-50 dark:text-cream dark:hover:bg-cream/10"
                 >
                   <span className="font-mono text-yellow-ink dark:text-yellow">{c.number}</span>
-                  <span className="truncate">{c.title}</span>
+                  <span className="min-w-0 flex-1 truncate" title={c.title}>
+                    {c.title}
+                  </span>
+                  {c.linkedFrom?.orders[0] && (
+                    <span className="shrink-0 rounded-full border border-line px-2 py-px text-xs text-graphite dark:border-line-dark dark:text-graphite-dark">
+                      {t.reconcileManual.linkedElsewhere.replace('{order}', c.linkedFrom.orders[0].orderNumber ?? '')}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}

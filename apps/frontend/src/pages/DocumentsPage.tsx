@@ -382,15 +382,15 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             const linkedOrder = f.linkedFrom?.orders[0]
             const linkChip = stateChip ?? (
               linkedOrder || f.linkedFrom?.quotes.length ? (
-                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-yellow/70 bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-line px-2.5 py-1 font-mono text-xs font-semibold text-ink dark:border-line-dark dark:text-cream">
                   <ShoppingCart className="h-3.5 w-3.5" />
                   {linkedOrder
                     ? t.documents.linkedOrder.replace('{n}', linkedOrder.orderNumber ?? '')
                     : `${t.papeleo.presupuesto.tab} ${f.linkedFrom!.quotes[0].number}`}
                 </span>
               ) : (
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-semibold text-graphite dark:border-line-dark dark:text-graphite-dark">
-                  <span className="h-1.5 w-1.5 rounded-full bg-graphite dark:bg-graphite-dark" />
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                  <span className="h-1.5 w-1.5 rounded-full bg-yellow-ink dark:bg-yellow" />
                   {t.documents.unlinkedChip}
                 </span>
               )
@@ -409,7 +409,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
               </span>
             ) :
               orderCount > 0 ? (
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-yellow/70 bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-semibold text-ink dark:border-line-dark dark:text-cream">
                   <ShoppingCart className="h-3.5 w-3.5" />
                   {orderCount === 1 ? t.documents.order : t.documents.orders.replace('{count}', String(orderCount))}
                 </span>

@@ -53,7 +53,7 @@ const DONUT_COLORS = [
   { light: '#e34948', dark: '#e66767' },
 ]
 
-const quickActiveClass = 'border-ink text-ink dark:border-yellow dark:text-yellow'
+const quickActiveClass = 'bg-ink/[0.07] text-ink ring-1 ring-ink dark:bg-yellow/15 dark:text-yellow dark:ring-yellow'
 const quickButtonClass =
   'rounded-full border border-line px-3.5 py-1.5 text-sm font-medium text-graphite transition hover:border-yellow hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
 

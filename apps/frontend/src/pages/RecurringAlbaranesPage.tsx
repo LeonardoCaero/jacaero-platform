@@ -448,6 +448,7 @@ export function RecurringAlbaranesPage() {
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
               <input
                 type="search"
+                data-autofocus
                 value={orderSearch}
                 onChange={(e) => setOrderSearch(e.target.value)}
                 placeholder={t.docLinks.searchOrders}

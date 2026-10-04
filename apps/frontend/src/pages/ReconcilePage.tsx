@@ -209,6 +209,10 @@ export function ReconcilePage() {
         <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:overflow-hidden">
           {/* Picker: what is missing, likely matches first, then the full searchable list */}
           <section className={`${cardClass} flex flex-col lg:w-[380px] lg:shrink-0 lg:overflow-hidden`}>
+            {/* The subtitle is hidden on phones; keep the order in view here. */}
+            <p className="mb-3 font-mono text-sm font-semibold text-ink sm:hidden dark:text-cream">
+              {[order.orderNumber, order.totalAmount && formatEuro(order.totalAmount, locale)].filter(Boolean).join(' · ')}
+            </p>
             {targets.length === 1 ? (
               <p className="text-sm font-semibold text-ink dark:text-cream">
                 {r.missingOne.replace('{doc}', categoryLabel[targets[0].categories[0]])}
@@ -347,13 +351,19 @@ export function ReconcilePage() {
           {/* Selected document, to check it before linking */}
           <section ref={previewRef} className={`${cardClass} flex min-h-80 scroll-mt-4 flex-col lg:flex-1 lg:overflow-hidden`}>
             <h2 className={sectionLabelClass}>{selected ? `${categoryLabel[selected.category]} ${selected.number}` : r.preview}</h2>
-            {(selectedDoc?.linkedTo || poMismatch) && (
-              <p className="mt-2 rounded-lg bg-rust/10 px-2.5 py-1.5 text-xs font-semibold text-rust dark:bg-rust-dark/15 dark:text-rust-dark">
-                {selectedDoc?.linkedTo
-                  ? r.linkedElsewhere.replace('{order}', selectedDoc.linkedTo)
-                  : r.poMismatch.replace('{po}', poMismatch!)}
-              </p>
-            )}
+            {[
+              selectedDoc?.linkedTo && r.linkedElsewhere.replace('{order}', selectedDoc.linkedTo),
+              poMismatch && r.poMismatch.replace('{po}', poMismatch),
+            ]
+              .filter(Boolean)
+              .map((warning) => (
+                <p
+                  key={warning as string}
+                  className="mt-2 rounded-lg bg-rust/10 px-2.5 py-1.5 text-xs font-semibold text-rust dark:bg-rust-dark/15 dark:text-rust-dark"
+                >
+                  {warning}
+                </p>
+              ))}
             {selectedTotal != null && orderTotal != null && (
               <p
                 className={`mt-2 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
@@ -384,7 +394,10 @@ export function ReconcilePage() {
                         confirmLabel: r.linkButton,
                       })
                       if (!ok) return
-                    } else if (poMismatch || (!amountsMatch && selectedTotal != null && orderTotal != null)) {
+                    } else if (poMismatch) {
+                      const ok = await confirm({ message: r.confirmPoMismatch.replace('{po}', poMismatch), confirmLabel: r.linkButton })
+                      if (!ok) return
+                    } else if (!amountsMatch && selectedTotal != null && orderTotal != null) {
                       const ok = await confirm({ message: r.confirmMismatch, confirmLabel: r.linkButton })
                       if (!ok) return
                     }
