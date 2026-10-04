@@ -149,7 +149,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
   const [replacedBy, setReplacedBy] = useState('')
   const statusMutation = useMutation({
     mutationFn: async ({ file, status, replaced }: { file: DocFile; status: QuoteState | null; replaced?: string }) =>
-      api.put('/notes/quote-status', { year, name: file.name, status, replacedBy: replaced }),
+      api.put('/notes/quote-status', { category, year, name: file.name, status, replacedBy: replaced }),
     onSuccess: (_d, { file, status, replaced }) => {
       setDetail((cur) => cur && { ...cur, status: { status, replacedBy: status === 'SUSTITUIDO' ? replaced ?? null : null } })
       queryClient.invalidateQueries({ queryKey: ['documents', category, year] })
@@ -239,53 +239,51 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
         </kbd>
       </div>
 
-      {isQuote && (
-        <div className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-          {(['all', 'noOrder', 'notSent'] as const).map((f) => {
-            const Icon = f === 'all' ? List : f === 'noOrder' ? FileText : Send
-            const active = quoteFilter === f
-            return (
-              <button
-                key={f}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setQuoteFilter(f)}
-                className={`${pillClass} shrink-0 ${active ? pillActiveClass : pillIdleClass}`}
+      <div className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+        {(isQuote ? (['all', 'noOrder', 'notSent'] as const) : (['all', 'notSent'] as const)).map((f) => {
+          const Icon = f === 'all' ? List : f === 'noOrder' ? FileText : Send
+          const active = quoteFilter === f
+          return (
+            <button
+              key={f}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setQuoteFilter(f)}
+              className={`${pillClass} shrink-0 ${active ? pillActiveClass : pillIdleClass}`}
+            >
+              <Icon className="h-4 w-4" />
+              {t.documents.quoteFilters[f]}
+              <span
+                className={`rounded-full px-1.5 py-px font-mono text-xs tabular ${
+                  active ? 'bg-ink/15 text-ink' : 'bg-ink/5 text-ink dark:bg-cream/10 dark:text-cream'
+                }`}
               >
-                <Icon className="h-4 w-4" />
-                {t.documents.quoteFilters[f]}
-                <span
-                  className={`rounded-full px-1.5 py-px font-mono text-xs tabular ${
-                    active ? 'bg-ink/15 text-ink' : 'bg-ink/5 text-ink dark:bg-cream/10 dark:text-cream'
-                  }`}
-                >
-                  {counts[f]}
-                </span>
-              </button>
-            )
-          })}
-          {clientOptions.length > 1 && (
-            <label className={`${pillClass} relative shrink-0 cursor-pointer ${clientFilter ? pillActiveClass : pillIdleClass}`}>
-              <Users className="h-4 w-4" />
-              <span className="max-w-48 truncate">{clientFilter || t.documents.allClients}</span>
-              <ChevronDown className="h-4 w-4" />
-              <select
-                value={clientFilter}
-                onChange={(e) => setClientFilter(e.target.value)}
-                aria-label={t.documents.allClients}
-                className="absolute inset-0 cursor-pointer opacity-0"
-              >
-                <option value="">{t.documents.allClients}</option>
-                {clientOptions.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-      )}
+                {counts[f]}
+              </span>
+            </button>
+          )
+        })}
+        {clientOptions.length > 1 && (
+          <label className={`${pillClass} relative shrink-0 cursor-pointer ${clientFilter ? pillActiveClass : pillIdleClass}`}>
+            <Users className="h-4 w-4" />
+            <span className="max-w-48 truncate">{clientFilter || t.documents.allClients}</span>
+            <ChevronDown className="h-4 w-4" />
+            <select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              aria-label={t.documents.allClients}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            >
+              <option value="">{t.documents.allClients}</option>
+              {clientOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
 
       {!isLoading && !isError && files.length > 0 && (
         <div className="mt-4 flex items-center justify-between text-xs text-graphite dark:text-graphite-dark">
@@ -315,7 +313,20 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             const orderCount = f.orderNumbers?.length ?? 0
             const pendingCount = f.orders?.filter((o) => !o.linked).length ?? 0
             const state = f.status?.status
-            const orderChip = state ? (
+            const stateChip = state ? (
+              <span
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                  state === 'STANDBY'
+                    ? 'border-yellow/70 text-ink dark:text-yellow'
+                    : 'border-line text-graphite line-through decoration-graphite/50 dark:border-line-dark dark:text-graphite-dark'
+                }`}
+              >
+                {state === 'SUSTITUIDO'
+                  ? t.documents.quoteStates.replacedBy.replace('{n}', f.status?.replacedBy ?? '?')
+                  : t.documents.quoteStates[state === 'ANULADO' ? 'cancelled' : 'standby']}
+              </span>
+            ) : null
+            const orderChip = !isQuote ? stateChip : state ? (
               <span
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
                   state === 'STANDBY'
@@ -419,25 +430,20 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 />
                 <div className="hidden items-center gap-4 lg:flex">
                   <div className="min-w-0 flex-1">{heading}</div>
-                  {isQuote && <div className="w-32 shrink-0">{orderChip}</div>}
-                  {isQuote && <div className="w-32 shrink-0">{sentChip}</div>}
+                  <div className="w-32 shrink-0">{orderChip}</div>
+                  <div className="w-32 shrink-0">{sentChip}</div>
                   <div className="flex shrink-0 items-center justify-end gap-2">{actions}</div>
                 </div>
 
                 <div className="lg:hidden">
-                  <div className="flex items-start justify-between gap-2">
-                    {heading}
-                    {!isQuote && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
-                  </div>
-                  {isQuote && (
-                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3 dark:border-line-dark">
-                      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-                        {orderChip}
-                        {sentChip}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
+                  {heading}
+                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3 dark:border-line-dark">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+                      {orderChip}
+                      {sentChip}
                     </div>
-                  )}
+                    <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
+                  </div>
                 </div>
               </div>
             )
@@ -472,8 +478,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       >
         {detail && (
           <>
-          {isQuote && (
-            <>
+          <>
           <p className={sectionLabelClass}>
             {t.documents.quoteStates.title}
           </p>
@@ -529,6 +534,8 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             </form>
           )}
 
+          {isQuote && (
+            <>
           <p className={`mt-5 ${sectionLabelClass}`}>
             {t.documents.columnOrder}
           </p>
@@ -581,6 +588,8 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
           ) : (
             <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{t.documents.noOrder}</p>
           )}
+            </>
+          )}
 
           <p className={`mt-5 ${sectionLabelClass}`}>
             {t.documents.columnSent}
@@ -598,9 +607,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
           ) : (
             <p className="mt-2 text-sm font-semibold text-rust dark:text-rust-dark">{t.documents.notSent}</p>
           )}
-
-            </>
-          )}
+          </>
 
           {detail.name && (
             <div className="mt-5">

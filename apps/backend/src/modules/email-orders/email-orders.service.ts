@@ -8,7 +8,7 @@ import { ApiError } from "../../common/errors/api-error.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../common/services/logger.js";
 import { notifyPermission } from "../push-subscriptions/push-subscriptions.service.js";
-import { parsePurchaseOrderText, extractOrderNumber, extractDocumentTotal, extractDeclaredNumber, documentNumberFromFilename } from "./po-parser.js";
+import { parsePurchaseOrderText, extractOrderNumber, extractDocumentTotal, extractDeclaredNumber, documentNumberFromFilename, documentFromFilename } from "./po-parser.js";
 import { listCategory, getCategoryFile, type DocCategory } from "../../common/services/nas-documents.service.js";
 
 function allowedSenders() {
@@ -53,15 +53,19 @@ export async function syncFacturarOk() {
 // Sent folder tells us when each one was sent. Two days after that, if there's still no factura,
 // the order's email gets the Gmail label FACTURAR OK. Once the factura is linked, it swaps
 // Albarán / FACTURAR OK for Factura.
-export async function recordSentPresupuestos(client: ImapFlow, allPath: string) {
+export async function recordSentDocuments(client: ImapFlow, allPath: string) {
   const own = env.ORDERS_EMAIL_ADDRESS!.toLowerCase();
   const domainOf = (address: string) => address.toLowerCase().split("@")[1] ?? "";
-  const last = await prisma.presupuestoSent.findFirst({ orderBy: { sentAt: "desc" }, select: { sentAt: true } });
-  const since = last
-    ? new Date(last.sentAt.getTime() - 24 * 60 * 60 * 1000)
-    : new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+  const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+  // Only quotes were tracked before; the first run with every category backfills the whole year.
+  const tracksAll = await prisma.documentSent.findFirst({ where: { category: { not: "presupuesto" } }, select: { id: true } });
+  const last = tracksAll
+    ? await prisma.documentSent.findFirst({ orderBy: { sentAt: "desc" }, select: { sentAt: true } })
+    : null;
+  const since = last ? new Date(last.sentAt.getTime() - 24 * 60 * 60 * 1000) : yearStart;
 
   type Found = {
+    category: string;
     year: number;
     number: number;
     name: string;
@@ -73,7 +77,10 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
   const found: Found[] = [];
   const lock = await client.getMailboxLock(allPath);
   try {
-    const uids = await client.search({ since, gmraw: "has:attachment presupuesto" }, { uid: true });
+    const uids = await client.search(
+      { since, gmraw: 'has:attachment (presupuesto OR albaran OR albarán OR factura OR horas OR "pedido material")' },
+      { uid: true },
+    );
     if (uids && uids.length > 0) {
       for await (const msg of client.fetch(uids, { envelope: true, bodyStructure: true }, { uid: true })) {
         const date = msg.envelope?.date;
@@ -81,10 +88,18 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
         if (!date || !msg.bodyStructure || !from) continue;
         const recipients = (msg.envelope?.to ?? []).map((a) => a.address).filter(Boolean).join(", ");
         for (const name of attachmentNames(msg.bodyStructure)) {
-          const number = documentNumberFromFilename(name, "presupuesto");
-          if (number === undefined) continue;
+          const doc = documentFromFilename(name);
+          if (!doc) continue;
           const fileName = name.replace(/\.[^.]+$/, "");
-          found.push({ year: date.getFullYear(), number, name: fileName, sentAt: date, recipients, viaClient: from !== own, from });
+          found.push({
+            ...doc,
+            year: date.getFullYear(),
+            name: fileName,
+            sentAt: date,
+            recipients,
+            viaClient: from !== own,
+            from,
+          });
         }
       }
     }
@@ -92,7 +107,7 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
     lock.release();
   }
 
-  const previous = await prisma.presupuestoSent.findMany({ where: { viaClient: false }, select: { recipients: true } });
+  const previous = await prisma.documentSent.findMany({ where: { viaClient: false }, select: { recipients: true } });
   const clientDomains = new Set(
     [...previous.map((p) => p.recipients), ...found.filter((f) => !f.viaClient).map((f) => f.recipients)]
       .flatMap((r) => r.split(","))
@@ -103,11 +118,11 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
   for (const { from, ...sent } of found) {
     if (sent.viaClient && !clientDomains.has(domainOf(from))) continue;
     const data = sent.viaClient ? { ...sent, recipients: "" } : sent;
-    const existing = await prisma.presupuestoSent.findUnique({
-      where: { year_name: { year: sent.year, name: sent.name } },
+    const existing = await prisma.documentSent.findUnique({
+      where: { category_year_name: { category: sent.category, year: sent.year, name: sent.name } },
     });
-    if (!existing) await prisma.presupuestoSent.create({ data });
-    else if (sent.sentAt < existing.sentAt) await prisma.presupuestoSent.update({ where: { id: existing.id }, data });
+    if (!existing) await prisma.documentSent.create({ data });
+    else if (sent.sentAt < existing.sentAt) await prisma.documentSent.update({ where: { id: existing.id }, data });
   }
 }
 
@@ -135,7 +150,7 @@ async function syncFacturarOkInner() {
     const allPath = boxes.find((b) => b.specialUse === "\\All")?.path;
     if (!sentPath || !allPath) throw new Error("Gmail Sent / All Mail folders not found");
 
-    await recordSentPresupuestos(client, allPath);
+    await recordSentDocuments(client, allPath);
 
     if (needsSentDate.length > 0) {
       const since = new Date(Math.min(...needsSentDate.map((o) => o.receivedAt.getTime())));

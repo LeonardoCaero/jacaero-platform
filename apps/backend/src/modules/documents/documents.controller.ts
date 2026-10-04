@@ -27,7 +27,8 @@ export async function listHandler(req: Request<{ category: string }>, res: Respo
   const files = await listCategory(category as DocCategory, year);
   const counts = await noteCounts(category, year);
   const withNotes = files.map((f) => ({ ...f, noteCount: counts.get(f.name) ?? 0 }));
-  res.json(category === "presupuesto" ? await withQuoteStatus(withNotes, year) : withNotes);
+  const withState = await withSentAndStatus(withNotes, category, year);
+  res.json(category === "presupuesto" ? await withQuoteOrders(withState, year) : withState);
 }
 
 const normalize = (s: string) =>
@@ -76,10 +77,38 @@ async function quoteDetails(files: DocFile[], year: number) {
   return { clients, totals };
 }
 
-async function withQuoteStatus<T extends DocFile>(files: T[], year: number) {
+async function withSentAndStatus<T extends DocFile>(files: T[], category: string, year: number) {
+  const [sent, statuses] = await Promise.all([
+    prisma.documentSent.findMany({ where: { category, year } }),
+    prisma.documentStatus.findMany({ where: { category, year } }),
+  ]);
+  const sameNumber = (number: string) => files.filter((f) => f.number === number);
+
+  const sentFor = (f: DocFile) => {
+    const exact = sent.find((s) => normalize(s.name) === normalize(f.name));
+    if (exact) return exact;
+    if (sameNumber(f.number).length > 1) return undefined;
+    return sent
+      .filter((s) => s.number === Number(f.number))
+      .sort((a, b) => a.sentAt.getTime() - b.sentAt.getTime())[0];
+  };
+
+  return files.map((f) => {
+    const sentDoc = sentFor(f);
+    return {
+      ...f,
+      sent: sentDoc ? { at: sentDoc.sentAt, to: sentDoc.recipients, viaClient: sentDoc.viaClient } : null,
+      status: (({ status, replacedBy }) => ({ status, replacedBy }))(
+        statuses.find((x) => x.docName === f.name) ?? { status: null, replacedBy: null },
+      ),
+    };
+  });
+}
+
+async function withQuoteOrders<T extends DocFile>(files: T[], year: number) {
   const yearStart = new Date(Date.UTC(year, 0, 1));
   const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
-  const [orders, sent, statuses, details] = await Promise.all([
+  const [orders, details] = await Promise.all([
     prisma.emailOrder.findMany({
       where: {
         quoteRef: { not: null },
@@ -96,8 +125,6 @@ async function withQuoteStatus<T extends DocFile>(files: T[], year: number) {
       },
       select: { id: true, quoteRef: true, orderNumber: true, totalAmount: true, senderEmail: true, quoteCategory: true },
     }),
-    prisma.presupuestoSent.findMany({ where: { year } }),
-    prisma.quoteStatus.findMany({ where: { year } }),
     quoteDetails(files, year).catch(() => ({ clients: new Map<string, string>(), totals: new Map<string, number | undefined>() })),
   ]);
 
@@ -122,27 +149,13 @@ async function withQuoteStatus<T extends DocFile>(files: T[], year: number) {
       .map((o) => ({ id: o.id, orderNumber: o.orderNumber!, linked: o.quoteCategory === "PRESUPUESTO" }));
   };
 
-  const sentFor = (f: DocFile) => {
-    const exact = sent.find((s) => normalize(s.name) === normalize(f.name));
-    if (exact) return exact;
-    if (sameNumber(f.number).length > 1) return undefined;
-    return sent
-      .filter((s) => s.number === Number(f.number))
-      .sort((a, b) => a.sentAt.getTime() - b.sentAt.getTime())[0];
-  };
-
   return files.map((f) => {
-    const sentDoc = sentFor(f);
     const fileOrders = ordersFor(f);
     return {
       ...f,
       orders: fileOrders,
       orderNumbers: fileOrders.filter((o) => o.linked).map((o) => o.orderNumber),
-      sent: sentDoc ? { at: sentDoc.sentAt, to: sentDoc.recipients, viaClient: sentDoc.viaClient } : null,
       client: details.clients.get(f.name) ?? null,
-      status: (({ status, replacedBy }) => ({ status, replacedBy }))(
-        statuses.find((x) => x.docName === f.name) ?? { status: null, replacedBy: null },
-      ),
     };
   });
 }
