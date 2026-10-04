@@ -204,7 +204,7 @@ function SectionHeader({ label, showForm, onToggle, addLabel }: { label: string;
         type="button"
         onClick={onToggle}
         aria-expanded={showForm}
-        className="inline-flex items-center gap-1 rounded-md text-sm font-semibold text-yellow-ink hover:underline dark:text-yellow"
+        className="-my-2 inline-flex min-h-10 items-center gap-1 rounded-md py-2 text-sm font-semibold text-yellow-ink hover:underline dark:text-yellow"
       >
         {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
         {addLabel}
@@ -856,7 +856,7 @@ function ContractsSection({
             <div key={c.id} className="flex items-center justify-between">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-ink dark:text-cream">{c.label}</p>
-                <p className="truncate text-sm text-graphite dark:text-graphite-dark">
+                <p className="text-sm text-graphite dark:text-graphite-dark">
                   {new Date(c.startDate).toLocaleDateString(locale)} – {new Date(c.endDate).toLocaleDateString(locale)} · {c.hourlyRate}€/h · {c.overtimeRate}€/h extra
                 </p>
               </div>

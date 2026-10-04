@@ -15,7 +15,7 @@ function PapeleoNav() {
     <nav aria-label={t.modules.papeleo.label} className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
       <Link
         to="/"
-        className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-md text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+        className="-my-2 inline-flex min-h-10 w-fit shrink-0 items-center gap-1.5 rounded-md py-2 pr-2 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
       >
         <ArrowLeft className="h-4 w-4" />
         {t.comingSoon.back}
@@ -86,7 +86,7 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className={`mx-auto px-4 py-4 sm:px-6 ${isReconcile ? 'max-w-7xl' : isWide ? 'max-w-6xl' : 'max-w-3xl'}`}>
+      <main className={`mx-auto px-4 py-4 sm:px-6 ${isWide ? 'max-w-6xl' : 'max-w-3xl'}`}>
         {inPapeleo && !isReconcile && <PapeleoNav />}
         <div key={location.pathname} className="animate-fade-up">
           <Outlet />

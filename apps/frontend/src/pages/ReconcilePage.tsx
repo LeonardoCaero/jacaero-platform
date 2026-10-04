@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Search, Sparkles } from 'lucide-react'
@@ -34,8 +34,7 @@ type EmailOrder = {
   client: { id: string; name: string } | null
 }
 
-type DocFile = { number: string; name: string; title: string; hasPdf: boolean }
-type Suggestion = { number: string; name: string; title: string; reason: 'order' | 'quote' | 'amount' }
+type Candidate = { number: string; name: string; title: string; total: number | null; reason?: 'order' | 'quote' | 'amount' }
 
 type TargetKey = 'missingQuote' | 'missingAlbaran' | 'missingFactura'
 type Target = { key: TargetKey; categories: DocCategory[] }
@@ -94,18 +93,20 @@ export function ReconcilePage() {
   const target = targets.find((x) => x.key === targetKey) ?? targets[0] ?? null
   const activeCategory = category && target?.categories.includes(category) ? category : (target?.categories[0] ?? null)
 
-  const { data: docs = [] } = useQuery({
-    queryKey: ['documents', activeCategory, year],
-    queryFn: async () => (await api.get<DocFile[]>(`/documents/${activeCategory}`, { params: { year } })).data,
-    enabled: !!activeCategory,
-  })
-
-  const { data: suggestions = [], isFetching: suggesting } = useQuery({
+  // One call: likely matches plus every candidate with the total read from its PDF.
+  const { data: candidates, isFetching: suggesting } = useQuery({
     queryKey: ['email-orders', id, 'suggestions', activeCategory],
     queryFn: async () =>
-      (await api.get<Suggestion[]>(`/email-orders/${id}/suggestions`, { params: { category: activeCategory } })).data,
+      (
+        await api.get<{ suggestions: Candidate[]; documents: Candidate[] }>(`/email-orders/${id}/suggestions`, {
+          params: { category: activeCategory },
+        })
+      ).data,
     enabled: !!activeCategory && !!id,
   })
+  const suggestions = candidates?.suggestions ?? []
+  const docs = candidates?.documents ?? []
+  const previewRef = useRef<HTMLElement>(null)
 
   const categoryLabel: Record<DocCategory, string> = {
     presupuesto: t.papeleo.presupuesto.tab,
@@ -132,6 +133,10 @@ export function ReconcilePage() {
 
   function selectDoc(cat: DocCategory, number: string, name: string) {
     setSelected({ category: cat, number, name })
+    // On phones the preview sits under the long list; take the user to it.
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      requestAnimationFrame(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
     docPreview.load(
       async () =>
         (await api.get(`/documents/${cat}/file`, { params: { year, number, name, ext: 'pdf' }, responseType: 'blob' })).data,
@@ -233,7 +238,10 @@ export function ReconcilePage() {
                           <span className="mr-1 font-mono font-semibold text-yellow-ink dark:text-yellow">{s.number}</span>
                           {s.title}
                         </span>
-                        <span className="mt-1 block text-xs text-graphite dark:text-graphite-dark">{reasonLabel[s.reason]}</span>
+                        <span className="mt-1 flex flex-wrap gap-x-2 text-xs text-graphite dark:text-graphite-dark">
+                          {s.total != null && <span className="font-mono tabular">{formatEuro(s.total, locale)}</span>}
+                          {s.reason && <span>{reasonLabel[s.reason]}</span>}
+                        </span>
                       </button>
                       <button
                         type="button"
@@ -261,7 +269,7 @@ export function ReconcilePage() {
                   className={searchInputClass}
                 />
               </div>
-              {list.length === 0 && <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{r.noDocuments}</p>}
+              {!suggesting && list.length === 0 && <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{r.noDocuments}</p>}
               <ul className="mt-2 space-y-1">
                 {list.map((doc) => (
                   <li key={doc.name}>
@@ -277,6 +285,11 @@ export function ReconcilePage() {
                     >
                       <span className="mr-1 font-mono font-semibold text-yellow-ink dark:text-yellow">{doc.number}</span>
                       {doc.title}
+                      {doc.total != null && (
+                        <span className="mt-0.5 block font-mono text-xs tabular text-graphite dark:text-graphite-dark">
+                          {formatEuro(doc.total, locale)}
+                        </span>
+                      )}
                     </button>
                   </li>
                 ))}
@@ -285,7 +298,7 @@ export function ReconcilePage() {
           </section>
 
           {/* Selected document, to check it before linking */}
-          <section className={`${cardClass} flex min-h-80 flex-col lg:flex-1 lg:overflow-hidden`}>
+          <section ref={previewRef} className={`${cardClass} flex min-h-80 scroll-mt-4 flex-col lg:flex-1 lg:overflow-hidden`}>
             <h2 className={sectionLabelClass}>{selected ? `${categoryLabel[selected.category]} ${selected.number}` : r.preview}</h2>
             {!selected ? (
               <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{r.selectDocument}</p>

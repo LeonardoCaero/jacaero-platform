@@ -66,7 +66,7 @@ export function SettingsMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-label={t.settings.title}
         aria-expanded={open}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-graphite hover:bg-ink/5 hover:text-ink dark:text-graphite-dark dark:hover:bg-cream/10 dark:hover:text-cream"
+        className="flex h-10 w-10 items-center justify-center rounded-full text-graphite hover:bg-ink/5 hover:text-ink dark:text-graphite-dark dark:hover:bg-cream/10 dark:hover:text-cream"
       >
         <Settings className="h-4.5 w-4.5" />
       </button>

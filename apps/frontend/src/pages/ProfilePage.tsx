@@ -37,10 +37,6 @@ export function ProfilePage() {
           <span className="text-sm text-graphite dark:text-graphite-dark">{t.profile.jobTitle}</span>
           <span className="text-sm font-medium text-ink dark:text-cream">{user?.jobTitle ?? '—'}</span>
         </div>
-        <div className="flex items-center justify-between px-5 py-4">
-          <span className="text-sm text-graphite dark:text-graphite-dark">{t.profile.account}</span>
-          <span className="text-sm font-medium text-ink dark:text-cream">{user?.email}</span>
-        </div>
       </div>
 
       <button

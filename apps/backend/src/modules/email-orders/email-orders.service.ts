@@ -689,27 +689,32 @@ export async function suggestDocuments(id: string, category: DocCategory) {
   const quoteNumber = order.quoteRef ? Number(order.quoteRef.replace(/\D/g, "")) : null;
   const isOrigin = (ORIGIN_CATEGORIES as readonly string[]).includes(category);
 
-  const found: { number: string; name: string; title: string; reason: keyof typeof SUGGESTION_RANK }[] = [];
+  type Candidate = { number: string; name: string; title: string; total: number | null; reason?: keyof typeof SUGGESTION_RANK };
+  const documents: Candidate[] = [];
   for (const f of await listCategory(category, year)) {
     if (!f.hasPdf) continue;
-    if (isOrigin && quoteNumber && Number(f.number) === quoteNumber) {
-      found.push({ number: f.number, name: f.name, title: f.title, reason: "quote" });
-      continue;
-    }
+    const doc: Candidate = { number: f.number, name: f.name, title: f.title, total: null };
     try {
       const info = await pdfInfo(await getCategoryFile(category, year, f.number, "pdf", f.name));
-      const reason =
-        order.orderNumber && info.orderNumber === order.orderNumber
-          ? "order"
-          : amount != null && info.total != null && Math.abs(info.total - amount) < 0.01
-            ? "amount"
-            : undefined;
-      if (reason) found.push({ number: f.number, name: f.name, title: f.title, reason });
+      doc.total = info.total ?? null;
+      doc.reason =
+        isOrigin && quoteNumber && Number(f.number) === quoteNumber
+          ? "quote"
+          : order.orderNumber && info.orderNumber === order.orderNumber
+            ? "order"
+            : amount != null && info.total != null && Math.abs(info.total - amount) < 0.01
+              ? "amount"
+              : undefined;
     } catch (err) {
       logger.error(`[email-orders] failed reading ${category} ${f.number}:`, (err as Error).message);
     }
+    documents.push(doc);
   }
-  return found.sort((a, b) => SUGGESTION_RANK[a.reason] - SUGGESTION_RANK[b.reason]).slice(0, 5);
+  const suggestions = documents
+    .filter((d) => d.reason)
+    .sort((a, b) => SUGGESTION_RANK[a.reason!] - SUGGESTION_RANK[b.reason!])
+    .slice(0, 5);
+  return { suggestions, documents };
 }
 
 export async function linkDocument(id: string, category: DocCategory, number: string) {

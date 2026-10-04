@@ -236,7 +236,7 @@ export function CalendarPage() {
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <button type="button" onClick={jumpToToday} className="group flex flex-col items-center">
+          <button type="button" onClick={jumpToToday} className="group flex min-h-10 flex-col items-center justify-center rounded-lg px-2">
             <p className="font-display text-lg font-semibold tracking-wide text-ink group-hover:opacity-70 dark:text-cream">
               {capitalizeFirst(month.toLocaleDateString(locale, { month: 'long', year: 'numeric' }))}
             </p>

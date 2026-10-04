@@ -18,7 +18,7 @@ export const listCardClass =
   'rounded-2xl border border-line bg-surface p-4 shadow-sm dark:border-line-dark dark:bg-surface-dark'
 
 export const primaryButtonClass =
-  'inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-ink px-4 text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-yellow dark:text-ink dark:hover:bg-yellow/90'
+  'inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-ink px-4 text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-line disabled:text-graphite dark:bg-yellow dark:text-ink dark:hover:bg-yellow/90 dark:disabled:bg-line-dark dark:disabled:text-graphite-dark'
 
 export const secondaryButtonClass =
   'inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-line px-4 text-sm font-semibold text-graphite transition hover:text-ink active:scale-[0.98] disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
@@ -117,7 +117,7 @@ export function PageHeader({
           {backTo ? (
             <Link
               to={backTo}
-              className="inline-flex items-center gap-1.5 rounded-md text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+              className="-my-2 inline-flex min-h-10 items-center gap-1.5 rounded-md py-2 pr-2 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
             >
               <ArrowLeft className="h-4 w-4" />
               {backLabel}
@@ -146,6 +146,7 @@ export function Modal({
   title,
   closeLabel,
   size = 'md',
+  describedBy,
   children,
 }: {
   open: boolean
@@ -153,6 +154,7 @@ export function Modal({
   title: ReactNode
   closeLabel: string
   size?: 'sm' | 'md' | 'lg'
+  describedBy?: string
   children: ReactNode
 }) {
   const ref = useRef<HTMLDialogElement>(null)
@@ -161,7 +163,11 @@ export function Modal({
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
+    if (open && !dialog.open) {
+      dialog.showModal()
+      // showModal focuses the first control (the close button); honour an explicit choice instead.
+      dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus()
+    }
     if (!open && dialog.open) dialog.close()
   }, [open])
 
@@ -171,6 +177,7 @@ export function Modal({
     <dialog
       ref={ref}
       aria-labelledby={titleId}
+      aria-describedby={describedBy}
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
       className={`m-auto max-h-[90dvh] w-[calc(100%-2rem)] ${width} overflow-hidden rounded-2xl border border-line bg-surface p-0 text-ink shadow-xl dark:border-line-dark dark:bg-surface-dark dark:text-cream`}

@@ -4,7 +4,8 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { Modal, primaryButtonClass, secondaryButtonClass } from './ui'
 
 type Tone = 'success' | 'error' | 'info'
-type Toast = { id: number; message: string; tone: Tone }
+type ToastAction = { label: string; onClick: () => void }
+type Toast = { id: number; message: string; tone: Tone; action?: ToastAction }
 
 type ConfirmOptions = {
   title?: string
@@ -14,7 +15,7 @@ type ConfirmOptions = {
 }
 
 type Feedback = {
-  toast: (message: string, tone?: Tone) => void
+  toast: (message: string, tone?: Tone, action?: ToastAction) => void
   confirm: (options: ConfirmOptions) => Promise<boolean>
 }
 
@@ -49,11 +50,11 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const dismiss = useCallback((id: number) => setToasts((list) => list.filter((x) => x.id !== id)), [])
 
   const toast = useCallback(
-    (message: string, tone: Tone = 'success') => {
+    (message: string, tone: Tone = 'success', action?: ToastAction) => {
       const id = nextId.current++
-      setToasts((list) => [...list.slice(-2), { id, message, tone }])
-      // Errors stay until dismissed so they can't be missed.
-      if (tone !== 'error') window.setTimeout(() => dismiss(id), TOAST_MS)
+      setToasts((list) => [...list.slice(-2), { id, message, tone, action }])
+      // Errors stay until dismissed so they can't be missed; undo-able ones get more time.
+      if (tone !== 'error') window.setTimeout(() => dismiss(id), action ? TOAST_MS * 2 : TOAST_MS)
     },
     [dismiss],
   )
@@ -80,17 +81,21 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     <FeedbackContext.Provider value={{ toast, confirm }}>
       {children}
 
-      <Modal open={!!pending} onClose={() => settle(false)} title={pending?.title ?? question} closeLabel={t.common.close} size="sm">
+      <Modal open={!!pending} onClose={() => settle(false)} title={pending?.title ?? question} closeLabel={t.common.close} size="sm" describedBy={detail ? 'confirm-detail' : undefined}>
         {pending && (
           <>
-            {detail && <p className="text-sm text-ink dark:text-cream">{detail}</p>}
+            {detail && (
+              <p id="confirm-detail" className="text-sm text-ink dark:text-cream">
+                {detail}
+              </p>
+            )}
             <div className={`${detail ? 'mt-5' : ''} flex justify-end gap-2`}>
-              <button type="button" autoFocus={pending.danger} onClick={() => settle(false)} className={secondaryButtonClass}>
+              <button type="button" data-autofocus={pending.danger || undefined} onClick={() => settle(false)} className={secondaryButtonClass}>
                 {t.common.cancel}
               </button>
               <button
                 type="button"
-                autoFocus={!pending.danger}
+                data-autofocus={!pending.danger || undefined}
                 onClick={() => settle(true)}
                 className={
                   pending.danger
@@ -123,11 +128,23 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
                   <Icon className="h-4 w-4" />
                 </span>
                 <span className="min-w-0 flex-1">{x.message}</span>
+                {x.action && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      x.action!.onClick()
+                      dismiss(x.id)
+                    }}
+                    className="shrink-0 rounded-lg px-2 py-1.5 text-sm font-semibold text-yellow-ink underline-offset-2 hover:underline dark:text-yellow"
+                  >
+                    {x.action.label}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => dismiss(x.id)}
                   aria-label={t.common.close}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-graphite transition hover:bg-ink/5 hover:text-ink dark:text-graphite-dark dark:hover:bg-cream/10 dark:hover:text-cream"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-graphite transition hover:bg-ink/5 hover:text-ink dark:text-graphite-dark dark:hover:bg-cream/10 dark:hover:text-cream"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>

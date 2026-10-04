@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownUp, CalendarDays, CalendarSearch, ChevronDown, Circle, RefreshCw, FileText, Check, Link2, Eye, Info, Sparkles, Star, Search, Repeat } from 'lucide-react'
+import { ArrowDownUp, CalendarDays, CalendarSearch, ChevronDown, Circle, MoreHorizontal, RefreshCw, FileText, Check, Link2, Eye, Info, Sparkles, Star, Search, Repeat, Undo2 } from 'lucide-react'
 import { api } from '../lib/axios'
 import { formatEuro } from '../lib/format'
 import { Skeleton } from '../components/Skeleton'
@@ -196,7 +196,7 @@ function FavoriteButton({
       aria-label={label}
       aria-pressed={favorite}
       title={label}
-      className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition hover:bg-ink/5 dark:hover:bg-cream/10 ${
+      className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition hover:bg-ink/5 sm:h-8 sm:w-8 dark:hover:bg-cream/10 ${
         favorite
           ? 'text-yellow-ink dark:text-yellow'
           : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
@@ -326,12 +326,23 @@ export function EmailOrdersPage() {
     onError: () => toast(t.common.saveError, 'error'),
   })
 
+// Elements outside a modal <dialog> are inert, so a toast's button can't be pressed while the
+// detail is open: the undo for changes made inside a dialog lives next to the control instead.
+  const [undoQuote, setUndoQuote] = useState<{ id: string; previous: QuoteCategory } | null>(null)
+  const undoTimer = useRef<number | undefined>(undefined)
   const quoteStatusMutation = useMutation({
-    mutationFn: ({ id, category }: { id: string; category: QuoteCategory }) =>
+    mutationFn: ({ id, category }: { id: string; category: QuoteCategory; previous?: QuoteCategory }) =>
       api.patch(`/email-orders/${id}/quote-status`, { category }),
-    onSuccess: (_d, { id, category }) => {
+    onSuccess: (_d, { id, category, previous }) => {
       const label = category === 'pending' ? t.emailOrders.filterTypePending : quoteLabels[category]
       toast(t.emailOrders.quoteTypeSet.replace('{order}', orderLabel(id)).replace('{label}', label.toLowerCase()))
+      window.clearTimeout(undoTimer.current)
+      if (previous) {
+        setUndoQuote({ id, previous })
+        undoTimer.current = window.setTimeout(() => setUndoQuote(null), 10000)
+      } else {
+        setUndoQuote(null)
+      }
       queryClient.invalidateQueries({ queryKey: ['email-orders'] })
     },
     onError: () => toast(t.common.saveError, 'error'),
@@ -408,6 +419,43 @@ export function EmailOrdersPage() {
                 ))}
               </select>
             </label>
+            <details className="group relative sm:hidden">
+              <summary className={`${secondaryButtonClass} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
+                <MoreHorizontal className="h-4 w-4" />
+                {t.common.more}
+              </summary>
+              <div className="absolute left-0 z-20 mt-2 w-64 rounded-xl border border-line bg-surface p-1 shadow-lg dark:border-line-dark dark:bg-surface-dark">
+                {[
+                  {
+                    icon: Sparkles,
+                    label: reconcileMutation.isPending ? t.emailOrders.reconciling : t.emailOrders.reconcile,
+                    run: () => reconcileMutation.mutate(),
+                    disabled: reconcileMutation.isPending,
+                  },
+                  {
+                    icon: CalendarSearch,
+                    label: t.emailOrders.syncFull,
+                    run: () => syncMutation.mutate(true),
+                    disabled: syncMutation.isPending,
+                  },
+                ].map((a) => (
+                  <button
+                    key={a.label}
+                    type="button"
+                    disabled={a.disabled}
+                    onClick={(e) => {
+                      setSyncMessage(null)
+                      a.run()
+                      e.currentTarget.closest('details')?.removeAttribute('open')
+                    }}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold text-ink hover:bg-ink/5 disabled:opacity-50 dark:text-cream dark:hover:bg-cream/10"
+                  >
+                    <a.icon className="h-4 w-4" />
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </details>
             <button
               type="button"
               onClick={() => {
@@ -415,14 +463,10 @@ export function EmailOrdersPage() {
                 reconcileMutation.mutate()
               }}
               disabled={reconcileMutation.isPending}
-              title={t.emailOrders.reconcile}
-              aria-label={t.emailOrders.reconcile}
-              className={`${secondaryButtonClass} max-sm:w-10 max-sm:px-0`}
+              className={`${secondaryButtonClass} max-sm:hidden`}
             >
               <Sparkles className="h-4 w-4" />
-              <span className="max-sm:hidden">
-                {reconcileMutation.isPending ? t.emailOrders.reconciling : t.emailOrders.reconcile}
-              </span>
+              {reconcileMutation.isPending ? t.emailOrders.reconciling : t.emailOrders.reconcile}
             </button>
             <button
               type="button"
@@ -431,12 +475,10 @@ export function EmailOrdersPage() {
                 syncMutation.mutate(true)
               }}
               disabled={syncMutation.isPending}
-              title={t.emailOrders.syncFull}
-              aria-label={t.emailOrders.syncFull}
-              className={`${secondaryButtonClass} max-sm:w-10 max-sm:px-0`}
+              className={`${secondaryButtonClass} max-sm:hidden`}
             >
               <CalendarSearch className="h-4 w-4" />
-              <span className="max-sm:hidden">{t.emailOrders.syncFull}</span>
+              {t.emailOrders.syncFull}
             </button>
             <button
               type="button"
@@ -537,7 +579,7 @@ export function EmailOrdersPage() {
           <button
             type="button"
             onClick={() => setNewestFirst((v) => !v)}
-            className="inline-flex items-center gap-1.5 font-semibold hover:text-ink dark:hover:text-cream"
+            className="-my-2 inline-flex min-h-10 items-center gap-1.5 py-2 font-semibold hover:text-ink dark:hover:text-cream"
           >
             <ArrowDownUp className="h-3.5 w-3.5" />
             {newestFirst ? t.documents.newestFirst : t.documents.oldestFirst}
@@ -577,22 +619,6 @@ export function EmailOrdersPage() {
                     label={t.emailOrders.favorite}
                     onToggle={() => favoriteMutation.mutate({ id: order.id, favorite: !order.favorite })}
                   />
-                  {(order.contractResource || (order.orderNumber && freeResourcesFor(order).length > 0)) && (
-                    <button
-                      type="button"
-                      title={t.emailOrders.monthlyResource}
-                      aria-label={t.emailOrders.monthlyResource}
-                      aria-pressed={!!order.contractResource}
-                      onClick={() => openResource(order)}
-                      className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition hover:bg-ink/5 dark:hover:bg-cream/10 ${
-                        order.contractResource
-                          ? 'text-ink dark:text-cream'
-                          : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
-                      }`}
-                    >
-                      <Repeat className="h-4 w-4" />
-                    </button>
-                  )}
                   <div className="min-w-0 pl-1">
                     <p className="truncate font-mono text-sm font-semibold text-ink dark:text-cream">
                       {order.orderNumber ?? order.subject}
@@ -624,7 +650,10 @@ export function EmailOrdersPage() {
                     <StatusChip key={field} done={!!order[field]} label={t.emailOrders[labelKey]} />
                   ))}
                   {order.facturarOkAt && !order.invoicedAt && (
-                    <span className="inline-flex items-center rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                    <span
+                      title={t.emailOrders.facturarOkHint}
+                      className="inline-flex items-center rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow"
+                    >
                       {t.emailOrders.facturarOk}
                     </span>
                   )}
@@ -670,7 +699,19 @@ export function EmailOrdersPage() {
           <OrderDetail
             order={selected}
             quoteLabels={quoteLabels}
-            onQuoteCategory={(category) => quoteStatusMutation.mutate({ id: selected.id, category })}
+            onQuoteCategory={(category) =>
+              quoteStatusMutation.mutate({ id: selected.id, category, previous: quoteCategoryOf(selected) })
+            }
+            onUndoQuote={
+              undoQuote?.id === selected.id
+                ? () => quoteStatusMutation.mutate({ id: selected.id, category: undoQuote.previous })
+                : undefined
+            }
+            onResource={
+              selected.contractResource || (selected.orderNumber && freeResourcesFor(selected).length > 0)
+                ? () => openResource(selected)
+                : undefined
+            }
             onUnlinkMilestone={(field) => unlinkMilestone(selected, field)}
           />
         )}
@@ -743,11 +784,15 @@ function OrderDetail({
   quoteLabels,
   onQuoteCategory,
   onUnlinkMilestone,
+  onResource,
+  onUndoQuote,
 }: {
   order: EmailOrder
   quoteLabels: Record<QuoteCategory, string>
   onQuoteCategory: (category: QuoteCategory) => void
   onUnlinkMilestone: (field: MilestoneField) => void
+  onResource?: () => void
+  onUndoQuote?: () => void
 }) {
   const { t, language } = useLanguage()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
@@ -795,6 +840,12 @@ function OrderDetail({
             </button>
           ))}
         </div>
+        {onUndoQuote && (
+          <button type="button" onClick={onUndoQuote} className={`${smallButtonClass} mt-2`}>
+            <Undo2 className="h-3.5 w-3.5" />
+            {t.common.undo}
+          </button>
+        )}
       </section>
 
       <section>
@@ -818,7 +869,10 @@ function OrderDetail({
                     order[field] && <span className="text-xs text-graphite dark:text-graphite-dark">{t.emailOrders.markedNoDoc}</span>
                   )}
                   {field === 'invoicedAt' && order.facturarOkAt && !order.invoicedAt && (
-                    <span className="inline-flex items-center rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                    <span
+                      title={t.emailOrders.facturarOkHint}
+                      className="inline-flex items-center rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow"
+                    >
                       {t.emailOrders.facturarOk}
                     </span>
                   )}
@@ -843,6 +897,19 @@ function OrderDetail({
             )
           })}
         </div>
+        {onResource && (
+          <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2 dark:border-line-dark">
+            <span className="flex min-w-0 items-center gap-2 text-sm text-ink dark:text-cream">
+              <Repeat className="h-4 w-4 shrink-0" />
+              {order.contractResource
+                ? t.emailOrders.resourceTag.replace('{name}', order.contractResource.name)
+                : t.emailOrders.monthlyResource}
+            </span>
+            <button type="button" onClick={onResource} className={smallButtonClass}>
+              {order.contractResource ? t.team.edit : t.emailOrders.linkDoc}
+            </button>
+          </div>
+        )}
       </section>
 
       {docRefs.length > 0 && (

@@ -16,6 +16,7 @@ import {
   Share2,
   StickyNote,
   ShoppingCart,
+  Undo2,
   Users,
 } from 'lucide-react'
 import { api } from '../lib/axios'
@@ -65,7 +66,7 @@ type DocFile = {
 type QuoteState = 'ANULADO' | 'STANDBY' | 'SUSTITUIDO'
 const closedStates: (QuoteState | null | undefined)[] = ['ANULADO', 'SUSTITUIDO']
 
-type QuoteFilter = 'all' | 'noOrder' | 'notSent'
+type QuoteFilter = 'all' | 'noOrder' | 'notSent' | 'unlinked'
 
 const rowClass =
   'group cursor-pointer rounded-2xl border border-line bg-surface px-4 py-3 shadow-sm transition hover:border-yellow/60 dark:border-line-dark dark:bg-surface-dark dark:hover:border-yellow/40'
@@ -122,14 +123,19 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     !query || [f.number, f.title, f.client ?? '', ...(f.orderNumbers ?? [])].join(' ').toLowerCase().includes(query)
   const matchesClient = (f: DocFile) => !clientFilter || f.client === clientFilter
   const base = files.filter((f) => matchesSearch(f) && matchesClient(f))
+  const tracksLinks = category === 'albaran' || category === 'factura'
+  const isUnlinked = (f: DocFile) =>
+    !f.linkedFrom?.orders.length && !f.linkedFrom?.quotes.length && !closedStates.includes(f.status?.status)
   const counts = {
     all: base.length,
+    unlinked: base.filter(isUnlinked).length,
     noOrder: base.filter((f) => !f.orderNumbers?.length && !closedStates.includes(f.status?.status)).length,
     notSent: base.filter((f) => !f.sent).length,
   }
   const filteredFiles = base
     .filter((f) => quoteFilter !== 'noOrder' || (!f.orderNumbers?.length && !closedStates.includes(f.status?.status)))
     .filter((f) => quoteFilter !== 'notSent' || !f.sent)
+    .filter((f) => quoteFilter !== 'unlinked' || isUnlinked(f))
     .sort((a, b) => (Number(b.number) - Number(a.number)) * (newestFirst ? 1 : -1))
   const clientOptions = [...new Set(files.map((f) => f.client).filter((c): c is string => !!c))].sort()
 
@@ -171,10 +177,25 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
 
   const queryClient = useQueryClient()
   const [replacedBy, setReplacedBy] = useState('')
+// Elements outside a modal <dialog> are inert, so a toast's button can't be pressed while the
+// detail is open: the undo for changes made inside a dialog lives next to the control instead.
+  const [undoStatus, setUndoStatus] = useState<{
+    file: DocFile
+    previous: { status: QuoteState | null; replacedBy: string | null }
+  } | null>(null)
+  const undoTimer = useRef<number | undefined>(undefined)
   const statusMutation = useMutation({
-    mutationFn: async ({ file, status, replaced }: { file: DocFile; status: QuoteState | null; replaced?: string }) =>
-      api.put('/notes/quote-status', { category, year, name: file.name, status, replacedBy: replaced }),
-    onSuccess: (_d, { file, status, replaced }) => {
+    mutationFn: async ({
+      file,
+      status,
+      replaced,
+    }: {
+      file: DocFile
+      status: QuoteState | null
+      replaced?: string
+      undo?: boolean
+    }) => api.put('/notes/quote-status', { category, year, name: file.name, status, replacedBy: replaced }),
+    onSuccess: (_d, { file, status, replaced, undo }) => {
       setDetail((cur) => cur && { ...cur, status: { status, replacedBy: status === 'SUSTITUIDO' ? replaced ?? null : null } })
       queryClient.invalidateQueries({ queryKey: ['documents', category, year] })
       const qs = t.documents.quoteStates
@@ -187,6 +208,14 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
               ? qs.standby
               : qs.active
       showToast(qs.changed.replace('{n}', file.number).replace('{state}', state.toLowerCase()))
+      if (undo) {
+        setUndoStatus(null)
+      } else {
+        const previous = file.status ?? { status: null, replacedBy: null }
+        setUndoStatus({ file: { ...file, status: { status, replacedBy: replaced ?? null } }, previous })
+        window.clearTimeout(undoTimer.current)
+        undoTimer.current = window.setTimeout(() => setUndoStatus(null), 10000)
+      }
     },
     onError: () => showToast(t.common.saveError, 'error'),
   })
@@ -267,8 +296,13 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {(isQuote ? (['all', 'noOrder', 'notSent'] as const) : (['all', 'notSent'] as const)).map((f) => {
-          const Icon = f === 'all' ? List : f === 'noOrder' ? FileText : Send
+        {(isQuote
+          ? (['all', 'noOrder', 'notSent'] as const)
+          : tracksLinks
+            ? (['all', 'unlinked', 'notSent'] as const)
+            : (['all', 'notSent'] as const)
+        ).map((f) => {
+          const Icon = f === 'all' ? List : f === 'noOrder' || f === 'unlinked' ? FileText : Send
           return (
             <FilterChip
               key={f}
@@ -308,7 +342,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
           <button
             type="button"
             onClick={() => setNewestFirst((v) => !v)}
-            className="inline-flex items-center gap-1.5 font-semibold hover:text-ink dark:hover:text-cream"
+            className="-my-2 inline-flex min-h-10 items-center gap-1.5 py-2 font-semibold hover:text-ink dark:hover:text-cream"
           >
             <ArrowDownUp className="h-3.5 w-3.5" />
             {newestFirst ? t.documents.newestFirst : t.documents.oldestFirst}
@@ -343,7 +377,23 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                   : t.documents.quoteStates[state === 'ANULADO' ? 'cancelled' : 'standby']}
               </span>
             ) : null
-            const orderChip = !isQuote ? stateChip : state ? (
+            const linkedOrder = f.linkedFrom?.orders[0]
+            const linkChip = stateChip ?? (
+              linkedOrder || f.linkedFrom?.quotes.length ? (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-yellow/70 bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                  {linkedOrder
+                    ? t.documents.linkedOrder.replace('{n}', linkedOrder.orderNumber ?? '')
+                    : `${t.papeleo.presupuesto.tab} ${f.linkedFrom!.quotes[0].number}`}
+                </span>
+              ) : (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-semibold text-graphite dark:border-line-dark dark:text-graphite-dark">
+                  <span className="h-1.5 w-1.5 rounded-full bg-graphite dark:bg-graphite-dark" />
+                  {t.documents.unlinkedChip}
+                </span>
+              )
+            )
+            const orderChip = !isQuote ? (tracksLinks ? linkChip : stateChip) : state ? (
               <span
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
                   state === 'STANDBY'
@@ -517,6 +567,24 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
               )
             })}
           </div>
+          {undoStatus && undoStatus.file.name === detail.name && (
+            <button
+              type="button"
+              disabled={statusMutation.isPending}
+              onClick={() =>
+                statusMutation.mutate({
+                  file: undoStatus.file,
+                  status: undoStatus.previous.status,
+                  replaced: undoStatus.previous.replacedBy ?? undefined,
+                  undo: true,
+                })
+              }
+              className={`${smallButtonClass} mt-2`}
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              {t.common.undo}
+            </button>
+          )}
           {detail.status?.status === 'SUSTITUIDO' && (
             <form
               className="mt-2 flex items-center gap-2"

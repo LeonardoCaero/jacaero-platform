@@ -305,7 +305,7 @@ export function TimeTrackerPage() {
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <button type="button" onClick={jumpToToday} className="group flex flex-col items-center">
+          <button type="button" onClick={jumpToToday} className="group flex min-h-10 flex-col items-center justify-center rounded-lg px-2">
             <p className="font-display text-lg font-semibold tracking-wide text-ink group-hover:opacity-70 dark:text-cream">
               {capitalizeFirst(month.toLocaleDateString(locale, { month: 'long', year: 'numeric' }))}
             </p>
@@ -540,7 +540,7 @@ export function TimeTrackerPage() {
               />
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-graphite dark:text-graphite-dark">
+            <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm text-graphite dark:text-graphite-dark">
               <input
                 type="checkbox"
                 checked={isOvertime}
