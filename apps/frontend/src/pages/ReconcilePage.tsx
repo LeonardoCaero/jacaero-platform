@@ -176,7 +176,7 @@ export function ReconcilePage() {
                     aria-pressed={activeCategory === category && activeTarget?.key === target.key}
                     className={`h-8 rounded-lg px-2.5 text-xs font-semibold transition ${
                       activeCategory === category && activeTarget?.key === target.key
-                        ? 'bg-ink text-cream dark:bg-cream dark:text-ink'
+                        ? 'bg-ink text-cream dark:bg-yellow dark:text-ink'
                         : 'bg-ink/5 text-ink hover:bg-ink/10 dark:bg-cream/10 dark:text-cream dark:hover:bg-cream/15'
                     }`}
                   >

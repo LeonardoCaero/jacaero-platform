@@ -14,7 +14,7 @@ function PapeleoNav() {
   return (
     <nav aria-label={t.modules.papeleo.label} className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
       <Link
-        to="/papeleo"
+        to="/"
         className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-md text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -28,7 +28,7 @@ function PapeleoNav() {
             className={({ isActive }) =>
               `flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-xs font-semibold transition lg:h-8 lg:flex-row lg:gap-1.5 lg:px-3 lg:py-0 lg:text-sm lg:whitespace-nowrap ${
                 isActive
-                  ? 'bg-ink text-cream dark:bg-cream dark:text-ink'
+                  ? 'bg-ink text-cream dark:bg-yellow dark:text-ink'
                   : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
               }`
             }

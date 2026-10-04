@@ -346,7 +346,7 @@ export function TimeTrackerPage() {
                 className={[
                   'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl border text-sm transition lg:aspect-auto lg:h-14',
                   isSelected
-                    ? 'border-transparent bg-ink text-cream dark:bg-cream dark:text-ink'
+                    ? 'border-transparent bg-ink text-cream dark:bg-yellow dark:text-ink'
                     : isToday
                       ? 'border-transparent ring-1 ring-yellow'
                       : 'border-transparent hover:bg-paper dark:hover:bg-paper-dark',

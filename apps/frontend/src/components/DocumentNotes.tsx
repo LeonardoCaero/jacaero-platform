@@ -92,7 +92,7 @@ export function DocumentNotes({ category, year, name }: { category: string; year
         <button
           type="submit"
           disabled={!text.trim() || addMutation.isPending}
-          className="h-11 shrink-0 rounded-xl bg-ink px-3 text-sm font-semibold text-cream disabled:opacity-50 dark:bg-cream dark:text-ink"
+          className="h-11 shrink-0 rounded-xl bg-ink px-3 text-sm font-semibold text-cream disabled:opacity-50 dark:bg-yellow dark:text-ink"
         >
           {t.docNotes.add}
         </button>

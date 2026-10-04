@@ -1,7 +1,7 @@
-import { useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, FileText, Check, Link2, Eye, Info, Star, Search, Repeat } from 'lucide-react'
+import { ArrowDownUp, CalendarDays, CalendarSearch, ChevronDown, RefreshCw, FileText, Check, Link2, Eye, Info, Star, Search, Repeat } from 'lucide-react'
 import { api } from '../lib/axios'
 import { formatEuro } from '../lib/format'
 import { Skeleton } from '../components/Skeleton'
@@ -212,6 +212,20 @@ export function EmailOrdersPage() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<QuoteCategory | 'all'>('all')
   const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [year, setYear] = useState(new Date().getFullYear())
+  const [newestFirst, setNewestFirst] = useState(true)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const [resourceOrder, setResourceOrder] = useState<EmailOrder | null>(null)
   const [chosenResource, setChosenResource] = useState('')
   const [resourceError, setResourceError] = useState<string | null>(null)
@@ -234,10 +248,15 @@ export function EmailOrdersPage() {
   }
 
   const query = search.trim().toLowerCase()
+  const years = [...new Set([new Date().getFullYear(), ...orders.map(orderYearOf)])].sort((a, b) => b - a)
+  const orderTime = (o: EmailOrder) => new Date(o.orderDate ?? o.receivedAt).getTime()
   const searchedOrders = orders
+    .filter((o) => orderYearOf(o) === year)
     .filter((o) => !query || orderSearchText(o).includes(query))
     .filter((o) => !favoritesOnly || o.favorite)
-  const filteredOrders = searchedOrders.filter((o) => typeFilter === 'all' || quoteCategoryOf(o) === typeFilter)
+  const filteredOrders = searchedOrders
+    .filter((o) => typeFilter === 'all' || quoteCategoryOf(o) === typeFilter)
+    .sort((a, b) => (orderTime(b) - orderTime(a)) * (newestFirst ? 1 : -1))
 
   const typeFilters: { value: QuoteCategory | 'all'; label: string }[] = [
     { value: 'all', label: t.emailOrders.filterTypeAll },
@@ -366,6 +385,23 @@ export function EmailOrdersPage() {
         subtitle={t.papeleo.pedidosCorreo.description}
         actions={
           <>
+            <label className={`${filterClass} ${filterIdleClass} relative cursor-pointer`}>
+              <CalendarDays className="h-4 w-4" />
+              <span className="text-ink dark:text-cream">{year}</span>
+              <ChevronDown className="h-4 w-4" />
+              <select
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+                aria-label={t.documents.year}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              >
+                {years.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button
               type="button"
               onClick={() => {
@@ -373,10 +409,14 @@ export function EmailOrdersPage() {
                 reconcileMutation.mutate()
               }}
               disabled={reconcileMutation.isPending}
-              className={secondaryButtonClass}
+              title={t.emailOrders.reconcile}
+              aria-label={t.emailOrders.reconcile}
+              className={`${secondaryButtonClass} max-sm:w-10 max-sm:px-0`}
             >
               <Link2 className="h-4 w-4" />
-              {reconcileMutation.isPending ? t.emailOrders.reconciling : t.emailOrders.reconcile}
+              <span className="max-sm:hidden">
+                {reconcileMutation.isPending ? t.emailOrders.reconciling : t.emailOrders.reconcile}
+              </span>
             </button>
             <button
               type="button"
@@ -385,9 +425,12 @@ export function EmailOrdersPage() {
                 syncMutation.mutate(true)
               }}
               disabled={syncMutation.isPending}
-              className={secondaryButtonClass}
+              title={t.emailOrders.syncFull}
+              aria-label={t.emailOrders.syncFull}
+              className={`${secondaryButtonClass} max-sm:w-10 max-sm:px-0`}
             >
-              {t.emailOrders.syncFull}
+              <CalendarSearch className="h-4 w-4" />
+              <span className="max-sm:hidden">{t.emailOrders.syncFull}</span>
             </button>
             <button
               type="button"
@@ -399,7 +442,14 @@ export function EmailOrdersPage() {
               className={primaryButtonClass}
             >
               <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-              {syncMutation.isPending ? t.emailOrders.syncing : t.emailOrders.sync}
+              {syncMutation.isPending ? (
+                t.emailOrders.syncing
+              ) : (
+                <>
+                  <span className="sm:hidden">{t.emailOrders.syncShort}</span>
+                  <span className="max-sm:hidden">{t.emailOrders.sync}</span>
+                </>
+              )}
             </button>
           </>
         }
@@ -412,16 +462,52 @@ export function EmailOrdersPage() {
       <div className="relative mt-5">
         <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
         <input
+          ref={searchRef}
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t.emailOrders.searchPlaceholder}
           aria-label={t.emailOrders.searchPlaceholder}
-          className={searchInputClass}
+          aria-keyshortcuts="Control+K"
+          className={`${searchInputClass} sm:pr-20`}
         />
+        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-line px-1.5 py-0.5 font-mono text-xs text-graphite sm:block dark:border-line-dark dark:text-graphite-dark">
+          Ctrl K
+        </kbd>
       </div>
 
-      <div className="mt-3">
+      <div className="mt-3 flex gap-2 sm:hidden">
+        <label className={`${filterClass} ${typeFilter === 'all' ? filterIdleClass : filterActiveClass} relative min-w-0 flex-1 cursor-pointer`}>
+          <span className="min-w-0 flex-1 truncate">
+            {typeFilters.find((f) => f.value === typeFilter)?.label} · {countFor(typeFilter)}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0" />
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as QuoteCategory | 'all')}
+            aria-label={t.emailOrders.filterTypeAll}
+            className="absolute inset-0 cursor-pointer opacity-0"
+          >
+            {typeFilters.map((f) => (
+              <option key={f.value} value={f.value}>
+                {`${f.label} (${countFor(f.value)})`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          aria-pressed={favoritesOnly}
+          aria-label={t.emailOrders.filterFavorites}
+          title={t.emailOrders.filterFavorites}
+          onClick={() => setFavoritesOnly((v) => !v)}
+          className={`${filterClass} ${favoritesOnly ? filterActiveClass : filterIdleClass} shrink-0`}
+        >
+          <Star className="h-3.5 w-3.5" fill={favoritesOnly ? 'currentColor' : 'none'} />
+        </button>
+      </div>
+
+      <div className="mt-3 hidden sm:block">
         <div className="flex flex-wrap gap-2">
           {typeFilters.map((f) => (
             <button
@@ -447,6 +533,20 @@ export function EmailOrdersPage() {
         </div>
       </div>
 
+      {!isLoading && !isError && orders.length > 0 && (
+        <div className="mt-4 flex items-center justify-between text-xs text-graphite dark:text-graphite-dark">
+          <span>{t.emailOrders.found.replace('{count}', String(filteredOrders.length))}</span>
+          <button
+            type="button"
+            onClick={() => setNewestFirst((v) => !v)}
+            className="inline-flex items-center gap-1.5 font-semibold hover:text-ink dark:hover:text-cream"
+          >
+            <ArrowDownUp className="h-3.5 w-3.5" />
+            {newestFirst ? t.documents.newestFirst : t.documents.oldestFirst}
+          </button>
+        </div>
+      )}
+
       {isLoading && (
         <div className="mt-4 space-y-2">
           {Array.from({ length: 6 }, (_, i) => (
@@ -464,7 +564,7 @@ export function EmailOrdersPage() {
         </div>
       )}
 
-      <ul className="mt-4 space-y-2">
+      <ul className="mt-2 space-y-2">
         {!isLoading &&
           filteredOrders.map((order) => (
             <ListRow
@@ -500,7 +600,9 @@ export function EmailOrdersPage() {
                       {order.orderNumber ?? order.subject}
                     </p>
                     <p className="truncate text-xs text-graphite dark:text-graphite-dark">
-                      {order.client?.name ?? order.senderEmail} · {formatDate(order.orderDate)}
+                      {[order.client?.name, formatDate(order.orderDate), order.quoteRef && `${t.emailOrders.quoteRef} ${order.quoteRef}`]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </p>
                     {order.contractResource && (
                       <p className="truncate text-xs font-semibold text-ink dark:text-cream">
@@ -524,7 +626,7 @@ export function EmailOrdersPage() {
                     <StatusChip key={field} done={!!order[field]} label={t.emailOrders[labelKey]} />
                   ))}
                   {order.facturarOkAt && !order.invoicedAt && (
-                    <span className="inline-flex items-center rounded-full bg-ink px-2.5 py-1 text-xs font-semibold text-cream dark:bg-yellow dark:text-ink">
+                    <span className="inline-flex items-center rounded-full bg-yellow px-2.5 py-1 text-xs font-semibold text-ink">
                       {t.emailOrders.facturarOk}
                     </span>
                   )}
@@ -710,7 +812,7 @@ function OrderDetail({
                     order[field] && <span className="text-xs text-graphite dark:text-graphite-dark">{t.emailOrders.markedNoDoc}</span>
                   )}
                   {field === 'invoicedAt' && order.facturarOkAt && !order.invoicedAt && (
-                    <span className="inline-flex items-center rounded-full bg-ink px-2.5 py-1 text-xs font-semibold text-cream dark:bg-yellow dark:text-ink">
+                    <span className="inline-flex items-center rounded-full bg-yellow px-2.5 py-1 text-xs font-semibold text-ink">
                       {t.emailOrders.facturarOk}
                     </span>
                   )}

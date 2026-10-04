@@ -28,7 +28,7 @@ export function HomePage() {
         {primary && (
           <Link
             to={primary.path}
-            className="animate-fade-up relative col-span-2 flex h-36 flex-col justify-between overflow-hidden rounded-2xl bg-ink p-5 text-cream shadow-sm transition hover:shadow-md active:scale-[0.98] dark:border dark:border-line-dark"
+            className="animate-fade-up relative col-span-2 flex h-36 flex-col justify-between overflow-hidden rounded-2xl bg-ink p-5 text-cream shadow-sm transition hover:shadow-md active:scale-[0.98] dark:border dark:border-yellow/40 dark:bg-surface-dark"
           >
             <Logo className="pointer-events-none absolute -right-6 -bottom-8 h-40 w-40 opacity-10" />
             <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-yellow">

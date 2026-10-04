@@ -282,7 +282,7 @@ export function CalendarPage() {
                 className={[
                   'flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-transparent text-sm transition lg:aspect-auto lg:h-16',
                   isSelected
-                    ? 'bg-ink text-cream dark:bg-cream dark:text-ink'
+                    ? 'bg-ink text-cream dark:bg-yellow dark:text-ink'
                     : isToday
                       ? 'ring-1 ring-yellow'
                       : 'hover:bg-paper dark:hover:bg-paper-dark',

@@ -130,7 +130,7 @@ export function AcceptInvitePage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-11 w-full rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
+              className="h-11 w-full rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-yellow dark:text-ink dark:hover:bg-yellow/90"
             >
               {isSubmitting ? t.acceptInvite.submitting : t.acceptInvite.submit}
             </button>
