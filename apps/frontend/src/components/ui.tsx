@@ -23,6 +23,9 @@ export const primaryButtonClass =
 export const secondaryButtonClass =
   'inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-line px-4 text-sm font-semibold text-graphite transition hover:text-ink active:scale-[0.98] disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
 
+export const smallButtonClass =
+  'inline-flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-xs font-semibold text-graphite transition hover:border-yellow hover:text-ink disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:border-yellow/60 dark:hover:text-cream'
+
 export const iconButtonClass =
   'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line text-graphite transition hover:border-yellow hover:text-ink disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:border-yellow/60 dark:hover:text-cream'
 

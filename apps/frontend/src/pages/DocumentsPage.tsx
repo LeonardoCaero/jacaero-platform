@@ -24,6 +24,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import type { translations } from '../lib/translations'
 import { Skeleton } from '../components/Skeleton'
 import { DocumentNotes } from '../components/DocumentNotes'
+import { DocumentOrigin, QuoteLinks, type DocOrigin, type LinkedDoc } from '../components/DocumentLinks'
 import {
   Modal,
   PageHeader,
@@ -47,7 +48,9 @@ type DocFile = {
   hasPdf: boolean
   hasDocx: boolean
   orderNumbers?: string[]
-  orders?: { id: string; orderNumber: string; linked: boolean }[]
+  orders?: { id: string; orderNumber: string; linked: boolean; albaranNumber?: string | null; facturaNumber?: string | null }[]
+  links?: LinkedDoc[]
+  linkedFrom?: DocOrigin
   sent?: { at: string; to: string; viaClient: boolean } | null
   client?: string | null
   noteCount?: number
@@ -82,7 +85,7 @@ function RowSkeleton({ delay }: { delay: number }) {
 export function DocumentsPage({ category, titleKey }: { category: DocCategory; titleKey: PapeleoKey }) {
   const { t, language } = useLanguage()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [year, setYear] = useState(() => Number(searchParams.get('year')) || currentYear)
   const [search, setSearch] = useState('')
   const [quoteFilter, setQuoteFilter] = useState<QuoteFilter>('all')
@@ -134,6 +137,22 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     if (sameTab) window.location.href = url
     else window.open(url, '_blank')
   }
+
+  // "Go to document" from another tab lands here with ?detail=<name>: open it once the list is in.
+  useEffect(() => {
+    const wanted = searchParams.get('detail')
+    if (!wanted || files.length === 0) return
+    const file = files.find((f) => f.name === wanted) ?? files.find((f) => Number(f.number) === Number(wanted))
+    if (file) {
+      setReplacedBy(file.status?.replacedBy ?? '')
+      setDetail(file)
+    }
+    setSearchParams((prev) => {
+      prev.delete('detail')
+      return prev
+    }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files])
 
   // Shared links land here logged out; ProtectedRoute bounces to /login and back, then this opens the file.
   // Same-tab navigation (not window.open) because it can't rely on a fresh user gesture at that point.
@@ -588,8 +607,23 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
           ) : (
             <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{t.documents.noOrder}</p>
           )}
+
+          {detail.name && (
+            <QuoteLinks
+              quote={{ name: detail.name }}
+              year={year}
+              orders={detail.orders ?? []}
+              links={detail.links ?? []}
+              onChange={(links) => {
+                setDetail((cur) => cur && { ...cur, links })
+                queryClient.invalidateQueries({ queryKey: ['documents'] })
+              }}
+            />
+          )}
             </>
           )}
+
+          {detail.linkedFrom && <DocumentOrigin origin={detail.linkedFrom} onPreviewOrder={previewOrder} />}
 
           <p className={`mt-5 ${sectionLabelClass}`}>
             {t.documents.columnSent}

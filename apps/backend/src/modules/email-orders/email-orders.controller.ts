@@ -35,8 +35,8 @@ export async function getPdfHandler(req: Request<{ id: string }>, res: Response)
 }
 
 export async function setMilestoneHandler(req: Request<{ id: string }>, res: Response) {
-  const { field, done } = setMilestoneSchema.parse(req.body);
-  res.json(await emailOrdersService.setMilestone(req.params.id, field, done));
+  const { field } = setMilestoneSchema.parse(req.body);
+  res.json(await emailOrdersService.unlinkMilestone(req.params.id, field));
 }
 
 export async function setQuoteStatusHandler(req: Request<{ id: string }>, res: Response) {

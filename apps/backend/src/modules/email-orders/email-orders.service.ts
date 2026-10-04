@@ -585,9 +585,11 @@ export async function getPdf(id: string) {
 
 type MilestoneField = "deliveryNoteAt" | "invoicedAt";
 
-export async function setMilestone(id: string, field: MilestoneField, done: boolean) {
+const MILESTONE_NUMBER_FIELD = { deliveryNoteAt: "albaranNumber", invoicedAt: "facturaNumber" } as const;
+
+export async function unlinkMilestone(id: string, field: MilestoneField) {
   await get(id);
-  return prisma.emailOrder.update({ where: { id }, data: { [field]: done ? new Date() : null } });
+  return prisma.emailOrder.update({ where: { id }, data: { [field]: null, [MILESTONE_NUMBER_FIELD[field]]: null } });
 }
 
 const UI_TO_QUOTE_CATEGORY = {

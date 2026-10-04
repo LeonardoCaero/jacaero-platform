@@ -372,6 +372,22 @@ model DocumentStatus {
   @@map("QuoteStatus")
 }
 
+// Manual link from a quote to its albarán / factura, for clients whose work has no purchase order.
+model DocumentLink {
+  id           String   @id @default(cuid())
+  fromCategory String
+  fromYear     Int
+  fromName     String
+  toCategory   String
+  toYear       Int
+  toNumber     String
+  toName       String
+  createdAt    DateTime @default(now())
+
+  @@unique([fromCategory, fromYear, fromName, toCategory, toName], map: "DocumentLink_from_to_key")
+  @@index([toCategory, toYear])
+}
+
 // When a NAS document left the orders mailbox as an attachment, and to whom.
 model DocumentSent {
   id         String   @id @default(cuid())

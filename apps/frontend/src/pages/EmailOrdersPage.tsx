@@ -21,6 +21,7 @@ import {
   searchInputClass,
   secondaryButtonClass,
   sectionLabelClass,
+  smallButtonClass,
   statusClass,
 } from '../components/ui'
 import { useFeedback } from '../components/feedback'
@@ -351,10 +352,10 @@ export function EmailOrdersPage() {
     return new Date(iso).toLocaleDateString(locale)
   }
 
-  async function toggleMilestone(order: EmailOrder, field: MilestoneField) {
-    const done = !order[field]
-    if (field === 'invoicedAt' && !done && !(await confirm({ message: t.emailOrders.confirmUninvoice }))) return
-    milestoneMutation.mutate({ id: order.id, field, done })
+  async function unlinkMilestone(order: EmailOrder, field: MilestoneField) {
+    const message = field === 'invoicedAt' ? t.emailOrders.confirmUninvoice : t.emailOrders.confirmUnlinkAlbaran
+    if (!(await confirm({ message, danger: field === 'invoicedAt' }))) return
+    milestoneMutation.mutate({ id: order.id, field, done: false })
   }
 
   return (
@@ -571,7 +572,7 @@ export function EmailOrdersPage() {
             order={selected}
             quoteLabels={quoteLabels}
             onQuoteCategory={(category) => quoteStatusMutation.mutate({ id: selected.id, category })}
-            onToggleMilestone={(field) => toggleMilestone(selected, field)}
+            onUnlinkMilestone={(field) => unlinkMilestone(selected, field)}
           />
         )}
       </Modal>
@@ -642,12 +643,12 @@ function OrderDetail({
   order,
   quoteLabels,
   onQuoteCategory,
-  onToggleMilestone,
+  onUnlinkMilestone,
 }: {
   order: EmailOrder
   quoteLabels: Record<QuoteCategory, string>
   onQuoteCategory: (category: QuoteCategory) => void
-  onToggleMilestone: (field: MilestoneField) => void
+  onUnlinkMilestone: (field: MilestoneField) => void
 }) {
   const { t, language } = useLanguage()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
@@ -670,20 +671,10 @@ function OrderDetail({
       value: order.quoteRef,
       preview: quoteDocCategory && year ? () => previewDocument(quoteDocCategory, year, order.quoteRef!) : null,
     },
-    order.albaranNumber && {
-      label: t.emailOrders.albaranNumber,
-      value: order.albaranNumber,
-      preview: year ? () => previewDocument('albaran', year, order.albaranNumber!) : null,
-    },
     order.albaranSentAt && {
       label: t.emailOrders.albaranSent,
       value: new Date(order.albaranSentAt).toLocaleDateString(locale),
       preview: null,
-    },
-    order.facturaNumber && {
-      label: t.emailOrders.facturaNumber,
-      value: order.facturaNumber,
-      preview: year ? () => previewDocument('factura', year, order.facturaNumber!) : null,
     },
   ].filter(Boolean) as { label: string; value: string; preview: (() => void) | null }[]
 
@@ -710,23 +701,45 @@ function OrderDetail({
             </button>
           ))}
         </div>
-        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
-          {MILESTONES.map(({ field, labelKey }) => (
-            <label key={field} className="flex cursor-pointer items-center gap-2 text-sm font-medium text-ink dark:text-cream">
-              <input
-                type="checkbox"
-                checked={!!order[field]}
-                onChange={() => onToggleMilestone(field)}
-                className="h-4 w-4 accent-yellow"
-              />
-              {t.emailOrders[labelKey]}
-            </label>
-          ))}
-          {order.facturarOkAt && !order.invoicedAt && (
-            <span className="inline-flex items-center rounded-full bg-ink px-2.5 py-1 text-xs font-semibold text-cream dark:bg-yellow dark:text-ink">
-              {t.emailOrders.facturarOk}
-            </span>
-          )}
+        <div className="mt-3 divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
+          {MILESTONES.map(({ field, labelKey }) => {
+            const number = field === 'deliveryNoteAt' ? order.albaranNumber : order.facturaNumber
+            const docCategory = field === 'deliveryNoteAt' ? 'albaran' : 'factura'
+            return (
+              <div key={field} className="flex items-center justify-between gap-3 px-3 py-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm text-ink dark:text-cream">
+                  {order[field] ? <Check className="h-4 w-4 shrink-0" /> : <span className="h-4 w-4 shrink-0" />}
+                  {t.emailOrders[labelKey]}
+                  {number ? (
+                    <span className="font-mono font-semibold text-yellow-ink dark:text-yellow">{number}</span>
+                  ) : (
+                    order[field] && <span className="text-xs text-graphite dark:text-graphite-dark">{t.emailOrders.markedNoDoc}</span>
+                  )}
+                  {field === 'invoicedAt' && order.facturarOkAt && !order.invoicedAt && (
+                    <span className="inline-flex items-center rounded-full bg-ink px-2.5 py-1 text-xs font-semibold text-cream dark:bg-yellow dark:text-ink">
+                      {t.emailOrders.facturarOk}
+                    </span>
+                  )}
+                </span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {number && year && (
+                    <PreviewButton label={t.emailOrders.previewPdf} onClick={() => previewDocument(docCategory, year, number)} />
+                  )}
+                  {!number && (
+                    <Link to={`/papeleo/pedidos/${order.id}/reconcile`} className={smallButtonClass}>
+                      <Link2 className="h-3.5 w-3.5" />
+                      {t.emailOrders.linkDoc}
+                    </Link>
+                  )}
+                  {order[field] && (
+                    <button type="button" onClick={() => onUnlinkMilestone(field)} className={smallButtonClass}>
+                      {number ? t.emailOrders.unlinkDoc : t.emailOrders.removeMark}
+                    </button>
+                  )}
+                </span>
+              </div>
+            )
+          })}
         </div>
       </section>
 
