@@ -87,7 +87,7 @@ export function AppLayout() {
       </header>
 
       <main className={`mx-auto px-4 py-4 sm:px-6 ${isReconcile ? 'max-w-7xl' : isWide ? 'max-w-6xl' : 'max-w-3xl'}`}>
-        {inPapeleo && <PapeleoNav />}
+        {inPapeleo && !isReconcile && <PapeleoNav />}
         <div key={location.pathname} className="animate-fade-up">
           <Outlet />
         </div>

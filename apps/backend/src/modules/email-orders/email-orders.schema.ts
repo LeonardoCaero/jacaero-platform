@@ -26,6 +26,10 @@ export const reconcileQuerySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100).default(new Date().getFullYear()),
 });
 
+export const suggestionsQuerySchema = z.object({
+  category: z.enum(["presupuesto", "albaran", "factura", "pedidoMaterial", "horasTrabajo"]),
+});
+
 export const linkDocumentSchema = z.object({
   category: z.enum(["presupuesto", "albaran", "factura", "pedidoMaterial", "horasTrabajo"]),
   number: z.string().regex(/^\d+$/),

@@ -666,6 +666,52 @@ const DOC_CATEGORY_TO_QUOTE_CATEGORY = {
   pedidoMaterial: "MATERIAL",
 } as const satisfies Partial<Record<DocCategory, QuoteCategory>>;
 
+const pdfInfoCache = new Map<string, { mtimeMs: number; orderNumber?: string; total?: number }>();
+
+async function pdfInfo(filePath: string) {
+  const { mtimeMs } = await fs.stat(filePath);
+  const cached = pdfInfoCache.get(filePath);
+  if (cached && cached.mtimeMs === mtimeMs) return cached;
+  const text = await extractPdfText(await fs.readFile(filePath));
+  const info = { mtimeMs, orderNumber: extractOrderNumber(text), total: extractDocumentTotal(text) };
+  pdfInfoCache.set(filePath, info);
+  return info;
+}
+
+const SUGGESTION_RANK = { order: 0, quote: 1, amount: 2 } as const;
+
+// Documents of a category that look like this order's: its PO number inside the PDF, its quote
+// number, or the same total. Ranked in that order so the first one is the likely match.
+export async function suggestDocuments(id: string, category: DocCategory) {
+  const order = await get(id);
+  const year = orderYear(order);
+  const amount = order.totalAmount != null ? Number(order.totalAmount) : null;
+  const quoteNumber = order.quoteRef ? Number(order.quoteRef.replace(/\D/g, "")) : null;
+  const isOrigin = (ORIGIN_CATEGORIES as readonly string[]).includes(category);
+
+  const found: { number: string; name: string; title: string; reason: keyof typeof SUGGESTION_RANK }[] = [];
+  for (const f of await listCategory(category, year)) {
+    if (!f.hasPdf) continue;
+    if (isOrigin && quoteNumber && Number(f.number) === quoteNumber) {
+      found.push({ number: f.number, name: f.name, title: f.title, reason: "quote" });
+      continue;
+    }
+    try {
+      const info = await pdfInfo(await getCategoryFile(category, year, f.number, "pdf", f.name));
+      const reason =
+        order.orderNumber && info.orderNumber === order.orderNumber
+          ? "order"
+          : amount != null && info.total != null && Math.abs(info.total - amount) < 0.01
+            ? "amount"
+            : undefined;
+      if (reason) found.push({ number: f.number, name: f.name, title: f.title, reason });
+    } catch (err) {
+      logger.error(`[email-orders] failed reading ${category} ${f.number}:`, (err as Error).message);
+    }
+  }
+  return found.sort((a, b) => SUGGESTION_RANK[a.reason] - SUGGESTION_RANK[b.reason]).slice(0, 5);
+}
+
 export async function linkDocument(id: string, category: DocCategory, number: string) {
   await get(id);
 

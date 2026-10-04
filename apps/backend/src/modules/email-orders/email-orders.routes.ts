@@ -11,6 +11,7 @@ import {
   setQuoteStatusHandler,
   setFavoriteHandler,
   linkDocumentHandler,
+  suggestionsHandler,
   listResourcesHandler,
   setResourceHandler,
 } from "./email-orders.controller.js";
@@ -25,6 +26,7 @@ emailOrdersRoutes.get("/", listHandler);
 emailOrdersRoutes.get("/resources", listResourcesHandler);
 emailOrdersRoutes.get("/:id", getHandler);
 emailOrdersRoutes.get("/:id/pdf", getPdfHandler);
+emailOrdersRoutes.get("/:id/suggestions", suggestionsHandler);
 emailOrdersRoutes.patch("/:id/milestone", setMilestoneHandler);
 emailOrdersRoutes.patch("/:id/quote-status", setQuoteStatusHandler);
 emailOrdersRoutes.patch("/:id/favorite", setFavoriteHandler);

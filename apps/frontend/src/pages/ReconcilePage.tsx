@@ -1,11 +1,22 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, FileText } from 'lucide-react'
+import { Check, Search, Sparkles } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useFeedback } from '../components/feedback'
 import { formatEuro } from '../lib/format'
-import { listCardClass as cardClass, primaryButtonClass, sectionLabelClass } from '../components/ui'
+import {
+  PageHeader,
+  filterActiveClass,
+  filterClass,
+  filterIdleClass,
+  listCardClass as cardClass,
+  primaryButtonClass,
+  searchInputClass,
+  sectionLabelClass,
+  smallButtonClass,
+} from '../components/ui'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
 
@@ -23,18 +34,11 @@ type EmailOrder = {
   client: { id: string; name: string } | null
 }
 
-type DocFile = {
-  number: string
-  name: string
-  title: string
-  hasPdf: boolean
-  hasDocx: boolean
-}
+type DocFile = { number: string; name: string; title: string; hasPdf: boolean }
+type Suggestion = { number: string; name: string; title: string; reason: 'order' | 'quote' | 'amount' }
 
-type Target = {
-  key: 'missingQuote' | 'missingAlbaran' | 'missingFactura'
-  categories: DocCategory[]
-}
+type TargetKey = 'missingQuote' | 'missingAlbaran' | 'missingFactura'
+type Target = { key: TargetKey; categories: DocCategory[] }
 
 function usePdfPreview() {
   const [url, setUrl] = useState<string | null>(null)
@@ -55,8 +59,10 @@ function usePdfPreview() {
 export function ReconcilePage() {
   const { id } = useParams<{ id: string }>()
   const { t, language } = useLanguage()
+  const { toast } = useFeedback()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const queryClient = useQueryClient()
+  const r = t.reconcileManual
 
   const { data: order } = useQuery({
     queryKey: ['email-orders', id],
@@ -70,14 +76,23 @@ export function ReconcilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  const [activeTarget, setActiveTarget] = useState<Target | null>(null)
-  const [activeCategory, setActiveCategory] = useState<DocCategory | null>(null)
+  const [targetKey, setTargetKey] = useState<TargetKey | null>(null)
+  const [category, setCategory] = useState<DocCategory | null>(null)
   const [selected, setSelected] = useState<{ category: DocCategory; number: string; name: string } | null>(null)
+  const [search, setSearch] = useState('')
   const docPreview = usePdfPreview()
 
-  const year = order
-    ? new Date(order.orderDate ?? order.receivedAt).getFullYear()
-    : new Date().getFullYear()
+  const year = order ? new Date(order.orderDate ?? order.receivedAt).getFullYear() : new Date().getFullYear()
+
+  const targets: Target[] = order
+    ? ([
+        order.quoteRef && !order.quotedAt ? { key: 'missingQuote', categories: ['presupuesto', 'pedidoMaterial', 'horasTrabajo'] } : null,
+        order.orderNumber && !order.deliveryNoteAt ? { key: 'missingAlbaran', categories: ['albaran'] } : null,
+        order.orderNumber && !order.invoicedAt ? { key: 'missingFactura', categories: ['factura'] } : null,
+      ].filter(Boolean) as Target[])
+    : []
+  const target = targets.find((x) => x.key === targetKey) ?? targets[0] ?? null
+  const activeCategory = category && target?.categories.includes(category) ? category : (target?.categories[0] ?? null)
 
   const { data: docs = [] } = useQuery({
     queryKey: ['documents', activeCategory, year],
@@ -85,156 +100,221 @@ export function ReconcilePage() {
     enabled: !!activeCategory,
   })
 
-  const linkMutation = useMutation({
-    mutationFn: () =>
-      api.patch(`/email-orders/${id}/link`, { category: selected!.category, number: selected!.number }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-orders'] })
-      setSelected(null)
-      setActiveTarget(null)
-      setActiveCategory(null)
-    },
+  const { data: suggestions = [], isFetching: suggesting } = useQuery({
+    queryKey: ['email-orders', id, 'suggestions', activeCategory],
+    queryFn: async () =>
+      (await api.get<Suggestion[]>(`/email-orders/${id}/suggestions`, { params: { category: activeCategory } })).data,
+    enabled: !!activeCategory && !!id,
   })
 
-  if (!order) return null
-
   const categoryLabel: Record<DocCategory, string> = {
-    presupuesto: t.papeleo.presupuesto.label,
-    pedidoMaterial: t.papeleo.pedidoMaterial.label,
-    horasTrabajo: t.papeleo.horas.label,
-    albaran: t.papeleo.albaran.label,
-    factura: t.papeleo.facturas.label,
+    presupuesto: t.papeleo.presupuesto.tab,
+    pedidoMaterial: t.papeleo.pedidoMaterial.tab,
+    horasTrabajo: t.papeleo.horas.tab,
+    albaran: t.papeleo.albaran.tab,
+    factura: t.papeleo.facturas.tab,
   }
+  const reasonLabel = { order: r.reasonOrder, quote: r.reasonQuote, amount: r.reasonAmount }
 
-  const targets: Target[] = [
-    order.quoteRef && !order.quotedAt
-      ? { key: 'missingQuote' as const, categories: ['presupuesto', 'pedidoMaterial', 'horasTrabajo'] as DocCategory[] }
-      : null,
-    order.orderNumber && !order.deliveryNoteAt
-      ? { key: 'missingAlbaran' as const, categories: ['albaran'] as DocCategory[] }
-      : null,
-    order.orderNumber && !order.invoicedAt
-      ? { key: 'missingFactura' as const, categories: ['factura'] as DocCategory[] }
-      : null,
-  ].filter((t): t is Target => t !== null)
+  const linkMutation = useMutation({
+    mutationFn: (doc: { category: DocCategory; number: string }) =>
+      api.patch(`/email-orders/${id}/link`, { category: doc.category, number: doc.number }),
+    onSuccess: (_d, doc) => {
+      toast(t.docLinks.linked.replace('{doc}', `${categoryLabel[doc.category]} ${doc.number}`))
+      queryClient.invalidateQueries({ queryKey: ['email-orders'] })
+      setSelected(null)
+      setTargetKey(null)
+      setCategory(null)
+      setSearch('')
+    },
+    onError: () => toast(t.common.saveError, 'error'),
+  })
 
-  function selectCategory(target: Target, category: DocCategory) {
-    setActiveTarget(target)
-    setActiveCategory(category)
-    setSelected(null)
-  }
-
-  function selectDoc(category: DocCategory, number: string, name: string) {
-    setSelected({ category, number, name })
+  function selectDoc(cat: DocCategory, number: string, name: string) {
+    setSelected({ category: cat, number, name })
     docPreview.load(
       async () =>
-        (await api.get(`/documents/${category}/file`, { params: { year, number, name, ext: 'pdf' }, responseType: 'blob' }))
-          .data,
+        (await api.get(`/documents/${cat}/file`, { params: { year, number, name, ext: 'pdf' }, responseType: 'blob' })).data,
     )
   }
 
-  return (
-    <div className="flex flex-col gap-3 lg:h-[calc(100dvh-12rem)]">
-      <Link
-        to="/papeleo/pedidos"
-        className="inline-flex w-fit items-center gap-1.5 rounded-md text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t.reconcileManual.back}
-      </Link>
+  if (!order) return null
 
-      <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:overflow-hidden">
-        {/* Left: order preview, always visible */}
-        <div className={`${cardClass} flex w-full flex-col lg:w-2/5 lg:overflow-hidden`}>
-          <p className="font-display text-base font-semibold text-ink dark:text-cream">{order.subject}</p>
-          <p className="mt-1 text-xs text-graphite dark:text-graphite-dark">
-            {[order.client?.name, order.orderNumber, order.totalAmount && formatEuro(order.totalAmount, locale)]
+  const query = search.trim().toLowerCase()
+  const list = docs.filter((d) => !query || `${d.number} ${d.title}`.toLowerCase().includes(query))
+  const isSelected = (name: string) => selected?.category === activeCategory && selected?.name === name
+
+  return (
+    <div className="flex flex-col gap-4 lg:h-[calc(100dvh-8rem)]">
+      <PageHeader
+        backTo="/papeleo/pedidos"
+        backLabel={r.back}
+        title={r.title}
+        subtitle={
+          <span className="font-mono">
+            {[order.orderNumber, order.client?.name, order.totalAmount && formatEuro(order.totalAmount, locale)]
               .filter(Boolean)
               .join(' · ')}
-          </p>
-          <div className="mt-3 h-72 overflow-hidden rounded-xl border border-line dark:border-line-dark lg:h-auto lg:flex-1">
-            {orderPreview.url && <iframe title="order-pdf" src={orderPreview.url} className="h-full w-full" />}
-          </div>
-        </div>
+          </span>
+        }
+      />
 
-        {/* Middle: document list, grouped by what's missing */}
-        <div className={`${cardClass} w-full lg:w-1/4 lg:overflow-y-auto`}>
-          {targets.length === 0 && (
-            <p className="text-sm text-graphite dark:text-graphite-dark">{t.reconcileManual.allLinked}</p>
-          )}
-          {targets.map((target) => (
-            <div key={target.key} className="mb-4">
-              <p className={sectionLabelClass}>
-                {t.reconcileManual[target.key]}
-              </p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {target.categories.map((category) => (
+      {targets.length === 0 ? (
+        <p className={`${cardClass} flex items-center gap-2 text-sm text-ink dark:text-cream`}>
+          <Check className="h-4 w-4" />
+          {r.allLinked}
+        </p>
+      ) : (
+        <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:overflow-hidden">
+          {/* Picker: what is missing, likely matches first, then the full searchable list */}
+          <section className={`${cardClass} flex flex-col lg:w-[380px] lg:shrink-0 lg:overflow-hidden`}>
+            <div role="radiogroup" aria-label={r.missing} className="flex flex-wrap gap-2">
+              {targets.map((x) => (
+                <button
+                  key={x.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={target?.key === x.key}
+                  onClick={() => {
+                    setTargetKey(x.key)
+                    setCategory(null)
+                    setSelected(null)
+                  }}
+                  className={`${filterClass} ${target?.key === x.key ? filterActiveClass : filterIdleClass}`}
+                >
+                  {r[x.key]}
+                </button>
+              ))}
+            </div>
+            {target && target.categories.length > 1 && (
+              <div role="radiogroup" aria-label={r.documentType} className="mt-2 flex flex-wrap gap-1.5">
+                {target.categories.map((c) => (
                   <button
-                    key={category}
+                    key={c}
                     type="button"
-                    onClick={() => selectCategory(target, category)}
-                    aria-pressed={activeCategory === category && activeTarget?.key === target.key}
-                    className={`h-8 rounded-lg px-2.5 text-xs font-semibold transition ${
-                      activeCategory === category && activeTarget?.key === target.key
-                        ? 'bg-ink text-cream dark:bg-yellow dark:text-ink'
-                        : 'bg-ink/5 text-ink hover:bg-ink/10 dark:bg-cream/10 dark:text-cream dark:hover:bg-cream/15'
-                    }`}
+                    role="radio"
+                    aria-checked={activeCategory === c}
+                    onClick={() => {
+                      setCategory(c)
+                      setSelected(null)
+                    }}
+                    className={`${smallButtonClass} ${activeCategory === c ? 'border-ink text-ink dark:border-yellow dark:text-yellow' : ''}`}
                   >
-                    {categoryLabel[category]}
+                    {categoryLabel[c]}
                   </button>
                 ))}
               </div>
-              {activeTarget?.key === target.key && activeCategory && (
-                <div className="mt-2 space-y-1">
-                  {docs.length === 0 && (
-                    <p className="text-xs text-graphite dark:text-graphite-dark">{t.reconcileManual.noDocuments}</p>
-                  )}
-                  {docs.map((doc) => (
+            )}
+
+            <div className="mt-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+              <h2 className={`flex items-center gap-1.5 ${sectionLabelClass}`}>
+                <Sparkles className="h-3.5 w-3.5" />
+                {r.suggestions}
+              </h2>
+              {suggesting ? (
+                <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{r.searchingMatches}</p>
+              ) : suggestions.length === 0 ? (
+                <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{r.noSuggestions}</p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {suggestions.map((s) => (
+                    <li
+                      key={s.name}
+                      className={`rounded-xl border p-3 ${
+                        isSelected(s.name) ? 'border-yellow bg-yellow/10' : 'border-line dark:border-line-dark'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => selectDoc(activeCategory!, s.number, s.name)}
+                        className="block w-full text-left"
+                      >
+                        <span className="text-sm text-ink dark:text-cream">
+                          <span className="mr-1 font-mono font-semibold text-yellow-ink dark:text-yellow">{s.number}</span>
+                          {s.title}
+                        </span>
+                        <span className="mt-1 block text-xs text-graphite dark:text-graphite-dark">{reasonLabel[s.reason]}</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={linkMutation.isPending}
+                        onClick={() => linkMutation.mutate({ category: activeCategory!, number: s.number })}
+                        className={`${primaryButtonClass} mt-2 w-full`}
+                      >
+                        <Check className="h-4 w-4" />
+                        {r.linkButton}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <h2 className={`mt-5 ${sectionLabelClass}`}>{r.allDocuments}</h2>
+              <div className="relative mt-2">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t.documents.searchPlaceholder}
+                  aria-label={t.documents.searchPlaceholder}
+                  className={searchInputClass}
+                />
+              </div>
+              {list.length === 0 && <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{r.noDocuments}</p>}
+              <ul className="mt-2 space-y-1">
+                {list.map((doc) => (
+                  <li key={doc.name}>
                     <button
-                      key={doc.name}
                       type="button"
-                      onClick={() => selectDoc(activeCategory, doc.number, doc.name)}
-                      aria-pressed={selected?.category === activeCategory && selected?.name === doc.name}
-                      className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm ${
-                        selected?.category === activeCategory && selected?.name === doc.name
-                          ? 'bg-yellow/20 text-ink dark:text-cream'
+                      aria-pressed={isSelected(doc.name)}
+                      onClick={() => selectDoc(activeCategory!, doc.number, doc.name)}
+                      className={`w-full rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                        isSelected(doc.name)
+                          ? 'bg-yellow/15 text-ink dark:text-cream'
                           : 'text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10'
                       }`}
                     >
-                      <FileText className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">
-                        <span className="font-mono text-yellow-ink dark:text-yellow">{doc.number}</span> {doc.title}
-                      </span>
+                      <span className="mr-1 font-mono font-semibold text-yellow-ink dark:text-yellow">{doc.number}</span>
+                      {doc.title}
                     </button>
-                  ))}
-                </div>
-              )}
+                  </li>
+                ))}
+              </ul>
             </div>
-          ))}
-        </div>
+          </section>
 
-        {/* Right: preview of the selected document */}
-        <div className={`${cardClass} flex w-full flex-col lg:w-2/5 lg:overflow-hidden`}>
-          {!selected && (
-            <p className="text-sm text-graphite dark:text-graphite-dark">{t.reconcileManual.selectDocument}</p>
-          )}
-          {selected && (
-            <>
-              <div className="h-72 overflow-hidden rounded-xl border border-line dark:border-line-dark lg:h-auto lg:flex-1">
-                {docPreview.url && <iframe title="doc-pdf" src={docPreview.url} className="h-full w-full" />}
-              </div>
-              <button
-                type="button"
-                disabled={linkMutation.isPending}
-                onClick={() => linkMutation.mutate()}
-                className={`${primaryButtonClass} mt-3`}
-              >
-                {linkMutation.isPending ? t.reconcileManual.linking : t.reconcileManual.linkButton}
-              </button>
-            </>
-          )}
+          {/* Selected document, to check it before linking */}
+          <section className={`${cardClass} flex min-h-80 flex-col lg:flex-1 lg:overflow-hidden`}>
+            <h2 className={sectionLabelClass}>{selected ? `${categoryLabel[selected.category]} ${selected.number}` : r.preview}</h2>
+            {!selected ? (
+              <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{r.selectDocument}</p>
+            ) : (
+              <>
+                <div className="mt-2 h-96 overflow-hidden rounded-xl border border-line lg:h-auto lg:flex-1 dark:border-line-dark">
+                  {docPreview.url && <iframe title={r.preview} src={docPreview.url} className="h-full w-full" />}
+                </div>
+                <button
+                  type="button"
+                  disabled={linkMutation.isPending}
+                  onClick={() => linkMutation.mutate(selected)}
+                  className={`${primaryButtonClass} mt-3`}
+                >
+                  {linkMutation.isPending ? r.linking : r.linkButton}
+                </button>
+              </>
+            )}
+          </section>
+
+          {/* The order itself, for comparison */}
+          <section className={`${cardClass} flex min-h-80 flex-col lg:flex-1 lg:overflow-hidden`}>
+            <h2 className={sectionLabelClass}>{r.orderPreview}</h2>
+            <div className="mt-2 h-96 overflow-hidden rounded-xl border border-line lg:h-auto lg:flex-1 dark:border-line-dark">
+              {orderPreview.url && <iframe title={r.orderPreview} src={orderPreview.url} className="h-full w-full" />}
+            </div>
+          </section>
         </div>
-      </div>
+      )}
     </div>
   )
 }
