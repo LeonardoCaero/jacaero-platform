@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, Eye, Link2, Search, ShoppingCart, X } from 'lucide-react'
+import { ArrowUpRight, Eye, Link2, Search, ShoppingCart, Undo2, X } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useFeedback } from './feedback'
@@ -84,6 +84,9 @@ export function QuoteLinks({
   const navigate = useNavigate()
   const [picking, setPicking] = useState<'albaran' | 'factura' | null>(null)
   const [search, setSearch] = useState('')
+  // Toasts are inert behind the dialog, so the undo for a new link sits right here.
+  const [justLinked, setJustLinked] = useState<LinkedDoc | null>(null)
+  const undoTimer = useRef<number | undefined>(undefined)
   const docLabel = { albaran: t.emailOrders.deliveryNote, factura: t.docLinks.invoice }
 
   const { data: candidates = [] } = useQuery({
@@ -106,7 +109,11 @@ export function QuoteLinks({
         })
       ).data,
     onSuccess: ({ id }, file) => {
-      onChange([...links.filter((l) => l.id !== id), { id, category: picking!, year, number: file.number, name: file.name }])
+      const link: LinkedDoc = { id, category: picking!, year, number: file.number, name: file.name }
+      onChange([...links.filter((l) => l.id !== id), link])
+      setJustLinked(link)
+      window.clearTimeout(undoTimer.current)
+      undoTimer.current = window.setTimeout(() => setJustLinked(null), 10000)
       toast(t.docLinks.linked.replace('{doc}', `${docLabel[picking!]} ${file.number}`))
       setPicking(null)
       setSearch('')
@@ -118,6 +125,7 @@ export function QuoteLinks({
     mutationFn: (link: LinkedDoc) => api.delete(`/documents/links/${link.id}`),
     onSuccess: (_d, link) => {
       onChange(links.filter((l) => l.id !== link.id))
+      setJustLinked(null)
       toast(t.docLinks.unlinked.replace('{doc}', `${docLabel[link.category]} ${link.number}`))
     },
     onError: () => toast(t.common.saveError, 'error'),
@@ -169,6 +177,13 @@ export function QuoteLinks({
         <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{t.docLinks.none}</p>
       )}
 
+      {justLinked && links.some((l) => l.id === justLinked.id) && (
+        <button type="button" onClick={() => removeMutation.mutate(justLinked)} className={`${smallButtonClass} mt-2`}>
+          <Undo2 className="h-3.5 w-3.5" />
+          {t.common.undo}
+        </button>
+      )}
+
       {picking ? (
         <div className="mt-3 rounded-xl border border-line p-3 dark:border-line-dark">
           <div className="flex items-center justify-between gap-2">
@@ -198,7 +213,7 @@ export function QuoteLinks({
                   type="button"
                   disabled={addMutation.isPending}
                   onClick={() => addMutation.mutate(c)}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-ink transition hover:bg-ink/5 disabled:opacity-50 dark:text-cream dark:hover:bg-cream/10"
+                  className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-ink transition hover:bg-ink/5 disabled:opacity-50 dark:text-cream dark:hover:bg-cream/10"
                 >
                   <span className="font-mono text-yellow-ink dark:text-yellow">{c.number}</span>
                   <span className="truncate">{c.title}</span>
@@ -324,11 +339,11 @@ export function OrderFinder({ category, year, docName }: { category: 'albaran' |
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
             <input
               type="search"
-              autoFocus
+              autoFocus={window.matchMedia('(min-width: 1024px)').matches}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={t.emailOrders.searchPlaceholder}
-              aria-label={t.emailOrders.searchPlaceholder}
+              placeholder={t.docLinks.searchOrders}
+              aria-label={t.docLinks.searchOrders}
               className={searchInputClass}
             />
           </div>
@@ -344,12 +359,14 @@ export function OrderFinder({ category, year, docName }: { category: 'albaran' |
                 >
                   <span className="min-w-0">
                     <span className="font-mono font-semibold">{o.orderNumber}</span>
+                    <span className="sr-only"> · </span>
                     <span className="ml-2 text-xs text-graphite dark:text-graphite-dark">
                       {new Date(o.orderDate ?? o.receivedAt).toLocaleDateString(locale)}
                     </span>
                   </span>
                   {o.totalAmount && (
                     <span className="shrink-0 font-mono text-xs tabular text-graphite dark:text-graphite-dark">
+                      <span className="sr-only"> · </span>
                       {formatEuro(o.totalAmount, locale)}
                     </span>
                   )}

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CalendarDays, Check, ChevronDown, Eye, FileText, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Check, ChevronDown, Eye, FileText, RefreshCw, Search } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -14,8 +14,10 @@ import {
   primaryButtonClass,
   filterClass,
   filterIdleClass,
+  searchInputClass,
   secondaryButtonClass,
   selectClass,
+  smallButtonClass,
   statusClass,
 } from '../components/ui'
 import { capitalizeFirst } from '../lib/format'
@@ -99,7 +101,7 @@ function storeClient(id: string) {
 
 export function RecurringAlbaranesPage() {
   const { t, language } = useLanguage()
-  const { confirm } = useFeedback()
+  const { confirm, toast } = useFeedback()
   const r = t.recurringAlbaranes
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const queryClient = useQueryClient()
@@ -111,6 +113,49 @@ export function RecurringAlbaranesPage() {
 
   const monthLabel = new Date(`${period}-01T12:00:00`).toLocaleDateString(locale, { month: 'long' })
   const year = period.slice(0, 4)
+
+  // Resources without an order this year: pick the order here instead of hunting for it in Pedidos.
+  const [assigning, setAssigning] = useState<{ id: string; name: string } | null>(null)
+  const [orderSearch, setOrderSearch] = useState('')
+  const { data: allOrders = [] } = useQuery({
+    queryKey: ['email-orders'],
+    queryFn: async () =>
+      (
+        await api.get<
+          {
+            id: string
+            orderNumber: string | null
+            orderDate: string | null
+            receivedAt: string
+            totalAmount: string | null
+            contractResource: { id: string } | null
+            client: { name: string } | null
+          }[]
+        >('/email-orders')
+      ).data,
+    enabled: !!assigning,
+  })
+  const orderQuery = orderSearch.trim().toLowerCase()
+  const assignable = allOrders
+    .filter((o) => o.orderNumber && !o.contractResource)
+    .filter((o) => String(new Date(o.orderDate ?? o.receivedAt).getUTCFullYear()) === year)
+    .filter((o) => !orderQuery || `${o.orderNumber} ${o.client?.name ?? ''}`.toLowerCase().includes(orderQuery))
+  const assignMutation = useMutation({
+    mutationFn: ({ orderId, resourceId }: { orderId: string; resourceId: string | null; orderNumber: string; resourceName: string }) =>
+      api.patch(`/email-orders/${orderId}/resource`, { contractResourceId: resourceId }),
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({ queryKey: ['recurring-albaranes'] })
+      queryClient.invalidateQueries({ queryKey: ['email-orders'] })
+      setAssigning(null)
+      if (v.resourceId) {
+        toast(t.docLinks.assigned.replace('{order}', v.orderNumber).replace('{resource}', v.resourceName), 'success', {
+          label: t.common.undo,
+          onClick: () => assignMutation.mutate({ ...v, resourceId: null }),
+        })
+      }
+    },
+    onError: () => toast(t.common.saveError, 'error'),
+  })
   const money = (n: number) => n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
   const apiError = (err: any) => err?.response?.data?.error ?? r.error
 
@@ -372,16 +417,83 @@ export function RecurringAlbaranesPage() {
                 </div>
               </>
             ) : (
-              <p className={`mt-1 ${mutedClass}`}>
-                {r.noOrder.replace('{year}', year)}{' '}
-                <Link to="/papeleo/pedidos" className="font-semibold text-ink underline dark:text-cream">
-                  {r.goToOrders}
-                </Link>
-              </p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p className={mutedClass}>{r.noOrder.replace('{year}', year)}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrderSearch('')
+                    setAssigning(resource)
+                  }}
+                  className={smallButtonClass}
+                >
+                  <Search className="h-3.5 w-3.5" />
+                  {t.docLinks.findOrder}
+                </button>
+              </div>
             )}
           </div>
         ))}
       </div>
+
+      <Modal
+        open={!!assigning}
+        onClose={() => setAssigning(null)}
+        closeLabel={t.common.close}
+        title={assigning ? `${assigning.name} · ${t.docLinks.findOrder}` : ''}
+      >
+        {assigning && (
+          <>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
+              <input
+                type="search"
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                placeholder={t.docLinks.searchOrders}
+                aria-label={t.docLinks.searchOrders}
+                className={searchInputClass}
+              />
+            </div>
+            <ul className="mt-2 max-h-80 overflow-y-auto">
+              {assignable.map((o) => (
+                <li key={o.id}>
+                  <button
+                    type="button"
+                    disabled={assignMutation.isPending}
+                    onClick={() =>
+                      assignMutation.mutate({
+                        orderId: o.id,
+                        resourceId: assigning.id,
+                        orderNumber: o.orderNumber ?? '',
+                        resourceName: assigning.name,
+                      })
+                    }
+                    className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm text-ink transition hover:bg-ink/5 disabled:opacity-50 dark:text-cream dark:hover:bg-cream/10"
+                  >
+                    <span className="min-w-0">
+                      <span className="font-mono font-semibold">{o.orderNumber}</span>
+                      <span className="sr-only"> · </span>
+                      <span className="ml-2 text-xs text-graphite dark:text-graphite-dark">
+                        {new Date(o.orderDate ?? o.receivedAt).toLocaleDateString(locale)}
+                      </span>
+                    </span>
+                    {o.totalAmount && (
+                      <span className="shrink-0 font-mono text-xs tabular text-graphite dark:text-graphite-dark">
+                        <span className="sr-only"> · </span>
+                        {money(Number(o.totalAmount))}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+              {assignable.length === 0 && (
+                <li className="px-2 py-2 text-sm text-graphite dark:text-graphite-dark">{t.documents.noResults}</li>
+              )}
+            </ul>
+          </>
+        )}
+      </Modal>
 
       <Modal
         open={!!editing && !!draft}

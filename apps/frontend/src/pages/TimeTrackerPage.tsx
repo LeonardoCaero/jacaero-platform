@@ -53,6 +53,7 @@ const DONUT_COLORS = [
   { light: '#e34948', dark: '#e66767' },
 ]
 
+const quickActiveClass = 'border-ink text-ink dark:border-yellow dark:text-yellow'
 const quickButtonClass =
   'rounded-full border border-line px-3.5 py-1.5 text-sm font-medium text-graphite transition hover:border-yellow hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
 
@@ -508,16 +509,29 @@ export function TimeTrackerPage() {
           {(isViewingSelf || (editingId && canEditAll)) && (
           <form onSubmit={handleSubmit} className="mt-3 space-y-3">
             <div className="flex flex-wrap gap-2">
-              <button type="button" className={quickButtonClass} onClick={() => setHours('8')}>
+              <button
+                type="button"
+                aria-pressed={hours === '8'}
+                className={`${quickButtonClass} ${hours === '8' ? quickActiveClass : ''}`}
+                onClick={() => setHours('8')}
+              >
                 {t.timeTracker.fullDay}
               </button>
-              <button type="button" className={quickButtonClass} onClick={() => setHours('4')}>
+              <button
+                type="button"
+                aria-pressed={hours === '4'}
+                className={`${quickButtonClass} ${hours === '4' ? quickActiveClass : ''}`}
+                onClick={() => setHours('4')}
+              >
                 {t.timeTracker.halfDay}
               </button>
             </div>
 
             <div className="flex gap-3">
-              <div className="w-24 shrink-0">
+              <div className="relative w-24 shrink-0">
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-graphite dark:text-graphite-dark">
+                  h
+                </span>
                 <input
                   type="number"
                   required

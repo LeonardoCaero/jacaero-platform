@@ -34,7 +34,15 @@ type EmailOrder = {
   client: { id: string; name: string } | null
 }
 
-type Candidate = { number: string; name: string; title: string; total: number | null; reason?: 'order' | 'quote' | 'amount' }
+type Candidate = {
+  number: string
+  name: string
+  title: string
+  total: number | null
+  poNumber: string | null
+  linkedTo: string | null
+  reason?: 'order' | 'quote' | 'amount'
+}
 
 type TargetKey = 'missingQuote' | 'missingAlbaran' | 'missingFactura'
 type Target = { key: TargetKey; categories: DocCategory[] }
@@ -164,12 +172,17 @@ export function ReconcilePage() {
 
   if (!order) return null
 
-  const selectedTotal = selected ? (docs.find((d) => d.name === selected.name)?.total ?? null) : null
+  const selectedDoc = selected ? docs.find((d) => d.name === selected.name) : undefined
+  const selectedTotal = selectedDoc?.total ?? null
+  const poMismatch =
+    selectedDoc?.poNumber && order.orderNumber && selectedDoc.poNumber !== order.orderNumber ? selectedDoc.poNumber : null
   const orderTotal = order.totalAmount != null ? Number(order.totalAmount) : null
   const amountsMatch = selectedTotal != null && orderTotal != null && Math.abs(selectedTotal - orderTotal) < 0.01
 
   const query = search.trim().toLowerCase()
-  const list = docs.filter((d) => !query || `${d.number} ${d.title}`.toLowerCase().includes(query))
+  const list = docs
+    .filter((d) => !query || `${d.number} ${d.title}`.toLowerCase().includes(query))
+    .sort((a, b) => Number(!!a.linkedTo) - Number(!!b.linkedTo))
   const isSelected = (name: string) => selected?.category === activeCategory && selected?.name === name
 
   return (
@@ -306,7 +319,7 @@ export function ReconcilePage() {
                       type="button"
                       aria-pressed={isSelected(doc.name)}
                       onClick={() => selectDoc(activeCategory!, doc.number, doc.name)}
-                      className={`min-h-11 w-full rounded-lg px-2.5 py-2.5 text-left text-sm transition ${
+                      className={`min-h-11 w-full rounded-lg px-2.5 py-2.5 text-left text-sm transition ${doc.linkedTo ? 'opacity-60' : ''} ${
                         isSelected(doc.name)
                           ? 'bg-yellow/15 text-ink dark:text-cream'
                           : 'text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10'
@@ -314,9 +327,14 @@ export function ReconcilePage() {
                     >
                       <span className="mr-1 font-mono font-semibold text-yellow-ink dark:text-yellow">{doc.number}</span>
                       {doc.title}
-                      {doc.total != null && (
-                        <span className="mt-0.5 block font-mono text-xs tabular text-graphite dark:text-graphite-dark">
-                          {formatEuro(doc.total, locale)}
+                      {(doc.total != null || doc.linkedTo) && (
+                        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-graphite dark:text-graphite-dark">
+                          {doc.total != null && <span className="font-mono tabular">{formatEuro(doc.total, locale)}</span>}
+                          {doc.linkedTo && (
+                            <span className="rounded-full border border-line px-2 py-px font-semibold dark:border-line-dark">
+                              {r.linkedElsewhere.replace('{order}', doc.linkedTo)}
+                            </span>
+                          )}
                         </span>
                       )}
                     </button>
@@ -329,6 +347,13 @@ export function ReconcilePage() {
           {/* Selected document, to check it before linking */}
           <section ref={previewRef} className={`${cardClass} flex min-h-80 scroll-mt-4 flex-col lg:flex-1 lg:overflow-hidden`}>
             <h2 className={sectionLabelClass}>{selected ? `${categoryLabel[selected.category]} ${selected.number}` : r.preview}</h2>
+            {(selectedDoc?.linkedTo || poMismatch) && (
+              <p className="mt-2 rounded-lg bg-rust/10 px-2.5 py-1.5 text-xs font-semibold text-rust dark:bg-rust-dark/15 dark:text-rust-dark">
+                {selectedDoc?.linkedTo
+                  ? r.linkedElsewhere.replace('{order}', selectedDoc.linkedTo)
+                  : r.poMismatch.replace('{po}', poMismatch!)}
+              </p>
+            )}
             {selectedTotal != null && orderTotal != null && (
               <p
                 className={`mt-2 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
@@ -353,7 +378,13 @@ export function ReconcilePage() {
                   type="button"
                   disabled={linkMutation.isPending}
                   onClick={async () => {
-                    if (!amountsMatch && selectedTotal != null && orderTotal != null) {
+                    if (selectedDoc?.linkedTo) {
+                      const ok = await confirm({
+                        message: r.confirmRelink.replace('{order}', selectedDoc.linkedTo),
+                        confirmLabel: r.linkButton,
+                      })
+                      if (!ok) return
+                    } else if (poMismatch || (!amountsMatch && selectedTotal != null && orderTotal != null)) {
                       const ok = await confirm({ message: r.confirmMismatch, confirmLabel: r.linkButton })
                       if (!ok) return
                     }

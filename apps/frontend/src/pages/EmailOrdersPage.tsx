@@ -639,7 +639,7 @@ export function EmailOrdersPage() {
                 <div className="flex min-w-0 items-center gap-1">
                   <FavoriteButton
                     favorite={order.favorite}
-                    label={t.emailOrders.favorite}
+                    label={`${t.emailOrders.favorite} ${order.orderNumber ?? order.subject}`}
                     onToggle={() => favoriteMutation.mutate({ id: order.id, favorite: !order.favorite })}
                   />
                   <div className="min-w-0 pl-1">
@@ -678,6 +678,7 @@ export function EmailOrdersPage() {
                       className="inline-flex items-center rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow"
                     >
                       {t.emailOrders.facturarOk}
+                      <span className="sr-only">: {t.emailOrders.facturarOkHint}</span>
                     </span>
                   )}
                 </div>

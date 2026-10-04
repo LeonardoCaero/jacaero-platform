@@ -136,7 +136,7 @@ export function PageHeader({
       <div className={`flex flex-wrap items-end justify-between gap-3 ${backTo || aside ? 'mt-3' : ''}`}>
         <div className="min-w-0">
           <h1 className="font-display text-3xl font-semibold text-ink dark:text-cream">{title}</h1>
-          {subtitle && <p className="mt-1 text-sm text-graphite dark:text-graphite-dark">{subtitle}</p>}
+          {subtitle && <p className="mt-1 text-sm text-graphite max-sm:hidden dark:text-graphite-dark">{subtitle}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>

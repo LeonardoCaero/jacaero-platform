@@ -689,14 +689,49 @@ export async function suggestDocuments(id: string, category: DocCategory) {
   const quoteNumber = order.quoteRef ? Number(order.quoteRef.replace(/\D/g, "")) : null;
   const isOrigin = (ORIGIN_CATEGORIES as readonly string[]).includes(category);
 
-  type Candidate = { number: string; name: string; title: string; total: number | null; reason?: keyof typeof SUGGESTION_RANK };
+  type Candidate = {
+    number: string;
+    name: string;
+    title: string;
+    total: number | null;
+    poNumber: string | null;
+    linkedTo: string | null;
+    reason?: keyof typeof SUGGESTION_RANK;
+  };
+  // Who already holds each albarán / factura number this year, so the picker can warn before re-linking.
+  const numberField = category === "albaran" ? "albaranNumber" : category === "factura" ? "facturaNumber" : null;
+  const holders = new Map<number, string>();
+  if (numberField) {
+    const yearStart = new Date(Date.UTC(year, 0, 1));
+    const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
+    const others = await prisma.emailOrder.findMany({
+      where: {
+        id: { not: id },
+        [numberField]: { not: null },
+        OR: [
+          { orderDate: { gte: yearStart, lt: yearEnd } },
+          { orderDate: null, receivedAt: { gte: yearStart, lt: yearEnd } },
+        ],
+      },
+      select: { orderNumber: true, albaranNumber: true, facturaNumber: true },
+    });
+    for (const o of others) holders.set(Number(o[numberField]), o.orderNumber ?? "?");
+  }
   const documents: Candidate[] = [];
   for (const f of await listCategory(category, year)) {
     if (!f.hasPdf) continue;
-    const doc: Candidate = { number: f.number, name: f.name, title: f.title, total: null };
+    const doc: Candidate = {
+      number: f.number,
+      name: f.name,
+      title: f.title,
+      total: null,
+      poNumber: null,
+      linkedTo: holders.get(Number(f.number)) ?? null,
+    };
     try {
       const info = await pdfInfo(await getCategoryFile(category, year, f.number, "pdf", f.name));
       doc.total = info.total ?? null;
+      doc.poNumber = info.orderNumber ?? null;
       doc.reason =
         isOrigin && quoteNumber && Number(f.number) === quoteNumber
           ? "quote"
@@ -711,7 +746,7 @@ export async function suggestDocuments(id: string, category: DocCategory) {
     documents.push(doc);
   }
   const suggestions = documents
-    .filter((d) => d.reason)
+    .filter((d) => d.reason && !d.linkedTo)
     .sort((a, b) => SUGGESTION_RANK[a.reason!] - SUGGESTION_RANK[b.reason!])
     .slice(0, 5);
   return { suggestions, documents };

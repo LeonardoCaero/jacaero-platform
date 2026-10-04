@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, MoreHorizontal } from 'lucide-react'
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -9,8 +9,23 @@ import { Avatar } from './Avatar'
 import { api } from '../lib/axios'
 import { papeleoSections } from '../lib/modules'
 
+const tabClass = (active: boolean) =>
+  `flex min-w-0 items-center justify-center rounded-lg font-semibold transition ${
+    active ? 'bg-ink text-cream dark:bg-yellow dark:text-ink' : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
+  }`
+
 function PapeleoNav() {
   const { t } = useLanguage()
+  const location = useLocation()
+  const primary = papeleoSections.slice(0, 4)
+  const secondary = papeleoSections.slice(4)
+  const activeSecondary = secondary.find((s) => location.pathname === s.path)
+  const more = useRef<HTMLDetailsElement>(null)
+
+  useEffect(() => {
+    if (more.current) more.current.open = false
+  }, [location.pathname])
+
   return (
     <nav aria-label={t.modules.papeleo.label} className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
       <Link
@@ -20,21 +35,42 @@ function PapeleoNav() {
         <ArrowLeft className="h-4 w-4" />
         {t.comingSoon.back}
       </Link>
-      <div className="grid grid-cols-4 gap-1 rounded-xl border border-line bg-surface p-1 lg:flex lg:w-max dark:border-line-dark dark:bg-surface-dark">
-        {papeleoSections.map((s) => (
-          <NavLink
-            key={s.path}
-            to={s.path}
-            className={({ isActive }) =>
-              `flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-xs font-semibold transition lg:h-8 lg:flex-row lg:gap-1.5 lg:px-3 lg:py-0 lg:text-sm lg:whitespace-nowrap ${
-                isActive
-                  ? 'bg-ink text-cream dark:bg-yellow dark:text-ink'
-                  : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
-              }`
-            }
-          >
-            <s.icon className="h-4 w-4 shrink-0 lg:h-3.5 lg:w-3.5" />
+
+      {/* Phones: the four pipeline tabs plus "Más" for the rest, one row, no horizontal scroll. */}
+      <div className="grid grid-cols-5 gap-1 rounded-xl border border-line bg-surface p-1 lg:hidden dark:border-line-dark dark:bg-surface-dark">
+        {primary.map((s) => (
+          <NavLink key={s.path} to={s.path} className={({ isActive }) => `${tabClass(isActive)} min-h-12 flex-col gap-0.5 px-1 text-xs`}>
+            <s.icon className="h-4 w-4 shrink-0" />
             <span className="max-w-full truncate">{t.papeleo[s.key].tab}</span>
+          </NavLink>
+        ))}
+        <details ref={more} className="relative">
+          <summary
+            className={`${tabClass(!!activeSecondary)} min-h-12 cursor-pointer list-none flex-col gap-0.5 px-1 text-xs [&::-webkit-details-marker]:hidden`}
+          >
+            {activeSecondary ? <activeSecondary.icon className="h-4 w-4 shrink-0" /> : <MoreHorizontal className="h-4 w-4 shrink-0" />}
+            <span className="max-w-full truncate">{activeSecondary ? t.papeleo[activeSecondary.key].tab : t.common.more}</span>
+          </summary>
+          <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-line bg-surface p-1 shadow-lg dark:border-line-dark dark:bg-surface-dark">
+            {secondary.map((s) => (
+              <NavLink
+                key={s.path}
+                to={s.path}
+                className={({ isActive }) => `${tabClass(isActive)} min-h-11 justify-start gap-2 px-3 text-sm`}
+              >
+                <s.icon className="h-4 w-4 shrink-0" />
+                {t.papeleo[s.key].tab}
+              </NavLink>
+            ))}
+          </div>
+        </details>
+      </div>
+
+      <div className="hidden w-max gap-1 rounded-xl border border-line bg-surface p-1 lg:flex dark:border-line-dark dark:bg-surface-dark">
+        {papeleoSections.map((s) => (
+          <NavLink key={s.path} to={s.path} className={({ isActive }) => `${tabClass(isActive)} h-8 gap-1.5 px-3 text-sm whitespace-nowrap`}>
+            <s.icon className="h-3.5 w-3.5 shrink-0" />
+            {t.papeleo[s.key].tab}
           </NavLink>
         ))}
       </div>
