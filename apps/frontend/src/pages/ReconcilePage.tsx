@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, FileText } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
+import { formatEuro } from '../lib/format'
+import { listCardClass as cardClass, primaryButtonClass, sectionLabelClass } from '../components/ui'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
 
@@ -34,20 +36,6 @@ type Target = {
   categories: DocCategory[]
 }
 
-const cardClass =
-  'rounded-2xl border border-line bg-surface p-4 shadow-sm dark:border-line-dark dark:bg-surface-dark'
-
-const primaryButtonClass =
-  'flex h-10 items-center justify-center gap-1.5 rounded-xl bg-ink px-4 text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90'
-
-const CATEGORY_LABEL: Record<DocCategory, string> = {
-  presupuesto: 'Presupuestos',
-  pedidoMaterial: 'Pedidos de material',
-  horasTrabajo: 'Horas',
-  albaran: 'Albaranes',
-  factura: 'Facturas',
-}
-
 function usePdfPreview() {
   const [url, setUrl] = useState<string | null>(null)
 
@@ -66,7 +54,8 @@ function usePdfPreview() {
 
 export function ReconcilePage() {
   const { id } = useParams<{ id: string }>()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const queryClient = useQueryClient()
 
   const { data: order } = useQuery({
@@ -109,6 +98,14 @@ export function ReconcilePage() {
 
   if (!order) return null
 
+  const categoryLabel: Record<DocCategory, string> = {
+    presupuesto: t.papeleo.presupuesto.label,
+    pedidoMaterial: t.papeleo.pedidoMaterial.label,
+    horasTrabajo: t.papeleo.horas.label,
+    albaran: t.papeleo.albaran.label,
+    factura: t.papeleo.facturas.label,
+  }
+
   const targets: Target[] = [
     order.quoteRef && !order.quotedAt
       ? { key: 'missingQuote' as const, categories: ['presupuesto', 'pedidoMaterial', 'horasTrabajo'] as DocCategory[] }
@@ -137,10 +134,10 @@ export function ReconcilePage() {
   }
 
   return (
-    <div className="flex flex-col gap-3 lg:h-[calc(100vh-8rem)]">
+    <div className="flex flex-col gap-3 lg:h-[calc(100dvh-12rem)]">
       <Link
         to="/papeleo/pedidos"
-        className="inline-flex w-fit items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+        className="inline-flex w-fit items-center gap-1.5 rounded-md text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
       >
         <ArrowLeft className="h-4 w-4" />
         {t.reconcileManual.back}
@@ -151,7 +148,9 @@ export function ReconcilePage() {
         <div className={`${cardClass} flex w-full flex-col lg:w-2/5 lg:overflow-hidden`}>
           <p className="font-display text-base font-semibold text-ink dark:text-cream">{order.subject}</p>
           <p className="mt-1 text-xs text-graphite dark:text-graphite-dark">
-            {order.client?.name} · {order.orderNumber} · {order.totalAmount ? `${order.totalAmount} €` : ''}
+            {[order.client?.name, order.orderNumber, order.totalAmount && formatEuro(order.totalAmount, locale)]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
           <div className="mt-3 h-72 overflow-hidden rounded-xl border border-line dark:border-line-dark lg:h-auto lg:flex-1">
             {orderPreview.url && <iframe title="order-pdf" src={orderPreview.url} className="h-full w-full" />}
@@ -165,7 +164,7 @@ export function ReconcilePage() {
           )}
           {targets.map((target) => (
             <div key={target.key} className="mb-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-graphite dark:text-graphite-dark">
+              <p className={sectionLabelClass}>
                 {t.reconcileManual[target.key]}
               </p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -174,13 +173,14 @@ export function ReconcilePage() {
                     key={category}
                     type="button"
                     onClick={() => selectCategory(target, category)}
-                    className={`rounded-lg px-2 py-1 text-xs ${
+                    aria-pressed={activeCategory === category && activeTarget?.key === target.key}
+                    className={`h-8 rounded-lg px-2.5 text-xs font-semibold transition ${
                       activeCategory === category && activeTarget?.key === target.key
                         ? 'bg-ink text-cream dark:bg-cream dark:text-ink'
                         : 'bg-ink/5 text-ink hover:bg-ink/10 dark:bg-cream/10 dark:text-cream dark:hover:bg-cream/15'
                     }`}
                   >
-                    {CATEGORY_LABEL[category]}
+                    {categoryLabel[category]}
                   </button>
                 ))}
               </div>
@@ -194,7 +194,8 @@ export function ReconcilePage() {
                       key={doc.name}
                       type="button"
                       onClick={() => selectDoc(activeCategory, doc.number, doc.name)}
-                      className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs ${
+                      aria-pressed={selected?.category === activeCategory && selected?.name === doc.name}
+                      className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm ${
                         selected?.category === activeCategory && selected?.name === doc.name
                           ? 'bg-yellow/20 text-ink dark:text-cream'
                           : 'text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10'
@@ -202,7 +203,7 @@ export function ReconcilePage() {
                     >
                       <FileText className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">
-                        {doc.number} — {doc.title}
+                        <span className="font-mono text-yellow-ink dark:text-yellow">{doc.number}</span> {doc.title}
                       </span>
                     </button>
                   ))}

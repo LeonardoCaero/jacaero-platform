@@ -1,10 +1,20 @@
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ArrowLeft, Check, Eye, FileText, RefreshCw, X } from 'lucide-react'
+import { AlertTriangle, Check, Eye, FileText, RefreshCw } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
+import {
+  Modal,
+  PageHeader,
+  inputClass as baseInputClass,
+  labelClass,
+  listCardClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+  selectClass,
+  statusClass,
+} from '../components/ui'
 
 type Kind = 'albaran' | 'factura'
 
@@ -59,16 +69,7 @@ const IVA = 0.21
 const WAIT_HOURS = 48
 const CLIENT_KEY = 'generacion.clientId'
 
-const primaryButtonClass =
-  'flex h-9 items-center gap-1.5 rounded-xl bg-ink px-3 text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90'
-
-const secondaryButtonClass =
-  'flex h-9 items-center gap-1.5 rounded-xl border border-line px-3 text-sm font-semibold text-graphite transition hover:text-ink active:scale-[0.98] disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
-
-const inputClass =
-  'mt-1 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
-
-const labelClass = 'block text-xs text-graphite dark:text-graphite-dark'
+const inputClass = `${baseInputClass} mt-1`
 const mutedClass = 'text-xs text-graphite dark:text-graphite-dark'
 
 function currentPeriod() {
@@ -274,26 +275,19 @@ export function RecurringAlbaranesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <Link
-          to="/papeleo"
-          className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {r.back}
-        </Link>
-
-        <input
-          type="month"
-          value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-          className="h-9 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
-        />
-      </div>
-
-      <h1 className="mt-4 font-display text-2xl font-semibold tracking-wide text-ink dark:text-cream">
-        {t.papeleo.generacion.label}
-      </h1>
+      <PageHeader
+        title={t.papeleo.generacion.label}
+        subtitle={t.papeleo.generacion.description}
+        actions={
+          <input
+            type="month"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            aria-label={r.date}
+            className={selectClass}
+          />
+        }
+      />
 
       {!isLoading && clients.length === 0 && (
         <p className="mt-6 text-center text-sm text-graphite dark:text-graphite-dark">
@@ -305,7 +299,7 @@ export function RecurringAlbaranesPage() {
       )}
 
       {client && (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
           {clients.length === 1 ? (
             <p className="text-sm font-semibold text-ink dark:text-cream">{client.name}</p>
           ) : (
@@ -315,7 +309,8 @@ export function RecurringAlbaranesPage() {
                 setClientId(e.target.value)
                 storeClient(e.target.value)
               }}
-              className="h-9 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+              aria-label={t.modules.clients.label}
+              className={selectClass}
             >
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -332,7 +327,7 @@ export function RecurringAlbaranesPage() {
       )}
 
       {saved && (
-        <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-ink dark:text-cream">
+        <p role="status" className={`mt-4 flex items-center gap-1.5 font-semibold ${statusClass}`}>
           <Check className="h-4 w-4" />
           {r.saved.replace('{number}', saved)}
         </p>
@@ -343,7 +338,7 @@ export function RecurringAlbaranesPage() {
         {client?.resources.map((resource) => (
           <div
             key={resource.id}
-            className="rounded-2xl border border-line bg-surface p-4 shadow-sm dark:border-line-dark dark:bg-surface-dark"
+            className={listCardClass}
           >
             <p className="truncate text-sm font-semibold text-ink dark:text-cream">{resource.name}</p>
 
@@ -369,178 +364,165 @@ export function RecurringAlbaranesPage() {
         ))}
       </div>
 
-      {editing &&
-        draft &&
-        createPortal(
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={() => setEditing(null)}>
-            <form
-              className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-surface p-5 shadow-xl dark:bg-surface-dark"
-              onClick={(e) => e.stopPropagation()}
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (editing.step === 'edit') setEditing({ ...editing, step: 'review' })
-                else generateMutation.mutate()
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <p className="font-semibold text-ink dark:text-cream">
-                  {r[editing.kind]} · {editing.resourceName} · {monthLabel}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setEditing(null)}
-                  className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+      <Modal
+        open={!!editing && !!draft}
+        onClose={() => setEditing(null)}
+        closeLabel={t.common.close}
+        title={editing && `${r[editing.kind]} · ${editing.resourceName} · ${monthLabel}`}
+      >
+        {editing && draft && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (editing.step === 'edit') setEditing({ ...editing, step: 'review' })
+              else generateMutation.mutate()
+            }}
+          >
+          {editing.step === 'edit' ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <label className={labelClass}>
+                  {r.number}
+                  <input
+                    required
+                    inputMode="numeric"
+                    pattern="\d{1,4}"
+                    value={draft.number}
+                    onChange={(e) => updateDraft({ number: e.target.value })}
+                    className={inputClass}
+                  />
+                </label>
+                <label className={labelClass}>
+                  {r.date}
+                  <input
+                    type="date"
+                    required
+                    value={draft.date}
+                    onChange={(e) => updateDraft({ date: e.target.value })}
+                    className={inputClass}
+                  />
+                </label>
               </div>
 
-              {editing.step === 'edit' ? (
-                <>
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <label className={labelClass}>
-                      {r.number}
-                      <input
-                        required
-                        inputMode="numeric"
-                        pattern="\d{1,4}"
-                        value={draft.number}
-                        onChange={(e) => updateDraft({ number: e.target.value })}
-                        className={inputClass}
-                      />
-                    </label>
-                    <label className={labelClass}>
-                      {r.date}
-                      <input
-                        type="date"
-                        required
-                        value={draft.date}
-                        onChange={(e) => updateDraft({ date: e.target.value })}
-                        className={inputClass}
-                      />
-                    </label>
+              <div className="mt-3 space-y-3">
+                {draft.conceptLines.map((line, i) => (
+                  <label key={i} className={labelClass}>
+                    {r.concept} {i + 1}
+                    <input
+                      value={line}
+                      onChange={(e) =>
+                        updateDraft({ conceptLines: draft.conceptLines.map((l, j) => (j === i ? e.target.value : l)) })
+                      }
+                      className={inputClass}
+                    />
+                  </label>
+                ))}
+
+                <label className={labelClass}>
+                  {r.baseAmount}
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    step="0.01"
+                    value={draft.baseAmount}
+                    onChange={(e) => updateDraft({ baseAmount: Number(e.target.value) })}
+                    className={inputClass}
+                  />
+                </label>
+                <p className={mutedClass}>
+                  {r.amountSource[draft.amountSource].replace('{month}', monthLabel)} · IVA 21 %: {money(iva)} · {r.total}:{' '}
+                  <span className="font-semibold text-ink dark:text-cream">{money(draft.baseAmount + iva)}</span>
+                </p>
+
+                <label className={labelClass}>
+                  {r.filename}
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-sm text-graphite dark:text-graphite-dark">{draft.number}</span>
+                    <input
+                      required
+                      value={draft.title}
+                      onChange={(e) => updateDraft({ title: e.target.value })}
+                      className={baseInputClass}
+                    />
                   </div>
+                </label>
+              </div>
 
-                  <div className="mt-3 space-y-3">
-                    {draft.conceptLines.map((line, i) => (
-                      <label key={i} className={labelClass}>
-                        {r.concept} {i + 1}
-                        <input
-                          value={line}
-                          onChange={(e) =>
-                            updateDraft({ conceptLines: draft.conceptLines.map((l, j) => (j === i ? e.target.value : l)) })
-                          }
-                          className={inputClass}
-                        />
-                      </label>
-                    ))}
-
-                    <label className={labelClass}>
-                      {r.baseAmount}
-                      <input
-                        type="number"
-                        required
-                        min={0}
-                        step="0.01"
-                        value={draft.baseAmount}
-                        onChange={(e) => updateDraft({ baseAmount: Number(e.target.value) })}
-                        className={inputClass}
-                      />
-                    </label>
-                    <p className={mutedClass}>
-                      {r.amountSource[draft.amountSource].replace('{month}', monthLabel)} · IVA 21 %: {money(iva)} · {r.total}:{' '}
-                      <span className="font-semibold text-ink dark:text-cream">{money(draft.baseAmount + iva)}</span>
-                    </p>
-
-                    <label className={labelClass}>
-                      {r.filename}
-                      <div className="mt-1 flex items-center gap-2">
-                        <span className="text-sm text-graphite dark:text-graphite-dark">{draft.number}</span>
-                        <input
-                          required
-                          value={draft.title}
-                          onChange={(e) => updateDraft({ title: e.target.value })}
-                          className={`${inputClass} mt-0`}
-                        />
-                      </div>
-                    </label>
+              <div className="mt-5 flex justify-end">
+                <button type="submit" className={primaryButtonClass}>
+                  {r.review}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+                <dt className={mutedClass}>{r.number}</dt>
+                <dd className="font-semibold text-ink dark:text-cream">{draft.number}</dd>
+                <dt className={mutedClass}>{r.date}</dt>
+                <dd className="text-ink dark:text-cream">
+                  {new Date(`${draft.date}T12:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
+                </dd>
+                {draft.conceptLines.map((line, i) => (
+                  <div key={i} className="contents">
+                    <dt className={mutedClass}>
+                      {r.concept} {i + 1}
+                    </dt>
+                    <dd className="text-ink dark:text-cream">{line}</dd>
                   </div>
+                ))}
+                <dt className={mutedClass}>{r.baseAmountShort}</dt>
+                <dd className="text-ink dark:text-cream">{money(draft.baseAmount)}</dd>
+                <dt className={mutedClass}>IVA 21 %</dt>
+                <dd className="text-ink dark:text-cream">{money(iva)}</dd>
+                <dt className={mutedClass}>{r.total}</dt>
+                <dd className="font-semibold text-ink dark:text-cream">{money(draft.baseAmount + iva)}</dd>
+                <dt className={mutedClass}>{r.filename}</dt>
+                <dd className="break-all text-ink dark:text-cream">
+                  {draft.number} {draft.title}
+                </dd>
+              </dl>
+              <p className={`mt-2 ${mutedClass}`}>{r.amountSource[draft.amountSource].replace('{month}', monthLabel)}</p>
 
-                  <div className="mt-5 flex justify-end">
-                    <button type="submit" className={primaryButtonClass}>
-                      {r.review}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-                    <dt className={mutedClass}>{r.number}</dt>
-                    <dd className="font-semibold text-ink dark:text-cream">{draft.number}</dd>
-                    <dt className={mutedClass}>{r.date}</dt>
-                    <dd className="text-ink dark:text-cream">
-                      {new Date(`${draft.date}T12:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </dd>
-                    {draft.conceptLines.map((line, i) => (
-                      <div key={i} className="contents">
-                        <dt className={mutedClass}>
-                          {r.concept} {i + 1}
-                        </dt>
-                        <dd className="text-ink dark:text-cream">{line}</dd>
-                      </div>
-                    ))}
-                    <dt className={mutedClass}>{r.baseAmountShort}</dt>
-                    <dd className="text-ink dark:text-cream">{money(draft.baseAmount)}</dd>
-                    <dt className={mutedClass}>IVA 21 %</dt>
-                    <dd className="text-ink dark:text-cream">{money(iva)}</dd>
-                    <dt className={mutedClass}>{r.total}</dt>
-                    <dd className="font-semibold text-ink dark:text-cream">{money(draft.baseAmount + iva)}</dd>
-                    <dt className={mutedClass}>{r.filename}</dt>
-                    <dd className="break-all text-ink dark:text-cream">
-                      {draft.number} {draft.title}
-                    </dd>
-                  </dl>
-                  <p className={`mt-2 ${mutedClass}`}>{r.amountSource[draft.amountSource].replace('{month}', monthLabel)}</p>
+              {warningsFor(editing).map((w) => (
+                <p
+                  key={w}
+                  className="mt-3 flex items-start gap-2 rounded-xl bg-yellow/10 p-3 text-sm text-ink dark:text-cream"
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  {w}
+                </p>
+              ))}
 
-                  {warningsFor(editing).map((w) => (
-                    <p
-                      key={w}
-                      className="mt-3 flex items-start gap-2 rounded-xl bg-yellow/10 p-3 text-sm text-ink dark:text-cream"
-                    >
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                      {w}
-                    </p>
-                  ))}
+              {error && <p className="mt-3 text-sm text-rust dark:text-rust-dark">{error}</p>}
 
-                  {error && <p className="mt-3 text-sm text-rust dark:text-rust-dark">{error}</p>}
-
-                  <div className="mt-5 flex flex-wrap justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEditing({ ...editing, step: 'edit' })}
-                      className={secondaryButtonClass}
-                    >
-                      {r.backToEdit}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => previewMutation.mutate()}
-                      disabled={previewMutation.isPending}
-                      className={secondaryButtonClass}
-                    >
-                      <Eye className="h-4 w-4" />
-                      {previewMutation.isPending ? r.previewing : r.preview}
-                    </button>
-                    <button type="submit" disabled={generateMutation.isPending} className={primaryButtonClass}>
-                      {generateMutation.isPending ? r.generating : r.generate}
-                    </button>
-                  </div>
-                </>
-              )}
-            </form>
-          </div>,
-          document.body,
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditing({ ...editing, step: 'edit' })}
+                  className={secondaryButtonClass}
+                >
+                  {r.backToEdit}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => previewMutation.mutate()}
+                  disabled={previewMutation.isPending}
+                  className={secondaryButtonClass}
+                >
+                  <Eye className="h-4 w-4" />
+                  {previewMutation.isPending ? r.previewing : r.preview}
+                </button>
+                <button type="submit" disabled={generateMutation.isPending} className={primaryButtonClass}>
+                  {generateMutation.isPending ? r.generating : r.generate}
+                </button>
+              </div>
+            </>
+          )}
+          </form>
         )}
+      </Modal>
     </div>
   )
 }

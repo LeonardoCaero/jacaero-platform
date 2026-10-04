@@ -4,7 +4,6 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDownUp,
-  ArrowLeft,
   Building2,
   CalendarDays,
   ChevronDown,
@@ -19,13 +18,24 @@ import {
   StickyNote,
   ShoppingCart,
   Users,
-  X,
 } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { translations } from '../lib/translations'
 import { Skeleton } from '../components/Skeleton'
 import { DocumentNotes } from '../components/DocumentNotes'
+import {
+  Modal,
+  PageHeader,
+  filterActiveClass as pillActiveClass,
+  filterClass as pillClass,
+  filterIdleClass as pillIdleClass,
+  iconButtonClass,
+  inputClass,
+  primaryButtonClass,
+  searchInputClass,
+  sectionLabelClass,
+} from '../components/ui'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
 type PapeleoKey = keyof (typeof translations)['en']['papeleo']
@@ -52,15 +62,6 @@ type QuoteFilter = 'all' | 'noOrder' | 'notSent'
 const rowClass =
   'group rounded-2xl border border-line bg-surface px-4 py-3 shadow-sm transition hover:border-yellow/60 dark:border-line-dark dark:bg-surface-dark dark:hover:border-yellow/40'
 
-const pillClass =
-  'inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition'
-const pillIdleClass =
-  'border-line bg-surface text-graphite hover:text-ink dark:border-line-dark dark:bg-surface-dark dark:text-graphite-dark dark:hover:text-cream'
-const pillActiveClass = 'border-yellow bg-yellow text-ink'
-
-const iconButtonClass =
-  'flex h-8 w-8 items-center justify-center rounded-lg border border-line text-graphite transition hover:border-yellow hover:text-ink lg:h-9 lg:w-9 lg:rounded-xl dark:border-line-dark dark:text-graphite-dark dark:hover:border-yellow/60 dark:hover:text-cream'
-
 const currentYear = new Date().getFullYear()
 const years = [currentYear, currentYear - 1]
 
@@ -69,7 +70,6 @@ const docKey = (f: DocFile) => f.name ?? f.number
 function RowSkeleton({ delay }: { delay: number }) {
   return (
     <div className={`${rowClass} flex items-center gap-3 animate-fade-up`} style={{ animationDelay: `${delay}ms` }}>
-      <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
       <div className="flex-1 space-y-2">
         <Skeleton className="h-4 w-2/3" />
         <Skeleton className="h-3 w-1/3" />
@@ -191,50 +191,43 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <Link
-          to="/papeleo"
-          className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t.documents.back}
-        </Link>
+      <PageHeader
+        title={t.papeleo[titleKey].label}
+        subtitle={t.papeleo[titleKey].description}
+        actions={
+          <label className={`${pillClass} ${pillIdleClass} relative cursor-pointer`}>
+            <CalendarDays className="h-4 w-4" />
+            <span className="text-ink dark:text-cream">{year}</span>
+            <ChevronDown className="h-4 w-4" />
+            <select
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              aria-label={t.documents.year}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </label>
+        }
+      />
 
-        <label className={`${pillClass} ${pillIdleClass} relative cursor-pointer`}>
-          <CalendarDays className="h-4 w-4" />
-          <span className="text-ink dark:text-cream">{year}</span>
-          <ChevronDown className="h-4 w-4" />
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            aria-label={t.documents.year}
-            className="absolute inset-0 cursor-pointer opacity-0"
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <h1 className="mt-4 font-display text-3xl font-semibold tracking-wide text-ink dark:text-cream">
-        {t.papeleo[titleKey].label}
-      </h1>
-      <p className="mt-0.5 text-sm text-graphite dark:text-graphite-dark">{t.papeleo[titleKey].description}</p>
-
-      <div className="relative mt-4">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
+      <div className="relative mt-5">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
         <input
           ref={searchRef}
-          type="text"
+          type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={isQuote ? t.documents.searchQuotePlaceholder : t.documents.searchPlaceholder}
-          className="h-12 w-full rounded-2xl border border-line bg-surface pl-11 pr-20 text-sm text-ink shadow-sm outline-none transition focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-surface-dark dark:text-cream"
+          aria-label={isQuote ? t.documents.searchQuotePlaceholder : t.documents.searchPlaceholder}
+          aria-keyshortcuts="Control+K"
+          className={`${searchInputClass} sm:pr-20`}
         />
-        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-line px-1.5 py-0.5 font-mono text-[11px] text-graphite sm:block dark:border-line-dark dark:text-graphite-dark">
+        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-line px-1.5 py-0.5 font-mono text-xs text-graphite sm:block dark:border-line-dark dark:text-graphite-dark">
           Ctrl K
         </kbd>
       </div>
@@ -248,13 +241,14 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
               <button
                 key={f}
                 type="button"
+                aria-pressed={active}
                 onClick={() => setQuoteFilter(f)}
                 className={`${pillClass} shrink-0 ${active ? pillActiveClass : pillIdleClass}`}
               >
                 <Icon className="h-4 w-4" />
                 {t.documents.quoteFilters[f]}
                 <span
-                  className={`rounded-full px-1.5 py-px font-mono text-[11px] ${
+                  className={`rounded-full px-1.5 py-px font-mono text-xs tabular ${
                     active ? 'bg-ink/15 text-ink' : 'bg-ink/5 text-ink dark:bg-cream/10 dark:text-cream'
                   }`}
                 >
@@ -357,7 +351,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             const actions = (
               <>
                 {f.hasPdf && (
-                  <button type="button" title={t.documents.viewPdf} onClick={() => openFile(f.number, 'pdf', f.name)} className={iconButtonClass}>
+                  <button type="button" title={t.documents.viewPdf} aria-label={t.documents.viewPdf} onClick={() => openFile(f.number, 'pdf', f.name)} className={iconButtonClass}>
                     <Eye className="h-4 w-4" />
                   </button>
                 )}
@@ -365,6 +359,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                   <button
                     type="button"
                     title={t.documents.details}
+                    aria-label={t.documents.details}
                     onClick={() => {
                       setReplacedBy(f.status?.replacedBy ?? '')
                       setDetail(f)
@@ -376,16 +371,16 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 ) : (
                   <>
                     {f.hasPdf && (
-                      <button type="button" title={t.documents.share} onClick={() => shareFile(f)} className={iconButtonClass}>
+                      <button type="button" title={t.documents.share} aria-label={t.documents.share} onClick={() => shareFile(f)} className={iconButtonClass}>
                         <Share2 className="h-4 w-4" />
                       </button>
                     )}
                     {f.hasDocx && (
-                      <button type="button" title={t.documents.downloadWord} onClick={() => openFile(f.number, 'docx', f.name)} className={iconButtonClass}>
+                      <button type="button" title={t.documents.downloadWord} aria-label={t.documents.downloadWord} onClick={() => openFile(f.number, 'docx', f.name)} className={iconButtonClass}>
                         <Download className="h-4 w-4" />
                       </button>
                     )}
-                    <button type="button" title={t.docNotes.title} onClick={() => setDetail(f)} className={iconButtonClass}>
+                    <button type="button" title={t.docNotes.title} aria-label={t.docNotes.title} onClick={() => setDetail(f)} className={iconButtonClass}>
                       <StickyNote className="h-4 w-4" />
                     </button>
                   </>
@@ -394,20 +389,17 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             )
             const heading = (
               <div className="flex min-w-0 items-start gap-3 lg:items-center">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow/15 text-ink dark:text-yellow">
-                  <FileText className="h-5 w-5" />
-                </div>
                 <div className="min-w-0">
                   <p
                     title={`${f.number} · ${f.title}`}
-                    className="line-clamp-2 font-display text-[15px] font-semibold leading-snug tracking-wide text-ink lg:line-clamp-1 dark:text-cream"
+                    className="line-clamp-2 font-display text-base font-semibold leading-snug tracking-wide text-ink lg:line-clamp-1 dark:text-cream"
                   >
-                    <span className="font-mono text-[13px] text-yellow">{f.number}</span> {f.title}
+                    <span className="mr-1 font-mono text-sm text-yellow-ink dark:text-yellow">{f.number}</span> {f.title}
                   </p>
                   {!!f.noteCount && (
-                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-ink dark:text-yellow">
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-yellow-ink dark:text-yellow">
                       <StickyNote className="h-3.5 w-3.5 shrink-0" />
-                      {t.docNotes.count.replace('{count}', String(f.noteCount))}
+                      {f.noteCount === 1 ? t.docNotes.countOne : t.docNotes.count.replace('{count}', String(f.noteCount))}
                     </p>
                   )}
                   {f.client && (
@@ -457,201 +449,198 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
         <p className="mt-6 text-center text-sm text-graphite dark:text-graphite-dark">{t.documents.noResults}</p>
       )}
 
-      {detail &&
-        createPortal(
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 sm:items-center sm:p-4" onClick={() => setDetail(null)}>
-            <div
-              className="max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-xl animate-scale-in sm:max-w-md sm:rounded-2xl dark:bg-surface-dark"
-              onClick={(e) => e.stopPropagation()}
+      <Modal
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        closeLabel={t.common.close}
+        title={
+          detail && (
+            <span className="block">
+              <span className="mr-1 font-mono text-yellow-ink dark:text-yellow">{detail.number}</span> {detail.title}
+              {detail.client && (
+                <span className="mt-1 flex items-center gap-1 font-sans text-xs font-normal text-graphite dark:text-graphite-dark">
+                  <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  {detail.client}
+                </span>
+              )}
+            </span>
+          )
+        }
+      >
+        {detail && (
+          <>
+          {isQuote && (
+            <>
+          <p className={sectionLabelClass}>
+            {t.documents.quoteStates.title}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {([null, 'STANDBY', 'ANULADO', 'SUSTITUIDO'] as const).map((st) => {
+              const active = (detail.status?.status ?? null) === st
+              const label =
+                st === null
+                  ? t.documents.quoteStates.active
+                  : st === 'STANDBY'
+                    ? t.documents.quoteStates.standby
+                    : st === 'ANULADO'
+                      ? t.documents.quoteStates.cancelled
+                      : t.documents.quoteStates.replaced
+              return (
+                <button
+                  key={st ?? 'active'}
+                  type="button"
+                  disabled={statusMutation.isPending}
+                  onClick={() =>
+                    st === 'SUSTITUIDO'
+                      ? setDetail({ ...detail, status: { status: 'SUSTITUIDO', replacedBy: detail.status?.replacedBy ?? null } })
+                      : statusMutation.mutate({ file: detail, status: st })
+                  }
+                  aria-pressed={active}
+                      className={`h-9 rounded-xl border px-3 text-sm font-semibold transition ${
+                    active ? pillActiveClass : pillIdleClass
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          {detail.status?.status === 'SUSTITUIDO' && (
+            <form
+              className="mt-2 flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                statusMutation.mutate({ file: detail, status: 'SUSTITUIDO', replaced: replacedBy.trim() })
+              }}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-display text-lg font-semibold leading-snug tracking-wide text-ink dark:text-cream">
-                    <span className="font-mono text-base text-yellow">{detail.number}</span> {detail.title}
-                  </p>
-                  {detail.client && (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-graphite dark:text-graphite-dark">
-                      <Building2 className="h-3.5 w-3.5 shrink-0" />
-                      {detail.client}
-                    </p>
-                  )}
-                </div>
-                <button type="button" onClick={() => setDetail(null)} className={iconButtonClass}>
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+              <input
+                value={replacedBy}
+                onChange={(e) => setReplacedBy(e.target.value)}
+                placeholder={t.documents.quoteStates.replacedPlaceholder}
+                aria-label={t.documents.quoteStates.replacedPlaceholder}
+                    className={inputClass}
+              />
+              <button type="submit" className={`${primaryButtonClass} shrink-0`}>
+                {t.docNotes.save}
+              </button>
+            </form>
+          )}
 
-              {isQuote && (
-                <>
-              <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
-                {t.documents.quoteStates.title}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {([null, 'STANDBY', 'ANULADO', 'SUSTITUIDO'] as const).map((st) => {
-                  const active = (detail.status?.status ?? null) === st
-                  const label =
-                    st === null
-                      ? t.documents.quoteStates.active
-                      : st === 'STANDBY'
-                        ? t.documents.quoteStates.standby
-                        : st === 'ANULADO'
-                          ? t.documents.quoteStates.cancelled
-                          : t.documents.quoteStates.replaced
-                  return (
-                    <button
-                      key={st ?? 'active'}
-                      type="button"
-                      disabled={statusMutation.isPending}
-                      onClick={() =>
-                        st === 'SUSTITUIDO'
-                          ? setDetail({ ...detail, status: { status: 'SUSTITUIDO', replacedBy: detail.status?.replacedBy ?? null } })
-                          : statusMutation.mutate({ file: detail, status: st })
-                      }
-                      className={`h-8 rounded-full border px-3 text-xs font-semibold transition ${
-                        active ? pillActiveClass : pillIdleClass
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-              {detail.status?.status === 'SUSTITUIDO' && (
-                <form
-                  className="mt-2 flex items-center gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    statusMutation.mutate({ file: detail, status: 'SUSTITUIDO', replaced: replacedBy.trim() })
-                  }}
-                >
-                  <input
-                    value={replacedBy}
-                    onChange={(e) => setReplacedBy(e.target.value)}
-                    placeholder={t.documents.quoteStates.replacedPlaceholder}
-                    className="h-9 flex-1 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
-                  />
-                  <button type="submit" className="h-9 rounded-xl bg-ink px-3 text-xs font-semibold text-cream dark:bg-cream dark:text-ink">
-                    {t.docNotes.save}
+          <p className={`mt-5 ${sectionLabelClass}`}>
+            {t.documents.columnOrder}
+          </p>
+          {detail.orders?.length ? (
+            <div className="mt-2 space-y-2">
+              {detail.orders.map((o) =>
+                o.linked ? (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => previewOrder(o.id)}
+                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-yellow/60 bg-yellow/10 px-3 py-2.5 text-left text-sm font-semibold text-ink transition hover:bg-yellow/20 dark:text-cream"
+                  >
+                    <span className="flex items-center gap-2">
+                      <ShoppingCart className="h-4 w-4 text-ink dark:text-yellow" />
+                      <span className="font-mono">{o.orderNumber}</span>
+                    </span>
+                    <span className="flex items-center gap-1 text-xs text-graphite dark:text-graphite-dark">
+                      <Eye className="h-3.5 w-3.5" />
+                      {t.documents.previewOrder}
+                    </span>
                   </button>
-                </form>
+                ) : (
+                  <div
+                    key={o.id}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-dashed border-yellow/70 px-3 py-2 text-sm"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => previewOrder(o.id)}
+                      className="flex min-w-0 items-center gap-2 font-semibold text-ink dark:text-cream"
+                    >
+                      <ShoppingCart className="h-4 w-4 shrink-0 text-ink dark:text-yellow" />
+                      <span className="font-mono">{o.orderNumber}</span>
+                      <Eye className="h-3.5 w-3.5 shrink-0 text-graphite dark:text-graphite-dark" />
+                    </button>
+                    <Link
+                      to={`/papeleo/pedidos/${o.id}/reconcile`}
+                      className="shrink-0 rounded-lg bg-yellow px-2.5 py-1 text-xs font-semibold text-ink transition hover:bg-yellow/90"
+                    >
+                      {t.documents.link}
+                    </Link>
+                  </div>
+                ),
               )}
-
-              <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
-                {t.documents.columnOrder}
-              </p>
-              {detail.orders?.length ? (
-                <div className="mt-2 space-y-2">
-                  {detail.orders.map((o) =>
-                    o.linked ? (
-                      <button
-                        key={o.id}
-                        type="button"
-                        onClick={() => previewOrder(o.id)}
-                        className="flex w-full items-center justify-between gap-2 rounded-xl border border-yellow/60 bg-yellow/10 px-3 py-2.5 text-left text-sm font-semibold text-ink transition hover:bg-yellow/20 dark:text-cream"
-                      >
-                        <span className="flex items-center gap-2">
-                          <ShoppingCart className="h-4 w-4 text-ink dark:text-yellow" />
-                          <span className="font-mono">{o.orderNumber}</span>
-                        </span>
-                        <span className="flex items-center gap-1 text-xs text-graphite dark:text-graphite-dark">
-                          <Eye className="h-3.5 w-3.5" />
-                          {t.documents.previewOrder}
-                        </span>
-                      </button>
-                    ) : (
-                      <div
-                        key={o.id}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-dashed border-yellow/70 px-3 py-2 text-sm"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => previewOrder(o.id)}
-                          className="flex min-w-0 items-center gap-2 font-semibold text-ink dark:text-cream"
-                        >
-                          <ShoppingCart className="h-4 w-4 shrink-0 text-ink dark:text-yellow" />
-                          <span className="font-mono">{o.orderNumber}</span>
-                          <Eye className="h-3.5 w-3.5 shrink-0 text-graphite dark:text-graphite-dark" />
-                        </button>
-                        <Link
-                          to={`/papeleo/pedidos/${o.id}/reconcile`}
-                          className="shrink-0 rounded-lg bg-yellow px-2.5 py-1 text-xs font-semibold text-ink transition hover:bg-yellow/90"
-                        >
-                          {t.documents.link}
-                        </Link>
-                      </div>
-                    ),
-                  )}
-                  {detail.orders.some((o) => !o.linked) && (
-                    <p className="text-xs text-graphite dark:text-graphite-dark">{t.documents.toLinkHint}</p>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{t.documents.noOrder}</p>
+              {detail.orders.some((o) => !o.linked) && (
+                <p className="text-xs text-graphite dark:text-graphite-dark">{t.documents.toLinkHint}</p>
               )}
-
-              <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
-                {t.documents.columnSent}
-              </p>
-              {detail.sent ? (
-                <div className="mt-2 rounded-xl border border-line px-3 py-2.5 text-sm dark:border-line-dark">
-                  <p className="flex items-center gap-2 font-semibold text-ink dark:text-cream">
-                    <Send className="h-4 w-4" />
-                    {new Date(detail.sent.at).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                  <p className="mt-1 break-all text-xs text-graphite dark:text-graphite-dark">
-                    {detail.sent.viaClient ? t.documents.viaClient : `${t.documents.to} ${detail.sent.to}`}
-                  </p>
-                </div>
-              ) : (
-                <p className="mt-2 text-sm font-semibold text-rust dark:text-rust-dark">{t.documents.notSent}</p>
-              )}
-
-                </>
-              )}
-
-              {detail.name && (
-                <div className="mt-5">
-                  <DocumentNotes category={category} year={year} name={detail.name} />
-                </div>
-              )}
-
-              <div className="mt-6 grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  disabled={!detail.hasPdf}
-                  onClick={() => openFile(detail.number, 'pdf', detail.name)}
-                  className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
-                >
-                  <Eye className="h-4 w-4" />
-                  {t.documents.viewPdf}
-                </button>
-                <button
-                  type="button"
-                  disabled={!detail.hasPdf}
-                  onClick={() => shareFile(detail)}
-                  className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
-                >
-                  <Share2 className="h-4 w-4" />
-                  {t.documents.share}
-                </button>
-                <button
-                  type="button"
-                  disabled={!detail.hasDocx}
-                  onClick={() => openFile(detail.number, 'docx', detail.name)}
-                  className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
-                >
-                  <Download className="h-4 w-4" />
-                  {t.documents.downloadWord}
-                </button>
-              </div>
             </div>
-          </div>,
-          document.body,
+          ) : (
+            <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{t.documents.noOrder}</p>
+          )}
+
+          <p className={`mt-5 ${sectionLabelClass}`}>
+            {t.documents.columnSent}
+          </p>
+          {detail.sent ? (
+            <div className="mt-2 rounded-xl border border-line px-3 py-2.5 text-sm dark:border-line-dark">
+              <p className="flex items-center gap-2 font-semibold text-ink dark:text-cream">
+                <Send className="h-4 w-4" />
+                {new Date(detail.sent.at).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+              <p className="mt-1 break-all text-xs text-graphite dark:text-graphite-dark">
+                {detail.sent.viaClient ? t.documents.viaClient : `${t.documents.to} ${detail.sent.to}`}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm font-semibold text-rust dark:text-rust-dark">{t.documents.notSent}</p>
+          )}
+
+            </>
+          )}
+
+          {detail.name && (
+            <div className="mt-5">
+              <DocumentNotes category={category} year={year} name={detail.name} />
+            </div>
+          )}
+
+          <div className="mt-6 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              disabled={!detail.hasPdf}
+              onClick={() => openFile(detail.number, 'pdf', detail.name)}
+              className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
+            >
+              <Eye className="h-4 w-4" />
+              {t.documents.viewPdf}
+            </button>
+            <button
+              type="button"
+              disabled={!detail.hasPdf}
+              onClick={() => shareFile(detail)}
+              className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
+            >
+              <Share2 className="h-4 w-4" />
+              {t.documents.share}
+            </button>
+            <button
+              type="button"
+              disabled={!detail.hasDocx}
+              onClick={() => openFile(detail.number, 'docx', detail.name)}
+              className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
+            >
+              <Download className="h-4 w-4" />
+              {t.documents.downloadWord}
+            </button>
+          </div>
+          </>
         )}
+      </Modal>
 
       {toast &&
         createPortal(
-          <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <div role="status" className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
             <div className="rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cream shadow-lg dark:bg-cream dark:text-ink">
               {toast}
             </div>

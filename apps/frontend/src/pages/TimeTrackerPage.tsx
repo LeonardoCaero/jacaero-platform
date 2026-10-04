@@ -1,11 +1,21 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronLeft, ChevronRight, PieChart, Pencil, Trash2, X, Image as ImageIcon } from 'lucide-react'
-import { createPortal } from 'react-dom'
+import { ChevronLeft, ChevronRight, PieChart, Pencil, Trash2, Image as ImageIcon } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { capitalizeFirst } from '../lib/format'
+import {
+  Modal,
+  PageHeader,
+  cardClass,
+  dangerIconButtonClass,
+  iconButtonClass,
+  inputClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+  selectClass,
+} from '../components/ui'
 import { FullPhoto, PendingPhotoThumbnail, PhotoGallery, PhotoThumbnail } from '../components/Photos'
 import { buildMonthGrid, formatDate, isWeekendKey, toDateKey, toMonthKey, weekdayLabels as getWeekdayLabels } from '../lib/dates'
 
@@ -41,9 +51,6 @@ const DONUT_COLORS = [
   { light: '#4a3aa7', dark: '#9085e9' },
   { light: '#e34948', dark: '#e66767' },
 ]
-
-const inputClass =
-  'h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
 
 const quickButtonClass =
   'rounded-full border border-line px-3.5 py-1.5 text-sm font-medium text-graphite transition hover:border-yellow hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
@@ -218,25 +225,20 @@ export function TimeTrackerPage() {
 
   return (
     <div>
-      <Link
-        to="/"
-        className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t.comingSoon.back}
-      </Link>
-
-      <div className="mt-4 flex items-center justify-between">
-        <h1 className="font-display text-2xl font-semibold tracking-wide text-ink dark:text-cream">
-          {t.modules.timeTracker.label}
-        </h1>
-        <span className="rounded-full bg-yellow/15 px-3 py-1 text-sm font-semibold text-ink dark:text-cream">
-          {monthTotal}h
-        </span>
-      </div>
+      <PageHeader
+        backTo="/"
+        backLabel={t.comingSoon.back}
+        title={t.modules.timeTracker.label}
+        subtitle={t.modules.timeTracker.description}
+        actions={
+          <span className="rounded-full bg-yellow/15 px-3 py-1 font-mono text-sm font-semibold tabular text-ink dark:text-cream">
+            {monthTotal}h
+          </span>
+        }
+      />
 
       {canViewAll && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <select
             value={viewUserId}
             onChange={(e) => {
@@ -244,7 +246,8 @@ export function TimeTrackerPage() {
               setSelectedDate(null)
               resetEntryForm()
             }}
-            className="h-10 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+            aria-label={t.timeTracker.team}
+            className={selectClass}
           >
             <option value="">{t.timeTracker.myself}</option>
             <option value={TEAM_VIEW}>{t.timeTracker.team}</option>
@@ -261,7 +264,7 @@ export function TimeTrackerPage() {
             <button
               type="button"
               onClick={() => setShowTeamChart(true)}
-              className="flex h-10 items-center gap-1.5 rounded-xl border border-line px-3 text-sm font-medium text-graphite hover:border-yellow hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
+              className={secondaryButtonClass}
             >
               <PieChart className="h-4 w-4" />
               {t.timeTracker.viewStats}
@@ -274,28 +277,29 @@ export function TimeTrackerPage() {
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-xl border border-line bg-surface p-3 dark:border-line-dark dark:bg-surface-dark">
             <p className="text-xs text-graphite dark:text-graphite-dark">{t.timeTracker.myHours}</p>
-            <p className="mt-0.5 text-xl font-semibold text-ink dark:text-cream">{myTeamHours}h</p>
+            <p className="mt-0.5 font-mono text-xl font-semibold tabular text-ink dark:text-cream">{myTeamHours}h</p>
           </div>
           <div className="rounded-xl border border-line bg-surface p-3 dark:border-line-dark dark:bg-surface-dark">
             <p className="text-xs text-graphite dark:text-graphite-dark">{t.timeTracker.teamTotal}</p>
-            <p className="mt-0.5 text-xl font-semibold text-ink dark:text-cream">{teamTotalHours}h</p>
+            <p className="mt-0.5 font-mono text-xl font-semibold tabular text-ink dark:text-cream">{teamTotalHours}h</p>
           </div>
         </div>
       )}
 
-      <div className="mt-4 rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5 dark:border-line-dark dark:bg-surface-dark">
+      <div className={`mt-4 ${selectedDate ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-4' : ''}`}>
+      <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5 dark:border-line-dark dark:bg-surface-dark">
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={() => changeMonth(-1)}
-            aria-label="Previous month"
+            aria-label={t.common.prevMonth}
             className="flex h-8 w-8 items-center justify-center rounded-full text-graphite hover:bg-paper hover:text-ink dark:text-graphite-dark dark:hover:bg-paper-dark dark:hover:text-cream"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button type="button" onClick={jumpToToday} className="group flex flex-col items-center">
-            <p className="font-display text-lg font-semibold tracking-wide text-ink capitalize group-hover:opacity-70 dark:text-cream">
-              {month.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}
+            <p className="font-display text-lg font-semibold tracking-wide text-ink group-hover:opacity-70 dark:text-cream">
+              {capitalizeFirst(month.toLocaleDateString(locale, { month: 'long', year: 'numeric' }))}
             </p>
             {!(monthKey === toMonthKey(new Date()) && selectedDate === todayKey) && (
               <span className="text-xs font-medium text-graphite group-hover:text-ink dark:text-graphite-dark dark:group-hover:text-cream">
@@ -306,7 +310,7 @@ export function TimeTrackerPage() {
           <button
             type="button"
             onClick={() => changeMonth(1)}
-            aria-label="Next month"
+            aria-label={t.common.nextMonth}
             className="flex h-8 w-8 items-center justify-center rounded-full text-graphite hover:bg-paper hover:text-ink dark:text-graphite-dark dark:hover:bg-paper-dark dark:hover:text-cream"
           >
             <ChevronRight className="h-4 w-4" />
@@ -338,7 +342,7 @@ export function TimeTrackerPage() {
                 type="button"
                 onClick={() => selectDay(key)}
                 className={[
-                  'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl border text-sm transition',
+                  'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl border text-sm transition lg:aspect-auto lg:h-14',
                   isSelected
                     ? 'border-transparent bg-ink text-cream dark:bg-cream dark:text-ink'
                     : isToday
@@ -362,7 +366,7 @@ export function TimeTrackerPage() {
                 </span>
                 {hasEntries && (
                   <span
-                    className={`text-[10px] font-semibold ${isSelected ? 'opacity-80' : 'text-graphite dark:text-graphite-dark'}`}
+                    className={`font-mono text-[11px] font-semibold tabular ${isSelected ? 'opacity-80' : 'text-graphite dark:text-graphite-dark'}`}
                   >
                     {total}h{hasOvertime && '•'}
                   </span>
@@ -374,9 +378,9 @@ export function TimeTrackerPage() {
       </div>
 
       {selectedDate && (
-        <div className="mt-4 rounded-2xl border border-line bg-surface p-5 shadow-sm dark:border-line-dark dark:bg-surface-dark">
-          <p className="font-display text-lg font-semibold tracking-wide text-ink capitalize dark:text-cream">
-            {formatDate(selectedDate, locale, { weekday: 'long', day: 'numeric', month: 'long' })}
+        <div className={`${cardClass} mt-4 lg:sticky lg:top-4 lg:mt-0`}>
+          <p className="font-display text-lg font-semibold tracking-wide text-ink dark:text-cream">
+            {capitalizeFirst(formatDate(selectedDate, locale, { weekday: 'long', day: 'numeric', month: 'long' }))}
           </p>
 
           {isTeamView && (
@@ -395,8 +399,8 @@ export function TimeTrackerPage() {
                       {entry.description || '—'}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <span className="text-sm font-semibold text-ink dark:text-cream">
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="font-mono text-sm font-semibold tabular text-ink dark:text-cream">
                       {Number(entry.hours)}h{entry.isOvertime && ' •'}
                     </span>
                     {entry.photos.length > 0 && (
@@ -404,7 +408,7 @@ export function TimeTrackerPage() {
                         type="button"
                         onClick={() => setPreviewEntry(entry)}
                         aria-label={t.timeTracker.viewPhotos}
-                        className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                        className={iconButtonClass}
                       >
                         <ImageIcon className="h-4 w-4" />
                       </button>
@@ -415,7 +419,7 @@ export function TimeTrackerPage() {
                           type="button"
                           onClick={() => startEdit(entry)}
                           aria-label={t.timeTracker.update}
-                          className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                          className={iconButtonClass}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -423,7 +427,7 @@ export function TimeTrackerPage() {
                           type="button"
                           onClick={() => handleDelete(entry.id)}
                           aria-label={t.timeTracker.confirmDelete}
-                          className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                          className={dangerIconButtonClass}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -450,8 +454,8 @@ export function TimeTrackerPage() {
                       <p className="text-sm text-graphite dark:text-graphite-dark">—</p>
                     )}
                   </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <span className="text-sm font-semibold text-ink dark:text-cream">
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="font-mono text-sm font-semibold tabular text-ink dark:text-cream">
                       {Number(entry.hours)}h{entry.isOvertime && ' •'}
                     </span>
                     {entry.photos.length > 0 && (
@@ -459,7 +463,7 @@ export function TimeTrackerPage() {
                         type="button"
                         onClick={() => setPreviewEntry(entry)}
                         aria-label={t.timeTracker.viewPhotos}
-                        className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                        className={iconButtonClass}
                       >
                         <ImageIcon className="h-4 w-4" />
                       </button>
@@ -470,7 +474,7 @@ export function TimeTrackerPage() {
                           type="button"
                           onClick={() => startEdit(entry)}
                           aria-label={t.timeTracker.update}
-                          className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                          className={iconButtonClass}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -478,7 +482,7 @@ export function TimeTrackerPage() {
                           type="button"
                           onClick={() => handleDelete(entry.id)}
                           aria-label={t.timeTracker.confirmDelete}
-                          className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                          className={dangerIconButtonClass}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -502,22 +506,25 @@ export function TimeTrackerPage() {
             </div>
 
             <div className="flex gap-3">
-              <input
-                type="number"
-                required
-                step="0.5"
-                min="0.5"
-                max="24"
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-                aria-label={t.timeTracker.hours}
-                className={`w-24 ${inputClass}`}
-              />
+              <div className="w-24 shrink-0">
+                <input
+                  type="number"
+                  required
+                  step="0.5"
+                  min="0.5"
+                  max="24"
+                  value={hours}
+                  onChange={(e) => setHours(e.target.value)}
+                  aria-label={t.timeTracker.hours}
+                  className={inputClass}
+                />
+              </div>
               <input
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t.timeTracker.descriptionPlaceholder}
+                aria-label={t.timeTracker.descriptionPlaceholder}
                 className={inputClass}
               />
             </div>
@@ -574,7 +581,7 @@ export function TimeTrackerPage() {
               <button
                 type="submit"
                 disabled={saveMutation.isPending}
-                className="h-11 flex-1 rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
+                className={`${primaryButtonClass} flex-1`}
               >
                 {editingId ? t.timeTracker.update : t.timeTracker.save}
               </button>
@@ -582,7 +589,7 @@ export function TimeTrackerPage() {
                 <button
                   type="button"
                   onClick={() => resetEntryForm()}
-                  className="h-11 rounded-xl border border-line px-5 text-sm font-semibold text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
+                  className={secondaryButtonClass}
                 >
                   {t.timeTracker.cancel}
                 </button>
@@ -592,53 +599,30 @@ export function TimeTrackerPage() {
           )}
         </div>
       )}
+      </div>
 
       {!isTeamView && !isLoading && entries.length === 0 && (
         <p className="mt-4 text-center text-sm text-graphite dark:text-graphite-dark">{t.timeTracker.empty}</p>
       )}
 
-      {previewEntry &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
-            onClick={() => setPreviewEntry(null)}
-          >
-            <div
-              className="w-full max-w-sm rounded-2xl bg-surface p-4 shadow-xl dark:bg-surface-dark"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-ink dark:text-cream">{t.timeTracker.photos}</p>
-                <button
-                  type="button"
-                  onClick={() => setPreviewEntry(null)}
-                  className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="mt-3 max-h-[70vh] overflow-y-auto">
-                {previewEntry.photos.length === 1 ? (
-                  <FullPhoto url={`/time-entries/${previewEntry.id}/photos/${previewEntry.photos[0]}`} />
-                ) : (
-                  <PhotoGallery urls={previewEntry.photos.map((f) => `/time-entries/${previewEntry.id}/photos/${f}`)} />
-                )}
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+      <Modal open={!!previewEntry} onClose={() => setPreviewEntry(null)} title={t.timeTracker.photos} closeLabel={t.common.close} size="sm">
+        {previewEntry &&
+          (previewEntry.photos.length === 1 ? (
+            <FullPhoto url={`/time-entries/${previewEntry.id}/photos/${previewEntry.photos[0]}`} />
+          ) : (
+            <PhotoGallery urls={previewEntry.photos.map((f) => `/time-entries/${previewEntry.id}/photos/${f}`)} />
+          ))}
+      </Modal>
 
-      {showTeamChart &&
-        createPortal(
-          <TeamHoursChart
-            summary={teamSummary}
-            monthLabel={month.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}
-            otherLabel={t.timeTracker.otherPeople}
-            onClose={() => setShowTeamChart(false)}
-          />,
-          document.body,
-        )}
+      <Modal
+        open={showTeamChart}
+        onClose={() => setShowTeamChart(false)}
+        title={capitalizeFirst(month.toLocaleDateString(locale, { month: 'long', year: 'numeric' }))}
+        closeLabel={t.common.close}
+        size="sm"
+      >
+        <TeamHoursChart summary={teamSummary} otherLabel={t.timeTracker.otherPeople} />
+      </Modal>
     </div>
   )
 }
@@ -650,17 +634,7 @@ const CHART_CIRCUMFERENCE = 2 * Math.PI * CHART_RADIUS
 const CHART_GAP = 3
 const CHART_MAX_SLICES = 8
 
-function TeamHoursChart({
-  summary,
-  monthLabel,
-  otherLabel,
-  onClose,
-}: {
-  summary?: TeamSummary
-  monthLabel: string
-  otherLabel: string
-  onClose: () => void
-}) {
+function TeamHoursChart({ summary, otherLabel }: { summary?: TeamSummary; otherLabel: string }) {
   const users = summary?.byUser ?? []
   const top = users.slice(0, CHART_MAX_SLICES)
   const restHours = users.slice(CHART_MAX_SLICES).reduce((sum, u) => sum + u.hours, 0)
@@ -676,34 +650,17 @@ function TeamHoursChart({
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={onClose}>
-      <div
-        className="team-chart w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl dark:bg-surface-dark"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="team-chart">
         <style>{`
           .team-chart { ${DONUT_COLORS.map((c, i) => `--series-${i + 1}:${c.light};`).join(' ')} --series-other:#9ca3af; }
           .dark .team-chart { ${DONUT_COLORS.map((c, i) => `--series-${i + 1}:${c.dark};`).join(' ')} --series-other:#71717a; }
         `}</style>
 
-        <div className="flex items-center justify-between">
-          <p className="font-display text-lg font-semibold tracking-wide text-ink capitalize dark:text-cream">
-            {monthLabel}
-          </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
         {segments.length === 0 ? (
-          <p className="mt-6 text-center text-sm text-graphite dark:text-graphite-dark">—</p>
+          <p className="text-center text-sm text-graphite dark:text-graphite-dark">—</p>
         ) : (
           <>
-            <div className="mt-4 flex justify-center">
+            <div className="flex justify-center">
               <svg width={CHART_SIZE} height={CHART_SIZE} viewBox={`0 0 ${CHART_SIZE} ${CHART_SIZE}`}>
                 <g transform={`rotate(-90 ${CHART_SIZE / 2} ${CHART_SIZE / 2})`}>
                   {segments.map((s) => {
@@ -760,7 +717,6 @@ function TeamHoursChart({
             </div>
           </>
         )}
-      </div>
     </div>
   )
 }

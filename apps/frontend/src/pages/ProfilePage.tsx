@@ -12,7 +12,7 @@ export function ProfilePage() {
     <div>
       <Link
         to="/"
-        className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+        className="inline-flex items-center gap-1.5 rounded-md text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
       >
         <ArrowLeft className="h-4 w-4" />
         {t.comingSoon.back}
@@ -21,7 +21,7 @@ export function ProfilePage() {
       <div className="mt-6 flex items-center gap-4">
         <Avatar name={user?.fullName} size="lg" />
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-wide text-ink dark:text-cream">
+          <h1 className="font-display text-3xl font-semibold tracking-wide text-ink dark:text-cream">
             {user?.fullName}
           </h1>
           <p className="text-sm text-graphite dark:text-graphite-dark">{user?.email}</p>

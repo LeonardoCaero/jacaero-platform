@@ -1,10 +1,19 @@
 import { useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Eye, Pencil, Send, Trash2, UserCheck, UserX, X } from 'lucide-react'
+import { Eye, Pencil, Send, Trash2, UserCheck, UserX, X } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
+import {
+  Modal,
+  PageHeader,
+  cardClass,
+  dangerIconButtonClass,
+  iconButtonClass,
+  inputClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../components/ui'
 
 type User = {
   id: string
@@ -34,23 +43,11 @@ type Invitation = {
   role: { name: string }
 }
 
-const inputClass =
-  'h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
-
-const cardClass =
-  'rounded-2xl border border-line bg-surface p-5 shadow-sm dark:border-line-dark dark:bg-surface-dark'
-
-const primaryButtonClass =
-  'h-11 rounded-xl bg-ink px-5 text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90'
-
-const secondaryButtonClass =
-  'h-11 rounded-xl border border-line px-5 text-sm font-semibold text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
-
 function tabButtonClass(active: boolean) {
-  return `rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+  return `inline-flex h-8 items-center rounded-lg px-3 text-sm font-semibold transition ${
     active
       ? 'bg-ink text-cream dark:bg-cream dark:text-ink'
-      : 'border border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
+      : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
   }`
 }
 
@@ -71,23 +68,18 @@ export function TeamPage() {
 
   return (
     <div>
-      <Link
-        to="/"
-        className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t.comingSoon.back}
-      </Link>
+      <PageHeader
+        backTo="/"
+        backLabel={t.comingSoon.back}
+        title={t.modules.team.label}
+        subtitle={t.modules.team.description}
+      />
 
-      <h1 className="mt-4 font-display text-2xl font-semibold tracking-wide text-ink dark:text-cream">
-        {t.modules.team.label}
-      </h1>
-
-      <div className="mt-4 flex gap-2">
-        <button type="button" className={tabButtonClass(tab === 'users')} onClick={() => setTab('users')}>
+      <div className="mt-5 inline-flex gap-1 rounded-xl border border-line bg-surface p-1 dark:border-line-dark dark:bg-surface-dark">
+        <button type="button" aria-pressed={tab === 'users'} className={tabButtonClass(tab === 'users')} onClick={() => setTab('users')}>
           {t.team.usersTab}
         </button>
-        <button type="button" className={tabButtonClass(tab === 'roles')} onClick={() => setTab('roles')}>
+        <button type="button" aria-pressed={tab === 'roles'} className={tabButtonClass(tab === 'roles')} onClick={() => setTab('roles')}>
           {t.team.rolesTab}
         </button>
       </div>
@@ -196,13 +188,13 @@ function UsersTab() {
     mutationFn: (user: User) =>
       api.patch(`/users/${user.id}`, { status: user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
-    onError: (err: any) => alert(err?.response?.data?.error ?? 'Error'),
+    onError: (err: any) => showToast(err?.response?.data?.error ?? 'Error'),
   })
 
   const deleteUserMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/users/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
-    onError: (err: any) => alert(err?.response?.data?.error ?? 'Error'),
+    onError: (err: any) => showToast(err?.response?.data?.error ?? 'Error'),
   })
 
   function handleDeleteUser(user: User) {
@@ -246,6 +238,7 @@ function UsersTab() {
             type="email"
             required
             placeholder={t.team.email}
+            aria-label={t.team.email}
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
             className={inputClass}
@@ -292,25 +285,28 @@ function UsersTab() {
                   <button
                     type="button"
                     title={t.team.previewInvite}
+                    aria-label={t.team.previewInvite}
                     onClick={() => handlePreviewInvite(inv.id)}
-                    className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                    className={iconButtonClass}
                   >
                     <Eye className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
                     title={t.team.resendInvite}
+                    aria-label={t.team.resendInvite}
                     disabled={resendSpinningId === inv.id}
                     onClick={() => handleResendInvite(inv.id)}
-                    className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                    className={iconButtonClass}
                   >
                     <SendIcon pending={resendSpinningId === inv.id} />
                   </button>
                   <button
                     type="button"
                     title={t.team.cancel}
+                    aria-label={t.team.cancel}
                     onClick={() => handleCancelInvite(inv.id)}
-                    className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                    className={dangerIconButtonClass}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -338,6 +334,7 @@ function UsersTab() {
                   value={editJobTitle}
                   onChange={(e) => setEditJobTitle(e.target.value)}
                   placeholder={t.team.jobTitle}
+                  aria-label={t.team.jobTitle}
                   className={inputClass}
                 />
                 <label className="flex items-center gap-2 text-sm text-ink dark:text-cream">
@@ -371,39 +368,38 @@ function UsersTab() {
                     {user.email} · {user.role?.name ?? t.team.noRole}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      user.status === 'ACTIVE'
-                        ? 'bg-yellow/15 text-ink dark:text-cream'
-                        : 'bg-graphite/15 text-graphite dark:text-graphite-dark'
-                    }`}
-                  >
-                    {user.status === 'ACTIVE' ? t.team.active : t.team.inactive}
-                  </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  {user.status !== 'ACTIVE' && (
+                    <span className="rounded-full border border-line px-2.5 py-0.5 text-xs font-semibold text-graphite dark:border-line-dark dark:text-graphite-dark">
+                      {t.team.inactive}
+                    </span>
+                  )}
                   <button
                     type="button"
                     title={t.team.edit}
+                    aria-label={t.team.edit}
                     onClick={() => startEditUser(user)}
-                    className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                    className={iconButtonClass}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
                     title={user.status === 'ACTIVE' ? t.team.deactivate : t.team.activate}
+                    aria-label={user.status === 'ACTIVE' ? t.team.deactivate : t.team.activate}
                     disabled={toggleStatusMutation.isPending}
                     onClick={() => toggleStatusMutation.mutate(user)}
-                    className="text-graphite hover:text-ink disabled:opacity-50 dark:text-graphite-dark dark:hover:text-cream"
+                    className={iconButtonClass}
                   >
                     {user.status === 'ACTIVE' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                   </button>
                   <button
                     type="button"
                     title={t.team.deleteUser}
+                    aria-label={t.team.deleteUser}
                     disabled={deleteUserMutation.isPending}
                     onClick={() => handleDeleteUser(user)}
-                    className="text-graphite hover:text-rust disabled:opacity-50 dark:text-graphite-dark dark:hover:text-rust-dark"
+                    className={dangerIconButtonClass}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -416,7 +412,7 @@ function UsersTab() {
 
       {toast &&
         createPortal(
-          <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <div role="status" className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
             <div className="rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cream shadow-lg dark:bg-cream dark:text-ink">
               {toast}
             </div>
@@ -424,28 +420,11 @@ function UsersTab() {
           document.body,
         )}
 
-      {previewHtml &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
-            onClick={() => setPreviewHtml(null)}
-          >
-            <div
-              className="relative max-h-[85vh] w-full max-w-lg overflow-hidden rounded-2xl bg-surface shadow-xl dark:bg-surface-dark"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={() => setPreviewHtml(null)}
-                className="absolute right-3 top-3 z-10 rounded-full bg-ink p-1.5 text-cream shadow-sm hover:bg-ink/90 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <iframe title="email-preview" srcDoc={previewHtml} className="h-[80vh] w-full bg-white" />
-            </div>
-          </div>,
-          document.body,
+      <Modal open={!!previewHtml} onClose={() => setPreviewHtml(null)} title={t.team.previewInvite} closeLabel={t.common.close}>
+        {previewHtml && (
+          <iframe title="email-preview" srcDoc={previewHtml} className="-mx-5 -my-4 h-[70vh] w-[calc(100%+2.5rem)] bg-white" />
         )}
+      </Modal>
     </div>
   )
 }
@@ -469,6 +448,7 @@ function RolesTab() {
   const [nameEn, setNameEn] = useState('')
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [formError, setFormError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   function resetForm() {
     setShowForm(false)
@@ -512,8 +492,9 @@ function RolesTab() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/roles/${id}`),
+    onMutate: () => setDeleteError(null),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roles'] }),
-    onError: (err: any) => alert(err?.response?.data?.error ?? 'Error'),
+    onError: (err: any) => setDeleteError(err?.response?.data?.error ?? 'Error'),
   })
 
   function handleDelete(role: Role) {
@@ -527,6 +508,11 @@ function RolesTab() {
 
   return (
     <div className="space-y-4">
+      {deleteError && (
+        <p role="alert" className="text-sm text-rust dark:text-rust-dark">
+          {deleteError}
+        </p>
+      )}
       <button
         type="button"
         onClick={() => (showForm ? resetForm() : startCreate())}
@@ -542,12 +528,14 @@ function RolesTab() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t.team.roleName}
+            aria-label={t.team.roleName}
             className={inputClass}
           />
           <input
             value={nameEn}
             onChange={(e) => setNameEn(e.target.value)}
             placeholder={t.team.roleNameEn}
+            aria-label={t.team.roleNameEn}
             className={inputClass}
           />
 
@@ -594,7 +582,7 @@ function RolesTab() {
               <button
                 type="button"
                 onClick={() => startEdit(role)}
-                className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                className={iconButtonClass}
               >
                 <Pencil className="h-4 w-4" />
               </button>
@@ -602,7 +590,7 @@ function RolesTab() {
                 <button
                   type="button"
                   onClick={() => handleDelete(role)}
-                  className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                  className={dangerIconButtonClass}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

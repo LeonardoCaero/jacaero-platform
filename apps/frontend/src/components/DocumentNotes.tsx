@@ -45,7 +45,7 @@ export function DocumentNotes({ category, year, name }: { category: string; year
 
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
+      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
         <StickyNote className="h-3.5 w-3.5" />
         {t.docNotes.title}
       </p>

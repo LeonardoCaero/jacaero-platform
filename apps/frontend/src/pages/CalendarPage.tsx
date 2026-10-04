@@ -1,11 +1,21 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createPortal } from 'react-dom'
-import { ArrowLeft, Bell, Building2, ChevronLeft, ChevronRight, Image as ImageIcon, Lock, Pencil, Plus, Trash2, Users, X } from 'lucide-react'
+import { Bell, Building2, ChevronLeft, ChevronRight, Image as ImageIcon, Lock, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { capitalizeFirst } from '../lib/format'
+import {
+  Modal,
+  PageHeader,
+  cardClass,
+  dangerIconButtonClass,
+  iconButtonClass,
+  inputClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+  textareaClass,
+} from '../components/ui'
 import { FullPhoto, PendingPhotoThumbnail, PhotoGallery, PhotoThumbnail } from '../components/Photos'
 import { buildMonthGrid, formatDate, isWeekendKey, toDateKey, toMonthKey, weekdayLabels as getWeekdayLabels } from '../lib/dates'
 
@@ -31,10 +41,6 @@ type Audience = 'me' | 'some' | 'all'
 // Same categorical palette as the Time Tracker chart.
 const COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#4a3aa7']
 
-const inputClass =
-  'h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
-
-const iconButtonClass = 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
 
 function startKey(n: CalendarNote) {
   return n.date.slice(0, 10)
@@ -210,31 +216,27 @@ export function CalendarPage() {
 
   return (
     <div>
-      <Link
-        to="/"
-        className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t.comingSoon.back}
-      </Link>
+      <PageHeader
+        backTo="/"
+        backLabel={t.comingSoon.back}
+        title={t.modules.calendar.label}
+        subtitle={t.modules.calendar.description}
+      />
 
-      <h1 className="mt-4 font-display text-2xl font-semibold tracking-wide text-ink dark:text-cream">
-        {t.modules.calendar.label}
-      </h1>
-
-      <div className="mt-4 rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5 dark:border-line-dark dark:bg-surface-dark">
+      <div className={`mt-5 ${selectedDate ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-4' : ''}`}>
+      <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5 dark:border-line-dark dark:bg-surface-dark">
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={() => changeMonth(-1)}
-            aria-label="Previous month"
+            aria-label={t.common.prevMonth}
             className="flex h-8 w-8 items-center justify-center rounded-full text-graphite hover:bg-paper hover:text-ink dark:text-graphite-dark dark:hover:bg-paper-dark dark:hover:text-cream"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button type="button" onClick={jumpToToday} className="group flex flex-col items-center">
-            <p className="font-display text-lg font-semibold tracking-wide text-ink capitalize group-hover:opacity-70 dark:text-cream">
-              {month.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}
+            <p className="font-display text-lg font-semibold tracking-wide text-ink group-hover:opacity-70 dark:text-cream">
+              {capitalizeFirst(month.toLocaleDateString(locale, { month: 'long', year: 'numeric' }))}
             </p>
             {!(monthKey === toMonthKey(new Date()) && selectedDate === todayKey) && (
               <span className="text-xs font-medium text-graphite group-hover:text-ink dark:text-graphite-dark dark:group-hover:text-cream">
@@ -245,7 +247,7 @@ export function CalendarPage() {
           <button
             type="button"
             onClick={() => changeMonth(1)}
-            aria-label="Next month"
+            aria-label={t.common.nextMonth}
             className="flex h-8 w-8 items-center justify-center rounded-full text-graphite hover:bg-paper hover:text-ink dark:text-graphite-dark dark:hover:bg-paper-dark dark:hover:text-cream"
           >
             <ChevronRight className="h-4 w-4" />
@@ -276,7 +278,7 @@ export function CalendarPage() {
                   resetForm()
                 }}
                 className={[
-                  'flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-transparent text-sm transition',
+                  'flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-transparent text-sm transition lg:aspect-auto lg:h-16',
                   isSelected
                     ? 'bg-ink text-cream dark:bg-cream dark:text-ink'
                     : isToday
@@ -309,16 +311,16 @@ export function CalendarPage() {
       </div>
 
       {selectedDate && (
-        <div className="mt-4 rounded-2xl border border-line bg-surface p-5 shadow-sm dark:border-line-dark dark:bg-surface-dark">
-          <div className="flex items-center justify-between">
-            <p className="font-display text-lg font-semibold tracking-wide text-ink capitalize dark:text-cream">
-              {formatDate(selectedDate, locale, { weekday: 'long', day: 'numeric', month: 'long' })}
+        <div className={`${cardClass} mt-4 lg:sticky lg:top-4 lg:mt-0`}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-display text-lg font-semibold tracking-wide text-ink dark:text-cream">
+              {capitalizeFirst(formatDate(selectedDate, locale, { weekday: 'long', day: 'numeric', month: 'long' }))}
             </p>
             {!formOpen && (
               <button
                 type="button"
                 onClick={openNew}
-                className="flex h-9 items-center gap-1.5 rounded-xl bg-ink px-3 text-sm font-semibold text-cream hover:bg-ink/90 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
+                className={primaryButtonClass}
               >
                 <Plus className="h-4 w-4" />
                 {t.calendar.newNote}
@@ -373,7 +375,7 @@ export function CalendarPage() {
                         type="button"
                         onClick={() => handleDelete(n.id)}
                         aria-label={t.calendar.confirmDelete}
-                        className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                        className={dangerIconButtonClass}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -402,8 +404,9 @@ export function CalendarPage() {
                 maxLength={2000}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t.calendar.description}
+                aria-label={t.calendar.description}
                 rows={2}
-                className={`${inputClass} h-auto py-2.5`}
+                className={textareaClass}
               />
 
               <div className="grid grid-cols-2 gap-3">
@@ -552,14 +555,14 @@ export function CalendarPage() {
                 <button
                   type="submit"
                   disabled={saveMutation.isPending || (audience === 'some' && sharedWith.length === 0)}
-                  className="h-11 flex-1 rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
+                  className={`${primaryButtonClass} flex-1`}
                 >
                   {editingId ? t.calendar.update : t.calendar.save}
                 </button>
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="h-11 rounded-xl border border-line px-5 text-sm font-semibold text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
+                  className={secondaryButtonClass}
                 >
                   {t.calendar.cancel}
                 </button>
@@ -569,30 +572,16 @@ export function CalendarPage() {
         </div>
       )}
 
-      {previewNote &&
-        createPortal(
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={() => setPreviewNote(null)}>
-            <div
-              className="w-full max-w-sm rounded-2xl bg-surface p-4 shadow-xl dark:bg-surface-dark"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-ink dark:text-cream">{previewNote.title}</p>
-                <button type="button" onClick={() => setPreviewNote(null)} className={iconButtonClass}>
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="mt-3 max-h-[70vh] overflow-y-auto">
-                {previewNote.photos.length === 1 ? (
-                  <FullPhoto url={`/calendar/${previewNote.id}/photos/${previewNote.photos[0]}`} />
-                ) : (
-                  <PhotoGallery urls={previewNote.photos.map((f) => `/calendar/${previewNote.id}/photos/${f}`)} />
-                )}
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+      </div>
+
+      <Modal open={!!previewNote} onClose={() => setPreviewNote(null)} title={previewNote?.title} closeLabel={t.common.close} size="sm">
+        {previewNote &&
+          (previewNote.photos.length === 1 ? (
+            <FullPhoto url={`/calendar/${previewNote.id}/photos/${previewNote.photos[0]}`} />
+          ) : (
+            <PhotoGallery urls={previewNote.photos.map((f) => `/calendar/${previewNote.id}/photos/${f}`)} />
+          ))}
+      </Modal>
     </div>
   )
 }

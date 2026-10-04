@@ -1,21 +1,47 @@
 import { useEffect, useRef } from 'react'
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { Logo } from './Logo'
 import { SettingsMenu } from './SettingsMenu'
 import { Avatar } from './Avatar'
 import { api } from '../lib/axios'
+import { papeleoSections } from '../lib/modules'
+
+function PapeleoNav() {
+  const { t } = useLanguage()
+  return (
+    <nav aria-label={t.modules.papeleo.label} className="-mx-4 mb-5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+      <div className="flex w-max gap-1 rounded-xl border border-line bg-surface p-1 dark:border-line-dark dark:bg-surface-dark">
+        {papeleoSections.map((s) => (
+          <NavLink
+            key={s.path}
+            to={s.path}
+            className={({ isActive }) =>
+              `inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold whitespace-nowrap transition ${
+                isActive
+                  ? 'bg-ink text-cream dark:bg-cream dark:text-ink'
+                  : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
+              }`
+            }
+          >
+            <s.icon className="h-3.5 w-3.5" />
+            {t.papeleo[s.key].tab}
+          </NavLink>
+        ))}
+      </div>
+    </nav>
+  )
+}
 
 export function AppLayout() {
-  const { user, logout } = useAuth()
-  const { t } = useLanguage()
+  const { user } = useAuth()
   const location = useLocation()
   const knownVersion = useRef<string | null>(null)
 
-  const isWide =
-    location.pathname.endsWith('/reconcile') ||
-    /^\/papeleo\/(presupuestos|albaranes|pedidos-material|facturas|horas)$/.test(location.pathname)
+  const inPapeleo = location.pathname.startsWith('/papeleo/')
+  const isReconcile = location.pathname.endsWith('/reconcile')
+  const isWide = inPapeleo || location.pathname === '/time-tracker' || location.pathname === '/calendar'
 
   // Reload automatically when a new version has been deployed, checked on each navigation.
   useEffect(() => {
@@ -41,16 +67,9 @@ export function AppLayout() {
           </span>
         </Link>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={logout}
-            className="hidden px-2 text-sm text-graphite hover:text-ink sm:inline dark:text-graphite-dark dark:hover:text-cream"
-          >
-            {t.nav.signOut}
-          </button>
+        <div className="flex items-center gap-2 sm:gap-3">
           <SettingsMenu />
-          <Link to="/profile" className="flex items-center gap-2 rounded-full hover:opacity-80">
+          <Link to="/profile" className="flex items-center gap-2 rounded-full transition hover:opacity-80">
             <span className="hidden text-sm text-graphite sm:inline dark:text-graphite-dark">
               {user?.fullName}
             </span>
@@ -59,7 +78,8 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className={`mx-auto px-4 py-4 sm:px-6 ${isWide ? 'max-w-7xl' : 'max-w-3xl'}`}>
+      <main className={`mx-auto px-4 py-4 sm:px-6 ${isReconcile ? 'max-w-7xl' : isWide ? 'max-w-6xl' : 'max-w-3xl'}`}>
+        {inPapeleo && <PapeleoNav />}
         <div key={location.pathname} className="animate-fade-up">
           <Outlet />
         </div>

@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { changelog } from '../lib/changelog'
 import { api } from '../lib/axios'
+import { PageHeader, sectionLabelClass } from '../components/ui'
 
 export function AboutPage() {
   const { t } = useLanguage()
@@ -18,22 +17,14 @@ export function AboutPage() {
 
   return (
     <div>
-      <Link
-        to="/profile"
-        className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t.about.back}
-      </Link>
+      <PageHeader
+        backTo="/profile"
+        backLabel={t.about.back}
+        title={t.about.title}
+        subtitle={<span className="font-mono">{`${t.about.version}: ${version}`}</span>}
+      />
 
-      <h1 className="mt-6 font-display text-2xl font-semibold tracking-wide text-ink dark:text-cream">
-        {t.about.title}
-      </h1>
-      <p className="mt-1 font-mono text-sm text-graphite dark:text-graphite-dark">
-        {t.about.version}: {version}
-      </p>
-
-      <h2 className="mt-6 text-sm font-medium text-graphite dark:text-graphite-dark">{t.about.changelog}</h2>
+      <h2 className={`mt-6 ${sectionLabelClass}`}>{t.about.changelog}</h2>
       <div className="mt-2 divide-y divide-line rounded-2xl border border-line bg-surface dark:divide-line-dark dark:border-line-dark dark:bg-surface-dark">
         {changelog.map((entry) => (
           <div key={entry.date} className="px-5 py-4">
