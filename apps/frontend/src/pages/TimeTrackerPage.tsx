@@ -301,7 +301,7 @@ export function TimeTrackerPage() {
             type="button"
             onClick={() => changeMonth(-1)}
             aria-label={t.common.prevMonth}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-graphite hover:bg-paper hover:text-ink dark:text-graphite-dark dark:hover:bg-paper-dark dark:hover:text-cream"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-graphite hover:bg-paper hover:text-ink dark:text-graphite-dark dark:hover:bg-paper-dark dark:hover:text-cream"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -319,7 +319,7 @@ export function TimeTrackerPage() {
             type="button"
             onClick={() => changeMonth(1)}
             aria-label={t.common.nextMonth}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-graphite hover:bg-paper hover:text-ink dark:text-graphite-dark dark:hover:bg-paper-dark dark:hover:text-cream"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-graphite hover:bg-paper hover:text-ink dark:text-graphite-dark dark:hover:bg-paper-dark dark:hover:text-cream"
           >
             <ChevronRight className="h-4 w-4" />
           </button>

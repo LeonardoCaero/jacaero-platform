@@ -77,7 +77,7 @@ export function AppLayout() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <SettingsMenu />
-          <Link to="/profile" className="flex items-center gap-2 rounded-full transition hover:opacity-80">
+          <Link to="/profile" className="flex min-h-10 items-center gap-2 rounded-full p-1 transition hover:opacity-80">
             <span className="hidden text-sm text-graphite sm:inline dark:text-graphite-dark">
               {user?.fullName}
             </span>

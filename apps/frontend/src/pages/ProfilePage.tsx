@@ -12,7 +12,7 @@ export function ProfilePage() {
     <div>
       <Link
         to="/"
-        className="inline-flex items-center gap-1.5 rounded-md text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+        className="-my-2 inline-flex min-h-10 items-center gap-1.5 rounded-md py-2 pr-2 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
       >
         <ArrowLeft className="h-4 w-4" />
         {t.comingSoon.back}

@@ -121,7 +121,18 @@ export function ReconcilePage() {
     mutationFn: (doc: { category: DocCategory; number: string }) =>
       api.patch(`/email-orders/${id}/link`, { category: doc.category, number: doc.number }),
     onSuccess: (_d, doc) => {
-      toast(t.docLinks.linked.replace('{doc}', `${categoryLabel[doc.category]} ${doc.number}`))
+      // This page is not a modal, so the toast's undo button is reachable here.
+      const field = doc.category === 'albaran' ? 'deliveryNoteAt' : doc.category === 'factura' ? 'invoicedAt' : null
+      toast(t.docLinks.linked.replace('{doc}', `${categoryLabel[doc.category]} ${doc.number}`), 'success', {
+        label: t.common.undo,
+        onClick: async () => {
+          await (field
+            ? api.patch(`/email-orders/${id}/milestone`, { field, done: false })
+            : api.patch(`/email-orders/${id}/quote-status`, { category: 'pending' }))
+          queryClient.invalidateQueries({ queryKey: ['email-orders'] })
+          toast(t.docLinks.unlinked.replace('{doc}', `${categoryLabel[doc.category]} ${doc.number}`))
+        },
+      })
       queryClient.invalidateQueries({ queryKey: ['email-orders'] })
       setSelected(null)
       setTargetKey(null)
@@ -243,15 +254,15 @@ export function ReconcilePage() {
                           {s.reason && <span>{reasonLabel[s.reason]}</span>}
                         </span>
                       </button>
-                      <button
-                        type="button"
-                        disabled={linkMutation.isPending}
-                        onClick={() => linkMutation.mutate({ category: activeCategory!, number: s.number })}
-                        className={`${primaryButtonClass} mt-2 w-full`}
-                      >
-                        <Check className="h-4 w-4" />
-                        {r.linkButton}
-                      </button>
+                      {!isSelected(s.name) && (
+                        <button
+                          type="button"
+                          onClick={() => selectDoc(activeCategory!, s.number, s.name)}
+                          className={`${smallButtonClass} mt-2`}
+                        >
+                          {r.reviewMatch}
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>

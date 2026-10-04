@@ -220,6 +220,22 @@ export function EmailOrdersPage() {
   const [year, setYear] = useState(new Date().getFullYear())
   const [newestFirst, setNewestFirst] = useState(true)
   const searchRef = useRef<HTMLInputElement>(null)
+  const moreRef = useRef<HTMLDetailsElement>(null)
+
+  // <details> has no light dismiss of its own: close the "Más" menu on Escape or a tap elsewhere.
+  useEffect(() => {
+    function close(e: Event) {
+      const menu = moreRef.current
+      if (!menu?.open) return
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menu.contains(e.target as Node)) menu.open = false
+    }
+    document.addEventListener('keydown', close)
+    document.addEventListener('pointerdown', close)
+    return () => {
+      document.removeEventListener('keydown', close)
+      document.removeEventListener('pointerdown', close)
+    }
+  }, [])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -419,7 +435,7 @@ export function EmailOrdersPage() {
                 ))}
               </select>
             </label>
-            <details className="group relative sm:hidden">
+            <details ref={moreRef} className="group relative sm:hidden">
               <summary className={`${secondaryButtonClass} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
                 <MoreHorizontal className="h-4 w-4" />
                 {t.common.more}
@@ -868,14 +884,6 @@ function OrderDetail({
                   ) : (
                     order[field] && <span className="text-xs text-graphite dark:text-graphite-dark">{t.emailOrders.markedNoDoc}</span>
                   )}
-                  {field === 'invoicedAt' && order.facturarOkAt && !order.invoicedAt && (
-                    <span
-                      title={t.emailOrders.facturarOkHint}
-                      className="inline-flex items-center rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow"
-                    >
-                      {t.emailOrders.facturarOk}
-                    </span>
-                  )}
                 </span>
                 <span className="flex shrink-0 items-center gap-1.5">
                   {number && year && (
@@ -897,6 +905,14 @@ function OrderDetail({
             )
           })}
         </div>
+        {order.facturarOkAt && !order.invoicedAt && (
+          <p className="mt-2 flex items-start gap-2 text-xs text-graphite dark:text-graphite-dark">
+            <span className="inline-flex shrink-0 items-center rounded-full border border-yellow bg-yellow/15 px-2 py-0.5 font-semibold text-ink dark:text-yellow">
+              {t.emailOrders.facturarOk}
+            </span>
+            {t.emailOrders.facturarOkHint}
+          </p>
+        )}
         {onResource && (
           <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2 dark:border-line-dark">
             <span className="flex min-w-0 items-center gap-2 text-sm text-ink dark:text-cream">

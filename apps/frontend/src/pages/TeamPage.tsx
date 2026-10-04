@@ -44,7 +44,7 @@ type Invitation = {
 }
 
 function tabButtonClass(active: boolean) {
-  return `inline-flex h-8 items-center rounded-lg px-3 text-sm font-semibold transition ${
+  return `inline-flex h-10 items-center rounded-lg px-3 text-sm font-semibold transition sm:h-8 ${
     active
       ? 'bg-ink text-cream dark:bg-yellow dark:text-ink'
       : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'

@@ -380,7 +380,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             const linkedOrder = f.linkedFrom?.orders[0]
             const linkChip = stateChip ?? (
               linkedOrder || f.linkedFrom?.quotes.length ? (
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-yellow/70 bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-yellow/70 bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
                   <ShoppingCart className="h-3.5 w-3.5" />
                   {linkedOrder
                     ? t.documents.linkedOrder.replace('{n}', linkedOrder.orderNumber ?? '')

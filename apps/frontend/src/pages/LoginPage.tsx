@@ -63,7 +63,7 @@ export function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-ink dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+              className="mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream"
             />
           </div>
 
@@ -78,7 +78,7 @@ export function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-ink dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+              className="mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream"
             />
           </div>
 

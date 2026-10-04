@@ -182,6 +182,7 @@ const en = {
     reasonQuote: 'Same quote number as the order',
     reasonAmount: 'Same total as the order',
     allDocuments: 'All documents',
+    reviewMatch: 'Review and compare',
     preview: 'Preview',
   },
   docLinks: {
@@ -596,6 +597,7 @@ const es = {
     reasonQuote: 'Mismo nº de presupuesto que el pedido',
     reasonAmount: 'Mismo importe que el pedido',
     allDocuments: 'Todos los documentos',
+    reviewMatch: 'Ver y comparar',
     preview: 'Vista previa',
   },
   docLinks: {
