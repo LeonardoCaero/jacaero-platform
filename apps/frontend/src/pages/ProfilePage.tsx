@@ -12,7 +12,7 @@ export function ProfilePage() {
     <div>
       <Link
         to="/"
-        className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+        className="-my-2 inline-flex min-h-10 items-center gap-1.5 rounded-md py-2 pr-2 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
       >
         <ArrowLeft className="h-4 w-4" />
         {t.comingSoon.back}
@@ -21,7 +21,7 @@ export function ProfilePage() {
       <div className="mt-6 flex items-center gap-4">
         <Avatar name={user?.fullName} size="lg" />
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-wide text-ink dark:text-cream">
+          <h1 className="font-display text-3xl font-semibold tracking-wide text-ink dark:text-cream">
             {user?.fullName}
           </h1>
           <p className="text-sm text-graphite dark:text-graphite-dark">{user?.email}</p>
@@ -36,10 +36,6 @@ export function ProfilePage() {
         <div className="flex items-center justify-between px-5 py-4">
           <span className="text-sm text-graphite dark:text-graphite-dark">{t.profile.jobTitle}</span>
           <span className="text-sm font-medium text-ink dark:text-cream">{user?.jobTitle ?? '—'}</span>
-        </div>
-        <div className="flex items-center justify-between px-5 py-4">
-          <span className="text-sm text-graphite dark:text-graphite-dark">{t.profile.account}</span>
-          <span className="text-sm font-medium text-ink dark:text-cream">{user?.email}</span>
         </div>
       </div>
 

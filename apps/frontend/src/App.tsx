@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from './pages/LoginPage'
 import { HomePage } from './pages/HomePage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -9,7 +9,6 @@ import { ComingSoonPage } from './pages/ComingSoonPage'
 import { TimeTrackerPage } from './pages/TimeTrackerPage'
 import { CalendarPage } from './pages/CalendarPage'
 import { TeamPage } from './pages/TeamPage'
-import { PapeleoPage } from './pages/PapeleoPage'
 import { EmailOrdersPage } from './pages/EmailOrdersPage'
 import { ReconcilePage } from './pages/ReconcilePage'
 import { DocumentsPage } from './pages/DocumentsPage'
@@ -39,7 +38,7 @@ function App() {
         <Route path="/team" element={<TeamPage />} />
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/clients/:id" element={<ClientDetailPage />} />
-        <Route path="/papeleo" element={<PapeleoPage />} />
+        <Route path="/papeleo" element={<Navigate to="/papeleo/pedidos" replace />} />
         <Route path="/papeleo/pedidos" element={<EmailOrdersPage />} />
         <Route path="/papeleo/pedidos/:id/reconcile" element={<ReconcilePage />} />
         <Route
@@ -59,6 +58,7 @@ function App() {
           .map((m) => (
             <Route key={m.path} path={m.path} element={<ComingSoonPage moduleKey={m.key} />} />
           ))}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   )

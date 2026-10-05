@@ -1,8 +1,9 @@
 import { z } from "zod";
 
+// Marking only happens by linking a document; this only unlinks.
 export const setMilestoneSchema = z.object({
   field: z.enum(["deliveryNoteAt", "invoicedAt"]),
-  done: z.boolean(),
+  done: z.literal(false),
 });
 
 export const setQuoteStatusSchema = z.object({
@@ -23,6 +24,10 @@ export const syncQuerySchema = z.object({
 
 export const reconcileQuerySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100).default(new Date().getFullYear()),
+});
+
+export const suggestionsQuerySchema = z.object({
+  category: z.enum(["presupuesto", "albaran", "factura", "pedidoMaterial", "horasTrabajo"]),
 });
 
 export const linkDocumentSchema = z.object({

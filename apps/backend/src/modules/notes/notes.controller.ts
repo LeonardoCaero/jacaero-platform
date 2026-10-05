@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { createNoteSchema, listNotesSchema, quoteStatusSchema } from "./notes.schema.js";
+import { createNoteSchema, listNotesSchema, documentStatusSchema } from "./notes.schema.js";
 import * as notesService from "./notes.service.js";
 
 export async function listHandler(req: Request, res: Response) {
@@ -17,5 +17,5 @@ export async function deleteHandler(req: Request<{ id: string }>, res: Response)
 }
 
 export async function quoteStatusHandler(req: Request, res: Response) {
-  res.json(await notesService.setQuoteStatus(quoteStatusSchema.parse(req.body)));
+  res.json(await notesService.setDocumentStatus(documentStatusSchema.parse(req.body)));
 }

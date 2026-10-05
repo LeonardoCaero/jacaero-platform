@@ -128,3 +128,19 @@ export function documentNumberFromFilename(name: string, keyword: "albaran" | "p
   const match = plain.match(new RegExp(`^(\\d+)\\s*${keyword}`, "i"));
   return match ? Number(match[1]) : undefined;
 }
+
+const SENT_KEYWORDS: [RegExp, "presupuesto" | "albaran" | "factura" | "horasTrabajo" | "pedidoMaterial"][] = [
+  [/^presupuesto/i, "presupuesto"],
+  [/^albaran/i, "albaran"],
+  [/^factura/i, "factura"],
+  [/^horas/i, "horasTrabajo"],
+  [/^pedido\s*material/i, "pedidoMaterial"],
+];
+
+export function documentFromFilename(name: string) {
+  const plain = name.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  const match = plain.match(/^(\d+)\s*(.*)$/);
+  if (!match) return undefined;
+  const category = SENT_KEYWORDS.find(([re]) => re.test(match[2]))?.[1];
+  return category ? { category, number: Number(match[1]) } : undefined;
+}

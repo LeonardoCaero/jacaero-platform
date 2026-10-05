@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { esNumber, extractOrderNumber, extractDeclaredNumber, extractDocumentTotal, documentNumberFromFilename } from "./po-parser.js";
+import { esNumber, extractOrderNumber, extractDeclaredNumber, extractDocumentTotal, documentNumberFromFilename, documentFromFilename } from "./po-parser.js";
 
 describe("esNumber", () => {
   it("parses Spanish thousand/decimal separators", () => {
@@ -51,5 +51,17 @@ describe("documentNumberFromFilename", () => {
     expect(documentNumberFromFilename("004 PRESUPUESTO EJEMPLO.pdf", "presupuesto")).toBe(4);
     expect(documentNumberFromFilename("005 Presupuesto obra ejemplo.pdf", "presupuesto")).toBe(5);
     expect(documentNumberFromFilename("001 ALBARÁN TRABAJOS EJEMPLO.pdf", "presupuesto")).toBeUndefined();
+  });
+});
+
+describe("documentFromFilename", () => {
+  it("tells which NAS category a sent attachment belongs to", () => {
+    expect(documentFromFilename("004 PRESUPUESTO EJEMPLO.pdf")).toEqual({ category: "presupuesto", number: 4 });
+    expect(documentFromFilename("001 ALBARÁN TRABAJOS EJEMPLO.pdf")).toEqual({ category: "albaran", number: 1 });
+    expect(documentFromFilename("012 FACTURA MES DE ENERO.pdf")).toEqual({ category: "factura", number: 12 });
+    expect(documentFromFilename("003 HORAS ENERO.pdf")).toEqual({ category: "horasTrabajo", number: 3 });
+    expect(documentFromFilename("007 PEDIDO MATERIAL EJEMPLO.pdf")).toEqual({ category: "pedidoMaterial", number: 7 });
+    expect(documentFromFilename("image001.png")).toBeUndefined();
+    expect(documentFromFilename("008 OFERTA EJEMPLO.pdf")).toBeUndefined();
   });
 });

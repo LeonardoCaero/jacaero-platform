@@ -1,11 +1,35 @@
-import { useState, type MouseEvent } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, RefreshCw, FileText, X, Check, Link2, Eye, Star, Search, Repeat } from 'lucide-react'
+import { ArrowDownUp, CalendarDays, CalendarSearch, ChevronDown, Circle, MoreHorizontal, RefreshCw, FileText, Check, Link2, Eye, Info, Sparkles, Star, Search, Repeat, Undo2 } from 'lucide-react'
 import { api } from '../lib/axios'
+import { formatEuro } from '../lib/format'
 import { Skeleton } from '../components/Skeleton'
 import { DocumentNotes } from '../components/DocumentNotes'
+import { ListRow } from '../components/ListRow'
+import {
+  FilterChip,
+  Modal,
+  PageHeader,
+  dialogFooterClass,
+  chipDoneClass,
+  chipPendingClass,
+  filterActiveClass,
+  filterClass,
+  filterIdleClass,
+  iconButtonClass,
+  inputClass,
+  listCardClass,
+  primaryButtonClass,
+  searchInputClass,
+  secondaryButtonClass,
+  sectionLabelClass,
+  segmentOffClass,
+  segmentOnClass,
+  smallButtonClass,
+  statusClass,
+} from '../components/ui'
+import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
@@ -44,14 +68,16 @@ async function openPdf(path: string, params?: Record<string, unknown>) {
   window.open(URL.createObjectURL(data), '_blank')
 }
 
-function PreviewButton({ onClick }: { onClick: (e: MouseEvent) => void }) {
+function PreviewButton({ onClick, label }: { onClick: (e: MouseEvent) => void; label: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-6 w-6 items-center justify-center rounded-md text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+      aria-label={label}
+      title={label}
+      className={`${iconButtonClass} relative z-10`}
     >
-      <Eye className="h-3.5 w-3.5" />
+      <Eye className="h-4 w-4" />
     </button>
   )
 }
@@ -105,12 +131,9 @@ type Resource = {
 
 const orderYearOf = (o: EmailOrder) => new Date(o.orderDate ?? o.receivedAt).getUTCFullYear()
 
-const cardClass =
-  'rounded-2xl border border-line bg-surface p-4 shadow-sm dark:border-line-dark dark:bg-surface-dark'
-
 function OrderCardSkeleton({ delay }: { delay: number }) {
   return (
-    <div className={`${cardClass} animate-fade-up`} style={{ animationDelay: `${delay}ms` }}>
+    <div className={`${listCardClass} animate-fade-up`} style={{ animationDelay: `${delay}ms` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
@@ -130,50 +153,14 @@ function OrderCardSkeleton({ delay }: { delay: number }) {
   )
 }
 
-const primaryButtonClass =
-  'flex h-10 items-center gap-1.5 rounded-xl bg-ink px-4 text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90'
-
-const secondaryButtonClass =
-  'flex h-10 items-center gap-1.5 rounded-xl border border-line px-4 text-sm font-semibold text-graphite transition hover:text-ink active:scale-[0.98] disabled:opacity-50 dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
-
 type MilestoneField = 'deliveryNoteAt' | 'invoicedAt'
 const MILESTONES: { field: MilestoneField; labelKey: 'deliveryNote' | 'invoiced' }[] = [
   { field: 'deliveryNoteAt', labelKey: 'deliveryNote' },
   { field: 'invoicedAt', labelKey: 'invoiced' },
 ]
 
-function MilestoneBadge({
-  done,
-  label,
-  onToggle,
-}: {
-  done: boolean
-  label: string
-  onToggle: (e: MouseEvent) => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-        done
-          ? 'bg-yellow/20 text-ink dark:text-cream'
-          : 'border border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
-      }`}
-    >
-      {done && <Check className="h-3 w-3" />}
-      {label}
-    </button>
-  )
-}
-
 type QuoteCategory = 'pending' | 'presupuesto' | 'horas' | 'material'
-const QUOTE_CYCLE: Record<QuoteCategory, QuoteCategory> = {
-  pending: 'presupuesto',
-  presupuesto: 'horas',
-  horas: 'material',
-  material: 'pending',
-}
+const QUOTE_CATEGORIES: QuoteCategory[] = ['pending', 'presupuesto', 'horas', 'material']
 
 function quoteCategoryOf(order: EmailOrder): QuoteCategory {
   if (order.quoteCategory === 'PRESUPUESTO') return 'presupuesto'
@@ -182,40 +169,37 @@ function quoteCategoryOf(order: EmailOrder): QuoteCategory {
   return 'pending'
 }
 
-function QuoteBadge({
-  category,
-  labels,
-  onCycle,
-}: {
-  category: QuoteCategory
-  labels: Record<QuoteCategory, string>
-  onCycle: (e: MouseEvent) => void
-}) {
-  const style =
-    category === 'pending'
-      ? 'border border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
-      : 'bg-yellow/20 text-ink dark:text-cream'
+function StatusChip({ done, label }: { done: boolean; label: string }) {
+  const { t } = useLanguage()
   return (
-    <button
-      type="button"
-      onClick={onCycle}
-      className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition ${style}`}
-    >
-      {category !== 'pending' && <Check className="h-3 w-3" />}
-      {labels[category]}
-    </button>
+    <span className={done ? chipDoneClass : chipPendingClass}>
+      {done && <Check className="h-3 w-3" />}
+      {label}
+      <span className="sr-only">: {done ? t.common.done : t.common.pending}</span>
+    </span>
   )
 }
 
-function FavoriteButton({ favorite, onToggle }: { favorite: boolean; onToggle: (e: MouseEvent) => void }) {
+function FavoriteButton({
+  favorite,
+  label,
+  onToggle,
+}: {
+  favorite: boolean
+  label: string
+  onToggle: (e: MouseEvent) => void
+}) {
   return (
     <button
       type="button"
       onClick={onToggle}
-      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition ${
+      aria-label={label}
+      aria-pressed={favorite}
+      title={label}
+      className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition hover:bg-ink/5 sm:h-8 sm:w-8 dark:hover:bg-cream/10 ${
         favorite
-          ? 'text-yellow'
-          : 'text-graphite/40 hover:text-graphite dark:text-graphite-dark/40 dark:hover:text-graphite-dark'
+          ? 'text-yellow-ink dark:text-yellow'
+          : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
       }`}
     >
       <Star className="h-4 w-4" fill={favorite ? 'currentColor' : 'none'} />
@@ -225,6 +209,7 @@ function FavoriteButton({ favorite, onToggle }: { favorite: boolean; onToggle: (
 
 export function EmailOrdersPage() {
   const { t, language } = useLanguage()
+  const { confirm, toast } = useFeedback()
   const queryClient = useQueryClient()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -232,20 +217,77 @@ export function EmailOrdersPage() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<QuoteCategory | 'all'>('all')
   const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [year, setYear] = useState(new Date().getFullYear())
+  const [newestFirst, setNewestFirst] = useState(true)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const moreRef = useRef<HTMLDetailsElement>(null)
+  const [moreOpen, setMoreOpen] = useState(false)
+
+  useEffect(() => {
+    function close(e: Event) {
+      const menu = moreRef.current
+      if (!menu?.open) return
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menu.contains(e.target as Node)) menu.open = false
+    }
+    document.addEventListener('keydown', close)
+    document.addEventListener('pointerdown', close)
+    return () => {
+      document.removeEventListener('keydown', close)
+      document.removeEventListener('pointerdown', close)
+    }
+  }, [])
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const [resourceOrder, setResourceOrder] = useState<EmailOrder | null>(null)
   const [chosenResource, setChosenResource] = useState('')
   const [resourceError, setResourceError] = useState<string | null>(null)
 
-  const { data: orders = [], isLoading } = useQuery({
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['email-orders'],
     queryFn: async () => (await api.get<EmailOrder[]>('/email-orders')).data,
   })
 
+  const quoteLabels: Record<QuoteCategory, string> = {
+    pending: t.emailOrders.quoted,
+    presupuesto: t.emailOrders.quoteCategoryPresupuesto,
+    horas: t.emailOrders.quoteCategoryHoras,
+    material: t.emailOrders.quoteCategoryMaterial,
+  }
+
   const query = search.trim().toLowerCase()
-  const filteredOrders = orders
+  const years = [...new Set([new Date().getFullYear(), ...orders.map(orderYearOf)])].sort((a, b) => b - a)
+  const orderTime = (o: EmailOrder) => new Date(o.orderDate ?? o.receivedAt).getTime()
+  const searchedOrders = orders
+    .filter((o) => orderYearOf(o) === year)
     .filter((o) => !query || orderSearchText(o).includes(query))
-    .filter((o) => typeFilter === 'all' || quoteCategoryOf(o) === typeFilter)
     .filter((o) => !favoritesOnly || o.favorite)
+  const filteredOrders = searchedOrders
+    .filter((o) => typeFilter === 'all' || quoteCategoryOf(o) === typeFilter)
+    .sort((a, b) => (orderTime(b) - orderTime(a)) * (newestFirst ? 1 : -1))
+
+  const typeFilters: { value: QuoteCategory | 'all'; label: string }[] = [
+    { value: 'all', label: t.emailOrders.filterTypeAll },
+    { value: 'pending', label: t.emailOrders.filterTypePending },
+    { value: 'presupuesto', label: t.emailOrders.quoteCategoryPresupuesto },
+    { value: 'horas', label: t.emailOrders.quoteCategoryHoras },
+    { value: 'material', label: t.emailOrders.quoteCategoryMaterial },
+  ]
+  const countFor = (value: QuoteCategory | 'all') =>
+    value === 'all' ? searchedOrders.length : searchedOrders.filter((o) => quoteCategoryOf(o) === value).length
 
   const syncMutation = useMutation({
     mutationFn: async (full: boolean) =>
@@ -262,6 +304,7 @@ export function EmailOrdersPage() {
       setSyncMessage(message)
       queryClient.invalidateQueries({ queryKey: ['email-orders'] })
     },
+    onError: () => setSyncMessage(t.common.loadError),
   })
 
   const reconcileMutation = useMutation({
@@ -280,18 +323,43 @@ export function EmailOrdersPage() {
       )
       queryClient.invalidateQueries({ queryKey: ['email-orders'] })
     },
+    onError: () => setSyncMessage(t.common.loadError),
   })
+
+  const orderLabel = (id: string) => {
+    const order = orders.find((o) => o.id === id)
+    return order?.orderNumber ?? order?.subject ?? ''
+  }
 
   const milestoneMutation = useMutation({
     mutationFn: ({ id, field, done }: { id: string; field: MilestoneField; done: boolean }) =>
       api.patch(`/email-orders/${id}/milestone`, { field, done }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-orders'] }),
+    onSuccess: (_d, { id, field, done }) => {
+      const label = t.emailOrders[MILESTONES.find((m) => m.field === field)!.labelKey]
+      toast((done ? t.emailOrders.markedOn : t.emailOrders.markedOff).replace('{order}', orderLabel(id)).replace('{label}', label))
+      queryClient.invalidateQueries({ queryKey: ['email-orders'] })
+    },
+    onError: () => toast(t.common.saveError, 'error'),
   })
 
+  const [undoQuote, setUndoQuote] = useState<{ id: string; previous: QuoteCategory } | null>(null)
+  const undoTimer = useRef<number | undefined>(undefined)
   const quoteStatusMutation = useMutation({
-    mutationFn: ({ id, category }: { id: string; category: QuoteCategory }) =>
+    mutationFn: ({ id, category }: { id: string; category: QuoteCategory; previous?: QuoteCategory }) =>
       api.patch(`/email-orders/${id}/quote-status`, { category }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-orders'] }),
+    onSuccess: (_d, { id, category, previous }) => {
+      const label = category === 'pending' ? t.emailOrders.filterTypePending : quoteLabels[category]
+      toast(t.emailOrders.quoteTypeSet.replace('{order}', orderLabel(id)).replace('{label}', label.toLowerCase()))
+      window.clearTimeout(undoTimer.current)
+      if (previous) {
+        setUndoQuote({ id, previous })
+        undoTimer.current = window.setTimeout(() => setUndoQuote(null), 10000)
+      } else {
+        setUndoQuote(null)
+      }
+      queryClient.invalidateQueries({ queryKey: ['email-orders'] })
+    },
+    onError: () => toast(t.common.saveError, 'error'),
   })
 
   const { data: resources = [] } = useQuery({
@@ -324,6 +392,7 @@ export function EmailOrdersPage() {
     mutationFn: ({ id, favorite }: { id: string; favorite: boolean }) =>
       api.patch(`/email-orders/${id}/favorite`, { favorite }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-orders'] }),
+    onError: () => toast(t.common.saveError, 'error'),
   })
 
   const selected = orders.find((o) => o.id === selectedId) ?? null
@@ -333,98 +402,209 @@ export function EmailOrdersPage() {
     return new Date(iso).toLocaleDateString(locale)
   }
 
+  async function unlinkMilestone(order: EmailOrder, field: MilestoneField) {
+    const message = field === 'invoicedAt' ? t.emailOrders.confirmUninvoice : t.emailOrders.confirmUnlinkAlbaran
+    const confirmLabel = field === 'invoicedAt' ? t.emailOrders.uninvoiceAction : t.emailOrders.unlinkDoc
+    if (!(await confirm({ message, danger: field === 'invoicedAt', confirmLabel }))) return
+    milestoneMutation.mutate({ id: order.id, field, done: false })
+  }
+
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <Link
-          to="/papeleo"
-          className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t.emailOrders.back}
-        </Link>
+      <PageHeader
+        title={t.papeleo.pedidosCorreo.label}
+        subtitle={t.papeleo.pedidosCorreo.description}
+        actions={
+          <>
+            <label className={`${filterClass} ${filterIdleClass} relative cursor-pointer`}>
+              <CalendarDays className="h-4 w-4" />
+              <span className="text-ink dark:text-cream">{year}</span>
+              <ChevronDown className="h-4 w-4" />
+              <select
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+                aria-label={t.documents.year}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              >
+                {years.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <details ref={moreRef} onToggle={(e) => setMoreOpen(e.currentTarget.open)} className="group relative sm:hidden">
+              <summary
+                role="button"
+                aria-expanded={moreOpen}
+                aria-haspopup="menu"
+                className={`${secondaryButtonClass} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+                {t.common.more}
+              </summary>
+              <div className="absolute left-0 z-20 mt-2 w-64 rounded-xl border border-line bg-surface p-1 shadow-lg dark:border-line-dark dark:bg-surface-dark">
+                {[
+                  {
+                    icon: Sparkles,
+                    label: reconcileMutation.isPending ? t.emailOrders.reconciling : t.emailOrders.reconcile,
+                    run: () => reconcileMutation.mutate(),
+                    disabled: reconcileMutation.isPending,
+                  },
+                  {
+                    icon: CalendarSearch,
+                    label: t.emailOrders.syncFull,
+                    run: () => syncMutation.mutate(true),
+                    disabled: syncMutation.isPending,
+                  },
+                ].map((a) => (
+                  <button
+                    key={a.label}
+                    type="button"
+                    disabled={a.disabled}
+                    onClick={(e) => {
+                      setSyncMessage(null)
+                      a.run()
+                      e.currentTarget.closest('details')?.removeAttribute('open')
+                    }}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold text-ink hover:bg-ink/5 disabled:opacity-50 dark:text-cream dark:hover:bg-cream/10"
+                  >
+                    <a.icon className="h-4 w-4" />
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </details>
+            <button
+              type="button"
+              onClick={() => {
+                setSyncMessage(null)
+                reconcileMutation.mutate()
+              }}
+              disabled={reconcileMutation.isPending}
+              className={`${secondaryButtonClass} max-sm:hidden`}
+            >
+              <Sparkles className="h-4 w-4" />
+              {reconcileMutation.isPending ? t.emailOrders.reconciling : t.emailOrders.reconcile}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSyncMessage(null)
+                syncMutation.mutate(true)
+              }}
+              disabled={syncMutation.isPending}
+              className={`${secondaryButtonClass} max-sm:hidden`}
+            >
+              <CalendarSearch className="h-4 w-4" />
+              {t.emailOrders.syncFull}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSyncMessage(null)
+                syncMutation.mutate(false)
+              }}
+              disabled={syncMutation.isPending}
+              className={primaryButtonClass}
+            >
+              <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+              {syncMutation.isPending ? (
+                t.emailOrders.syncing
+              ) : (
+                <>
+                  <span className="sm:hidden">{t.emailOrders.syncShort}</span>
+                  <span className="max-sm:hidden">{t.emailOrders.sync}</span>
+                </>
+              )}
+            </button>
+          </>
+        }
+      />
+
+      <div role="status" aria-live="polite">
+        {syncMessage && <p className={`mt-4 ${statusClass}`}>{syncMessage}</p>}
       </div>
 
-      <h1 className="mt-4 font-display text-2xl font-semibold tracking-wide text-ink dark:text-cream">
-        {t.papeleo.pedidosCorreo.label}
-      </h1>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setSyncMessage(null)
-            syncMutation.mutate(false)
-          }}
-          disabled={syncMutation.isPending}
-          className={primaryButtonClass}
-        >
-          <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-          {syncMutation.isPending ? t.emailOrders.syncing : t.emailOrders.sync}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setSyncMessage(null)
-            syncMutation.mutate(true)
-          }}
-          disabled={syncMutation.isPending}
-          className={secondaryButtonClass}
-        >
-          {t.emailOrders.syncFull}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setSyncMessage(null)
-            reconcileMutation.mutate()
-          }}
-          disabled={reconcileMutation.isPending}
-          className={secondaryButtonClass}
-        >
-          <Link2 className="h-4 w-4" />
-          {reconcileMutation.isPending ? t.emailOrders.reconciling : t.emailOrders.reconcile}
-        </button>
-      </div>
-
-      {syncMessage && <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{syncMessage}</p>}
-
-      <div className="relative mt-3">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
+      <div className="relative mt-5">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
         <input
-          type="text"
+          ref={searchRef}
+          type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t.emailOrders.searchPlaceholder}
-          className="h-10 w-full rounded-xl border border-line bg-paper pl-9 pr-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+          aria-label={t.emailOrders.searchPlaceholder}
+          aria-keyshortcuts="Control+K"
+          className={`${searchInputClass} sm:pr-20`}
+        />
+        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-line px-1.5 py-0.5 font-mono text-xs text-graphite sm:block dark:border-line-dark dark:text-graphite-dark">
+          Ctrl K
+        </kbd>
+      </div>
+
+      <div className="mt-3 flex gap-2 sm:hidden">
+        <label className={`${filterClass} ${typeFilter === 'all' ? filterIdleClass : filterActiveClass} relative min-w-0 flex-1 cursor-pointer`}>
+          <span className="min-w-0 flex-1 truncate">
+            {typeFilters.find((f) => f.value === typeFilter)?.label} · {countFor(typeFilter)}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0" />
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as QuoteCategory | 'all')}
+            aria-label={t.emailOrders.filterTypeAll}
+            className="absolute inset-0 cursor-pointer opacity-0"
+          >
+            {typeFilters.map((f) => (
+              <option key={f.value} value={f.value}>
+                {`${f.label} (${countFor(f.value)})`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          aria-pressed={favoritesOnly}
+          aria-label={t.emailOrders.filterFavorites}
+          title={t.emailOrders.filterFavorites}
+          onClick={() => setFavoritesOnly((v) => !v)}
+          className={`${filterClass} ${favoritesOnly ? filterActiveClass : filterIdleClass} shrink-0`}
+        >
+          <Star className="h-3.5 w-3.5" fill={favoritesOnly ? 'currentColor' : 'none'} />
+        </button>
+      </div>
+
+      <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
+        {typeFilters.map((f) => (
+          <FilterChip
+            key={f.value}
+            active={typeFilter === f.value}
+            onClick={() => setTypeFilter(f.value)}
+            label={f.label}
+            count={countFor(f.value)}
+          />
+        ))}
+        <FilterChip
+          active={favoritesOnly}
+          onClick={() => setFavoritesOnly((v) => !v)}
+          icon={<Star className="h-4 w-4" fill={favoritesOnly ? 'currentColor' : 'none'} />}
+          label={t.emailOrders.filterFavorites}
         />
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value as QuoteCategory | 'all')}
-          className="h-9 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
-        >
-          <option value="all">{t.emailOrders.filterTypeAll}</option>
-          <option value="pending">{t.emailOrders.filterTypePending}</option>
-          <option value="presupuesto">{t.emailOrders.quoteCategoryPresupuesto}</option>
-          <option value="horas">{t.emailOrders.quoteCategoryHoras}</option>
-          <option value="material">{t.emailOrders.quoteCategoryMaterial}</option>
-        </select>
-        <button
-          type="button"
-          onClick={() => setFavoritesOnly((v) => !v)}
-          className={`flex h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold transition ${
-            favoritesOnly
-              ? 'bg-yellow/20 text-ink dark:text-cream'
-              : 'border border-line text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
-          }`}
-        >
-          <Star className="h-3.5 w-3.5" fill={favoritesOnly ? 'currentColor' : 'none'} />
-          {t.emailOrders.filterFavorites}
-        </button>
-      </div>
+      {!isLoading && !isError && orders.length > 0 && (
+        <div className="mt-4 flex items-center justify-between text-xs text-graphite dark:text-graphite-dark">
+          <span>{t.emailOrders.found.replace('{count}', String(filteredOrders.length))}</span>
+          <button
+            type="button"
+            onClick={() => setNewestFirst((v) => !v)}
+            className="-my-2 inline-flex min-h-10 items-center gap-1.5 py-2 font-semibold hover:text-ink dark:hover:text-cream"
+          >
+            <ArrowDownUp className="h-3.5 w-3.5" />
+            {newestFirst ? t.documents.newestFirst : t.documents.oldestFirst}
+          </button>
+        </div>
+      )}
 
       {isLoading && (
         <div className="mt-4 space-y-2">
@@ -434,181 +614,211 @@ export function EmailOrdersPage() {
         </div>
       )}
 
-      <div className="mt-4 space-y-2">
+      {isError && (
+        <div className={`mt-4 flex items-center justify-between gap-3 ${statusClass}`}>
+          <span>{t.common.loadError}</span>
+          <button type="button" onClick={() => refetch()} className={secondaryButtonClass}>
+            {t.common.retry}
+          </button>
+        </div>
+      )}
+
+      <ul className="mt-2 space-y-2">
         {!isLoading &&
           filteredOrders.map((order) => (
-          <button
-            key={order.id}
-            type="button"
-            onClick={() => setSelectedId(order.id)}
-            className={`${cardClass} block w-full text-left transition hover:border-yellow ${
-              order.favorite ? 'border-yellow/50 bg-yellow/[0.04]' : ''
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-1">
-                <FavoriteButton
-                  favorite={order.favorite}
-                  onToggle={(e) => {
-                    e.stopPropagation()
-                    favoriteMutation.mutate({ id: order.id, favorite: !order.favorite })
-                  }}
-                />
-                {(order.contractResource || (order.orderNumber && freeResourcesFor(order).length > 0)) && (
-                  <span
-                    role="button"
-                    title={t.emailOrders.monthlyResource}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openResource(order)
-                    }}
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition ${
-                      order.contractResource
-                        ? 'text-ink dark:text-cream'
-                        : 'text-graphite/40 hover:text-graphite dark:text-graphite-dark/40 dark:hover:text-graphite-dark'
-                    }`}
-                  >
-                    <Repeat className="h-4 w-4" />
-                  </span>
-                )}
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-ink dark:text-cream">
-                    {order.orderNumber ?? order.subject}
-                  </p>
-                  <p className="truncate text-xs text-graphite dark:text-graphite-dark">
-                    {order.senderEmail} · {formatDate(order.orderDate)}
-                  </p>
-                  {order.contractResource && (
-                    <p className="truncate text-xs font-semibold text-ink dark:text-cream">
-                      {t.emailOrders.resourceTag.replace('{name}', order.contractResource.name)}
+            <ListRow
+              key={order.id}
+              onOpen={() => setSelectedId(order.id)}
+              openLabel={`${t.emailOrders.openOrder} ${order.orderNumber ?? order.subject}`}
+              highlighted={order.favorite}
+              heading={
+                <div className="flex min-w-0 items-center gap-1">
+                  <FavoriteButton
+                    favorite={order.favorite}
+                    label={`${t.emailOrders.favorite} ${order.orderNumber ?? order.subject}`}
+                    onToggle={() => favoriteMutation.mutate({ id: order.id, favorite: !order.favorite })}
+                  />
+                  <div className="min-w-0 pl-1">
+                    <p className="truncate font-mono text-sm font-semibold text-ink dark:text-cream">
+                      {order.orderNumber ?? order.subject}
                     </p>
+                    <p className="line-clamp-2 text-xs text-graphite lg:line-clamp-1 dark:text-graphite-dark">
+                      {[order.client?.name, formatDate(order.orderDate), order.quoteRef && `${t.emailOrders.quoteRef} ${order.quoteRef}`]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                    {order.contractResource && (
+                      <p className="truncate text-xs font-semibold text-ink dark:text-cream">
+                        {t.emailOrders.resourceTag.replace('{name}', order.contractResource.name)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              }
+              aside={
+                order.totalAmount && (
+                  <span className="block text-right font-mono text-sm font-semibold tabular text-ink lg:min-w-24 dark:text-cream">
+                    {formatEuro(order.totalAmount, locale)}
+                  </span>
+                )
+              }
+              chips={
+                <div className="flex flex-wrap gap-1.5 lg:justify-end">
+                  <StatusChip done={quoteCategoryOf(order) !== 'pending'} label={quoteLabels[quoteCategoryOf(order)]} />
+                  {MILESTONES.map(({ field, labelKey }) => (
+                    <StatusChip key={field} done={!!order[field]} label={t.emailOrders[labelKey]} />
+                  ))}
+                  {order.facturarOkAt && !order.invoicedAt && (
+                    <span
+                      title={t.emailOrders.facturarOkHint}
+                      className="inline-flex items-center rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow"
+                    >
+                      {t.emailOrders.facturarOk}
+                      <span className="sr-only">: {t.emailOrders.facturarOkHint}</span>
+                    </span>
                   )}
                 </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                {order.totalAmount && (
-                  <span className="text-sm font-semibold text-ink dark:text-cream">
-                    {Number(order.totalAmount).toLocaleString(locale)}€
-                  </span>
-                )}
-                <PreviewButton
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    openPdf(`/email-orders/${order.id}/pdf`)
-                  }}
-                />
-              </div>
-            </div>
+              }
+              actions={
+                <>
+                  <PreviewButton label={t.emailOrders.previewPdf} onClick={() => openPdf(`/email-orders/${order.id}/pdf`)} />
+                  <button
+                    type="button"
+                    title={t.documents.details}
+                    aria-label={`${t.documents.details} ${order.orderNumber ?? order.subject}`}
+                    onClick={() => setSelectedId(order.id)}
+                    className={`${iconButtonClass} relative z-10`}
+                  >
+                    <Info className="h-4 w-4" />
+                  </button>
+                </>
+              }
+            />
+          ))}
+      </ul>
 
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <QuoteBadge
-                category={quoteCategoryOf(order)}
-                labels={{
-                  pending: t.emailOrders.quoted,
-                  presupuesto: t.emailOrders.quoteCategoryPresupuesto,
-                  horas: t.emailOrders.quoteCategoryHoras,
-                  material: t.emailOrders.quoteCategoryMaterial,
-                }}
-                onCycle={(e) => {
-                  e.stopPropagation()
-                  quoteStatusMutation.mutate({ id: order.id, category: QUOTE_CYCLE[quoteCategoryOf(order)] })
-                }}
-              />
-              {MILESTONES.map(({ field, labelKey }) => (
-                <MilestoneBadge
-                  key={field}
-                  done={!!order[field]}
-                  label={t.emailOrders[labelKey]}
-                  onToggle={(e) => {
-                    e.stopPropagation()
-                    milestoneMutation.mutate({ id: order.id, field, done: !order[field] })
-                  }}
-                />
-              ))}
-              {order.facturarOkAt && !order.invoicedAt && (
-                <span className="rounded-full bg-ink px-2.5 py-1 text-xs font-semibold text-cream dark:bg-cream dark:text-ink">
-                  {t.emailOrders.facturarOk}
-                </span>
-              )}
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {!isLoading && orders.length === 0 && (
+      {!isLoading && !isError && orders.length === 0 && (
         <p className="mt-6 text-center text-sm text-graphite dark:text-graphite-dark">{t.emailOrders.empty}</p>
       )}
       {!isLoading && orders.length > 0 && filteredOrders.length === 0 && (
         <p className="mt-6 text-center text-sm text-graphite dark:text-graphite-dark">{t.emailOrders.noResults}</p>
       )}
 
-      {selected && <OrderDetail order={selected} onClose={() => setSelectedId(null)} />}
-
-      {resourceOrder &&
-        createPortal(
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={() => setResourceOrder(null)}>
-            <form
-              className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl dark:bg-surface-dark"
-              onClick={(e) => e.stopPropagation()}
-              onSubmit={(e) => {
-                e.preventDefault()
-                resourceMutation.mutate({ id: resourceOrder.id, contractResourceId: chosenResource })
-              }}
-            >
-              <p className="font-semibold text-ink dark:text-cream">{t.emailOrders.monthlyResource}</p>
-              <p className="mt-1 text-xs text-graphite dark:text-graphite-dark">
-                {t.emailOrders.monthlyResourceHint.replace('{order}', resourceOrder.orderNumber ?? '')}
-              </p>
-              <select
-                required
-                value={chosenResource}
-                onChange={(e) => setChosenResource(e.target.value)}
-                className="mt-4 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
-              >
-                <option value="" disabled hidden>
-                  {t.emailOrders.chooseResource}
-                </option>
-                {[
-                  ...resources.filter((r) => r.id === resourceOrder.contractResource?.id),
-                  ...freeResourcesFor(resourceOrder).filter((r) => r.id !== resourceOrder.contractResource?.id),
-                ].map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {`${r.client.name} -> ${r.name}`}
-                  </option>
-                ))}
-              </select>
-              {resourceError && <p className="mt-2 text-sm text-rust dark:text-rust-dark">{resourceError}</p>}
-              <div className="mt-5 flex justify-end gap-2">
-                {resourceOrder.contractResource && (
-                  <button
-                    type="button"
-                    onClick={() => resourceMutation.mutate({ id: resourceOrder.id, contractResourceId: null })}
-                    className="h-10 rounded-xl border border-line px-4 text-sm font-semibold text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
-                  >
-                    {t.emailOrders.unlinkResource}
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={!chosenResource || resourceMutation.isPending}
-                  className="h-10 rounded-xl bg-ink px-4 text-sm font-semibold text-cream disabled:opacity-50 dark:bg-cream dark:text-ink"
-                >
-                  {t.emailOrders.linkResource}
-                </button>
-              </div>
-            </form>
-          </div>,
-          document.body,
+      <Modal
+        open={!!selected}
+        onClose={() => setSelectedId(null)}
+        title={
+          <>
+            <span className="sr-only">{t.emailOrders.order} </span>
+            <span className="font-mono">{selected?.orderNumber ?? selected?.subject}</span>
+          </>
+        }
+        closeLabel={t.common.close}
+      >
+        {selected && (
+          <OrderDetail
+            order={selected}
+            quoteLabels={quoteLabels}
+            onQuoteCategory={(category) =>
+              quoteStatusMutation.mutate({ id: selected.id, category, previous: quoteCategoryOf(selected) })
+            }
+            onUndoQuote={
+              undoQuote?.id === selected.id
+                ? () => quoteStatusMutation.mutate({ id: selected.id, category: undoQuote.previous })
+                : undefined
+            }
+            onResource={
+              selected.contractResource || (selected.orderNumber && freeResourcesFor(selected).length > 0)
+                ? () => openResource(selected)
+                : undefined
+            }
+            onUnlinkMilestone={(field) => unlinkMilestone(selected, field)}
+          />
         )}
+      </Modal>
+
+      <Modal
+        open={!!resourceOrder}
+        onClose={() => setResourceOrder(null)}
+        title={t.emailOrders.monthlyResource}
+        closeLabel={t.common.close}
+        size="sm"
+      >
+        {resourceOrder && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              resourceMutation.mutate({ id: resourceOrder.id, contractResourceId: chosenResource })
+            }}
+          >
+            <p className="text-sm text-graphite dark:text-graphite-dark">
+              {t.emailOrders.monthlyResourceHint.replace('{order}', resourceOrder.orderNumber ?? '')}
+            </p>
+            <select
+              required
+              value={chosenResource}
+              onChange={(e) => setChosenResource(e.target.value)}
+              aria-label={t.emailOrders.chooseResource}
+              className={`mt-4 ${inputClass}`}
+            >
+              <option value="" disabled hidden>
+                {t.emailOrders.chooseResource}
+              </option>
+              {[
+                ...resources.filter((r) => r.id === resourceOrder.contractResource?.id),
+                ...freeResourcesFor(resourceOrder).filter((r) => r.id !== resourceOrder.contractResource?.id),
+              ].map((r) => (
+                <option key={r.id} value={r.id}>
+                  {`${r.client.name} -> ${r.name}`}
+                </option>
+              ))}
+            </select>
+            {resourceError && <p className="mt-2 text-sm text-rust dark:text-rust-dark">{resourceError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              {resourceOrder.contractResource && (
+                <button
+                  type="button"
+                  onClick={() => resourceMutation.mutate({ id: resourceOrder.id, contractResourceId: null })}
+                  className={secondaryButtonClass}
+                >
+                  {t.emailOrders.unlinkResource}
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={!chosenResource || resourceMutation.isPending}
+                className={primaryButtonClass}
+              >
+                {t.emailOrders.linkResource}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   )
 }
 
-function OrderDetail({ order, onClose }: { order: EmailOrder; onClose: () => void }) {
+function OrderDetail({
+  order,
+  quoteLabels,
+  onQuoteCategory,
+  onUnlinkMilestone,
+  onResource,
+  onUndoQuote,
+}: {
+  order: EmailOrder
+  quoteLabels: Record<QuoteCategory, string>
+  onQuoteCategory: (category: QuoteCategory) => void
+  onUnlinkMilestone: (field: MilestoneField) => void
+  onResource?: () => void
+  onUndoQuote?: () => void
+}) {
   const { t, language } = useLanguage()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const year = order.orderDate ? new Date(order.orderDate).getUTCFullYear() : null
   const quoteDocCategory = order.quoteCategory ? QUOTE_CATEGORY_TO_DOC[order.quoteCategory] : null
+  const currentCategory = quoteCategoryOf(order)
 
   function previewDocument(category: DocCategory, year: number, number: string) {
     openPdf(`/documents/${category}/file`, { year, number, ext: 'pdf' })
@@ -619,120 +829,188 @@ function OrderDetail({ order, onClose }: { order: EmailOrder; onClose: () => voi
     (!!order.orderNumber && !order.deliveryNoteAt) ||
     (!!order.orderNumber && !order.invoicedAt)
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={onClose}>
-      <div
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-surface p-5 shadow-xl dark:bg-surface-dark"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <p className="font-display text-lg font-semibold tracking-wide text-ink dark:text-cream">
-            {order.orderNumber ?? order.subject}
-          </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+  const docRefs = [
+    order.quoteRef && {
+      label: t.emailOrders.quoteRef,
+      value: order.quoteRef,
+      preview: quoteDocCategory && year ? () => previewDocument(quoteDocCategory, year, order.quoteRef!) : null,
+    },
+    order.albaranSentAt && {
+      label: t.emailOrders.albaranSent,
+      value: new Date(order.albaranSentAt).toLocaleDateString(locale),
+      preview: null,
+    },
+  ].filter(Boolean) as { label: string; value: string; preview: (() => void) | null }[]
 
-        <div className="mt-3 space-y-3 text-sm">
-          {order.quoteRef && (
-            <p className="flex items-center gap-1 text-graphite dark:text-graphite-dark">
-              {t.emailOrders.quoteRef}: <span className="text-ink dark:text-cream">{order.quoteRef}</span>
-              {quoteDocCategory && year && (
-                <PreviewButton onClick={() => previewDocument(quoteDocCategory, year, order.quoteRef!)} />
-              )}
-            </p>
-          )}
-          {order.albaranNumber && (
-            <p className="flex items-center gap-1 text-graphite dark:text-graphite-dark">
-              {t.emailOrders.albaranNumber}: <span className="text-ink dark:text-cream">{order.albaranNumber}</span>
-              {year && <PreviewButton onClick={() => previewDocument('albaran', year, order.albaranNumber!)} />}
-            </p>
-          )}
-          {order.albaranSentAt && (
-            <p className="text-graphite dark:text-graphite-dark">
-              {t.emailOrders.albaranSent}:{' '}
-              <span className="text-ink dark:text-cream">{new Date(order.albaranSentAt).toLocaleDateString(locale)}</span>
-            </p>
-          )}
-          {order.facturaNumber && (
-            <p className="flex items-center gap-1 text-graphite dark:text-graphite-dark">
-              {t.emailOrders.facturaNumber}: <span className="text-ink dark:text-cream">{order.facturaNumber}</span>
-              {year && <PreviewButton onClick={() => previewDocument('factura', year, order.facturaNumber!)} />}
-            </p>
-          )}
-
-          {(order.contactName || order.contactEmail || order.contactPhone) && (
-            <div>
-              <p className="font-semibold text-ink dark:text-cream">{t.emailOrders.contact}</p>
-              <p className="text-graphite dark:text-graphite-dark">
-                {[order.contactName, order.contactEmail, order.contactPhone].filter(Boolean).join(' · ')}
-              </p>
-            </div>
-          )}
-
-          {order.deliveryAddress && (
-            <div>
-              <p className="font-semibold text-ink dark:text-cream">{t.emailOrders.deliveryAddress}</p>
-              <p className="text-graphite dark:text-graphite-dark">{order.deliveryAddress}</p>
-            </div>
-          )}
-
-          {order.notes && (
-            <div>
-              <p className="font-semibold text-ink dark:text-cream">{t.emailOrders.notes}</p>
-              <p className="whitespace-pre-line text-graphite dark:text-graphite-dark">{order.notes}</p>
-            </div>
-          )}
-
-          <div>
-            <p className="font-semibold text-ink dark:text-cream">{t.emailOrders.lines}</p>
-            <div className="mt-1 space-y-1.5">
-              {order.lines.map((line) => (
-                <div key={line.id} className="flex items-center justify-between rounded-xl border border-line px-3 py-2 dark:border-line-dark">
-                  <span className="text-graphite dark:text-graphite-dark">{line.description}</span>
-                  <span className="shrink-0 font-semibold text-ink dark:text-cream">
-                    {Number(line.amount).toLocaleString(locale)}€
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {order.totalAmount && (
-            <div className="flex items-center justify-between border-t border-line pt-2 font-semibold text-ink dark:border-line-dark dark:text-cream">
-              <span>{t.emailOrders.total}</span>
-              <span>{Number(order.totalAmount).toLocaleString(locale)}€</span>
-            </div>
-          )}
-
-          <DocumentNotes category="pedido" year={0} name={order.id} />
-
-          <button
-            type="button"
-            onClick={() => openPdf(`/email-orders/${order.id}/pdf`)}
-            className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-line text-sm font-semibold text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream"
-          >
-            <FileText className="h-4 w-4" />
-            {t.emailOrders.viewPdf}
-          </button>
-
-          {hasMissingLink && (
-            <Link
-              to={`/papeleo/pedidos/${order.id}/reconcile`}
-              className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-ink text-sm font-semibold text-cream hover:bg-ink/90 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
+  return (
+    <div className="space-y-5 text-sm">
+      <section>
+        <h3 id="order-quote-type" className={sectionLabelClass}>{t.emailOrders.quoteType}</h3>
+        <div role="radiogroup" aria-labelledby="order-quote-type" className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+          {QUOTE_CATEGORIES.map((category) => (
+            <button
+              key={category}
+              type="button"
+              role="radio"
+              aria-checked={currentCategory === category}
+              onClick={() => currentCategory !== category && onQuoteCategory(category)}
+              className={(currentCategory === category) ? segmentOnClass : segmentOffClass}
             >
-              <Link2 className="h-4 w-4" />
-              {t.reconcileManual.title}
-            </Link>
+              {category === 'pending' ? t.emailOrders.filterTypePending : quoteLabels[category]}
+            </button>
+          ))}
+        </div>
+        {onUndoQuote && (
+          <button type="button" onClick={onUndoQuote} className={`${smallButtonClass} mt-2`}>
+            <Undo2 className="h-3.5 w-3.5" />
+            {t.common.undo}
+          </button>
+        )}
+      </section>
+
+      <section>
+        <h3 className={sectionLabelClass}>{t.emailOrders.documents}</h3>
+        <div className="mt-2 divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
+          {MILESTONES.map(({ field }) => {
+            const number = field === 'deliveryNoteAt' ? order.albaranNumber : order.facturaNumber
+            const docCategory = field === 'deliveryNoteAt' ? 'albaran' : 'factura'
+            return (
+              <div key={field} className="flex items-center justify-between gap-3 px-3 py-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm text-ink dark:text-cream">
+                  {order[field] ? (
+                    <Check className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <Circle className="h-4 w-4 shrink-0 text-graphite dark:text-graphite-dark" />
+                  )}
+                  {field === 'deliveryNoteAt' ? t.emailOrders.deliveryNote : t.docLinks.invoice}
+                  {number ? (
+                    <span className="font-mono font-semibold text-yellow-ink dark:text-yellow">{number}</span>
+                  ) : (
+                    order[field] && <span className="text-xs text-graphite dark:text-graphite-dark">{t.emailOrders.markedNoDoc}</span>
+                  )}
+                </span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {number && year && (
+                    <PreviewButton label={t.emailOrders.previewPdf} onClick={() => previewDocument(docCategory, year, number)} />
+                  )}
+                  {!number && (
+                    <Link
+                      to={`/papeleo/pedidos/${order.id}/reconcile?target=${docCategory}`}
+                      aria-label={`${t.emailOrders.findDoc} ${field === 'deliveryNoteAt' ? t.emailOrders.deliveryNote : t.docLinks.invoice}`}
+                      className={smallButtonClass}
+                    >
+                      <Search className="h-3.5 w-3.5" />
+                      {t.emailOrders.findDoc}
+                    </Link>
+                  )}
+                  {order[field] && (
+                    <button type="button" onClick={() => onUnlinkMilestone(field)} className={smallButtonClass}>
+                      {number ? t.emailOrders.unlinkDoc : t.emailOrders.removeMark}
+                    </button>
+                  )}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+        {order.facturarOkAt && !order.invoicedAt && (
+          <p className="mt-2 flex items-start gap-2 text-xs text-graphite dark:text-graphite-dark">
+            <span className="inline-flex shrink-0 items-center rounded-full border border-yellow bg-yellow/15 px-2 py-0.5 font-semibold text-ink dark:text-yellow">
+              {t.emailOrders.facturarOk}
+            </span>
+            {t.emailOrders.facturarOkHint}
+          </p>
+        )}
+        {onResource && (
+          <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2 dark:border-line-dark">
+            <span className="flex min-w-0 items-center gap-2 text-sm text-ink dark:text-cream">
+              <Repeat className="h-4 w-4 shrink-0" />
+              {order.contractResource
+                ? t.emailOrders.resourceTag.replace('{name}', order.contractResource.name)
+                : t.emailOrders.monthlyResource}
+            </span>
+            <button type="button" onClick={onResource} className={smallButtonClass}>
+              {order.contractResource ? t.team.edit : t.emailOrders.assign}
+            </button>
+          </div>
+        )}
+      </section>
+
+      {docRefs.length > 0 && (
+        <dl className="divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
+          {docRefs.map((ref) => (
+            <div key={ref.label} className="flex items-center justify-between gap-3 px-3 py-2">
+              <dt className="text-graphite dark:text-graphite-dark">{ref.label}</dt>
+              <dd className="flex items-center gap-1 font-mono text-ink dark:text-cream">
+                {ref.value}
+                {ref.preview && <PreviewButton label={t.emailOrders.previewPdf} onClick={ref.preview} />}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {(order.contactName || order.contactEmail || order.contactPhone) && (
+        <section>
+          <h3 className={sectionLabelClass}>{t.emailOrders.contact}</h3>
+          <p className="mt-1 text-ink dark:text-cream">
+            {[order.contactName, order.contactEmail, order.contactPhone].filter(Boolean).join(' · ')}
+          </p>
+        </section>
+      )}
+
+      {order.deliveryAddress && (
+        <section>
+          <h3 className={sectionLabelClass}>{t.emailOrders.deliveryAddress}</h3>
+          <p className="mt-1 text-ink dark:text-cream">{order.deliveryAddress}</p>
+        </section>
+      )}
+
+      {order.notes && (
+        <section>
+          <h3 className={sectionLabelClass}>{t.emailOrders.notes}</h3>
+          <p className="mt-1 whitespace-pre-line text-ink dark:text-cream">{order.notes}</p>
+        </section>
+      )}
+
+      <section>
+        <h3 className={sectionLabelClass}>{t.emailOrders.lines}</h3>
+        <div className="mt-1.5 divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
+          {order.lines.map((line) => (
+            <div key={line.id} className="flex items-start justify-between gap-3 px-3 py-2">
+              <span className="text-ink dark:text-cream">{line.description}</span>
+              <span className="shrink-0 font-mono font-semibold tabular text-ink dark:text-cream">
+                {formatEuro(line.amount, locale)}
+              </span>
+            </div>
+          ))}
+          {order.totalAmount && (
+            <div className="flex items-center justify-between gap-3 bg-paper px-3 py-2 font-semibold text-ink dark:bg-paper-dark dark:text-cream">
+              <span>{t.emailOrders.total}</span>
+              <span className="font-mono tabular">{formatEuro(order.totalAmount, locale)}</span>
+            </div>
           )}
         </div>
+      </section>
+
+      <DocumentNotes category="pedido" year={0} name={order.id} />
+
+      <div className={dialogFooterClass}>
+        <button
+          type="button"
+          onClick={() => openPdf(`/email-orders/${order.id}/pdf`)}
+          className={`${secondaryButtonClass} flex-1 whitespace-nowrap px-3`}
+        >
+          <FileText className="h-4 w-4" />
+          {t.emailOrders.viewPdf}
+        </button>
+        {hasMissingLink && (
+          <Link to={`/papeleo/pedidos/${order.id}/reconcile`} className={`${secondaryButtonClass} flex-1 whitespace-nowrap px-3`}>
+            <Link2 className="h-4 w-4" />
+            {t.reconcileManual.title}
+          </Link>
+        )}
       </div>
-    </div>,
-    document.body,
+    </div>
   )
 }

@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDownUp,
-  ArrowLeft,
   Building2,
   CalendarDays,
   ChevronDown,
@@ -18,14 +16,35 @@ import {
   Share2,
   StickyNote,
   ShoppingCart,
+  Undo2,
   Users,
-  X,
 } from 'lucide-react'
 import { api } from '../lib/axios'
+import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { translations } from '../lib/translations'
 import { Skeleton } from '../components/Skeleton'
 import { DocumentNotes } from '../components/DocumentNotes'
+import { ListRow } from '../components/ListRow'
+import { DocumentOrigin, OrderFinder, QuoteLinks, type DocOrigin, type LinkedDoc } from '../components/DocumentLinks'
+import {
+  FilterChip,
+  Modal,
+  PageHeader,
+  dialogFooterClass,
+  secondaryButtonClass,
+  filterActiveClass as pillActiveClass,
+  filterClass as pillClass,
+  filterIdleClass as pillIdleClass,
+  iconButtonClass,
+  inputClass,
+  primaryButtonClass,
+  searchInputClass,
+  sectionLabelClass,
+  segmentOffClass,
+  segmentOnClass,
+  smallButtonClass,
+} from '../components/ui'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
 type PapeleoKey = keyof (typeof translations)['en']['papeleo']
@@ -37,7 +56,9 @@ type DocFile = {
   hasPdf: boolean
   hasDocx: boolean
   orderNumbers?: string[]
-  orders?: { id: string; orderNumber: string; linked: boolean }[]
+  orders?: { id: string; orderNumber: string; linked: boolean; albaranNumber?: string | null; facturaNumber?: string | null }[]
+  links?: LinkedDoc[]
+  linkedFrom?: DocOrigin
   sent?: { at: string; to: string; viaClient: boolean } | null
   client?: string | null
   noteCount?: number
@@ -47,19 +68,10 @@ type DocFile = {
 type QuoteState = 'ANULADO' | 'STANDBY' | 'SUSTITUIDO'
 const closedStates: (QuoteState | null | undefined)[] = ['ANULADO', 'SUSTITUIDO']
 
-type QuoteFilter = 'all' | 'noOrder' | 'notSent'
+type QuoteFilter = 'all' | 'noOrder' | 'notSent' | 'unlinked'
 
 const rowClass =
-  'group rounded-2xl border border-line bg-surface px-4 py-3 shadow-sm transition hover:border-yellow/60 dark:border-line-dark dark:bg-surface-dark dark:hover:border-yellow/40'
-
-const pillClass =
-  'inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition'
-const pillIdleClass =
-  'border-line bg-surface text-graphite hover:text-ink dark:border-line-dark dark:bg-surface-dark dark:text-graphite-dark dark:hover:text-cream'
-const pillActiveClass = 'border-yellow bg-yellow text-ink'
-
-const iconButtonClass =
-  'flex h-8 w-8 items-center justify-center rounded-lg border border-line text-graphite transition hover:border-yellow hover:text-ink lg:h-9 lg:w-9 lg:rounded-xl dark:border-line-dark dark:text-graphite-dark dark:hover:border-yellow/60 dark:hover:text-cream'
+  'group cursor-pointer rounded-2xl border border-line bg-surface px-4 py-3 shadow-sm transition hover:border-yellow/60 dark:border-line-dark dark:bg-surface-dark dark:hover:border-yellow/40'
 
 const currentYear = new Date().getFullYear()
 const years = [currentYear, currentYear - 1]
@@ -69,7 +81,6 @@ const docKey = (f: DocFile) => f.name ?? f.number
 function RowSkeleton({ delay }: { delay: number }) {
   return (
     <div className={`${rowClass} flex items-center gap-3 animate-fade-up`} style={{ animationDelay: `${delay}ms` }}>
-      <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
       <div className="flex-1 space-y-2">
         <Skeleton className="h-4 w-2/3" />
         <Skeleton className="h-3 w-1/3" />
@@ -82,7 +93,7 @@ function RowSkeleton({ delay }: { delay: number }) {
 export function DocumentsPage({ category, titleKey }: { category: DocCategory; titleKey: PapeleoKey }) {
   const { t, language } = useLanguage()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [year, setYear] = useState(() => Number(searchParams.get('year')) || currentYear)
   const [search, setSearch] = useState('')
   const [quoteFilter, setQuoteFilter] = useState<QuoteFilter>('all')
@@ -91,11 +102,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
   const [detail, setDetail] = useState<DocFile | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const isQuote = category === 'presupuesto'
-  const [toast, setToast] = useState<string | null>(null)
-  function showToast(message: string) {
-    setToast(message)
-    window.setTimeout(() => setToast(null), 3000)
-  }
+  const { toast: showToast } = useFeedback()
 
   const { data: files = [], isLoading, isError } = useQuery({
     queryKey: ['documents', category, year],
@@ -118,14 +125,19 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     !query || [f.number, f.title, f.client ?? '', ...(f.orderNumbers ?? [])].join(' ').toLowerCase().includes(query)
   const matchesClient = (f: DocFile) => !clientFilter || f.client === clientFilter
   const base = files.filter((f) => matchesSearch(f) && matchesClient(f))
+  const tracksLinks = category === 'albaran' || category === 'factura'
+  const isUnlinked = (f: DocFile) =>
+    !f.linkedFrom?.orders.length && !f.linkedFrom?.quotes.length && !closedStates.includes(f.status?.status)
   const counts = {
     all: base.length,
+    unlinked: base.filter(isUnlinked).length,
     noOrder: base.filter((f) => !f.orderNumbers?.length && !closedStates.includes(f.status?.status)).length,
     notSent: base.filter((f) => !f.sent).length,
   }
   const filteredFiles = base
     .filter((f) => quoteFilter !== 'noOrder' || (!f.orderNumbers?.length && !closedStates.includes(f.status?.status)))
     .filter((f) => quoteFilter !== 'notSent' || !f.sent)
+    .filter((f) => quoteFilter !== 'unlinked' || isUnlinked(f))
     .sort((a, b) => (Number(b.number) - Number(a.number)) * (newestFirst ? 1 : -1))
   const clientOptions = [...new Set(files.map((f) => f.client).filter((c): c is string => !!c))].sort()
 
@@ -139,25 +151,72 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     else window.open(url, '_blank')
   }
 
+  useEffect(() => {
+    const wanted = searchParams.get('detail')
+    if (!wanted || files.length === 0) return
+    const file = files.find((f) => f.name === wanted) ?? files.find((f) => Number(f.number) === Number(wanted))
+    if (file) {
+      setReplacedBy(file.status?.replacedBy ?? '')
+      setDetail(file)
+    }
+    setSearchParams((prev) => {
+      prev.delete('detail')
+      return prev
+    }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files])
+
   // Shared links land here logged out; ProtectedRoute bounces to /login and back, then this opens the file.
   // Same-tab navigation (not window.open) because it can't rely on a fresh user gesture at that point.
   useEffect(() => {
     const number = searchParams.get('number')
     const ext = searchParams.get('ext')
     if (!searchParams.get('open') || !number || (ext !== 'pdf' && ext !== 'docx')) return
-    openFile(number, ext, searchParams.get('name') ?? undefined, true).catch(() => showToast(t.documents.unreachable))
+    openFile(number, ext, searchParams.get('name') ?? undefined, true).catch(() => showToast(t.documents.unreachable, 'error'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const queryClient = useQueryClient()
   const [replacedBy, setReplacedBy] = useState('')
+  const [undoStatus, setUndoStatus] = useState<{
+    file: DocFile
+    previous: { status: QuoteState | null; replacedBy: string | null }
+  } | null>(null)
+  const undoTimer = useRef<number | undefined>(undefined)
   const statusMutation = useMutation({
-    mutationFn: async ({ file, status, replaced }: { file: DocFile; status: QuoteState | null; replaced?: string }) =>
-      api.put('/notes/quote-status', { year, name: file.name, status, replacedBy: replaced }),
-    onSuccess: (_d, { status, replaced }) => {
+    mutationFn: async ({
+      file,
+      status,
+      replaced,
+    }: {
+      file: DocFile
+      status: QuoteState | null
+      replaced?: string
+      undo?: boolean
+    }) => api.put('/notes/quote-status', { category, year, name: file.name, status, replacedBy: replaced }),
+    onSuccess: (_d, { file, status, replaced, undo }) => {
       setDetail((cur) => cur && { ...cur, status: { status, replacedBy: status === 'SUSTITUIDO' ? replaced ?? null : null } })
       queryClient.invalidateQueries({ queryKey: ['documents', category, year] })
+      const qs = t.documents.quoteStates
+      const state =
+        status === 'SUSTITUIDO'
+          ? qs.replacedBy.replace('{n}', replaced || '?')
+          : status === 'ANULADO'
+            ? qs.cancelled
+            : status === 'STANDBY'
+              ? qs.standby
+              : qs.active
+      showToast(qs.changed.replace('{n}', file.number).replace('{state}', state.toLowerCase()))
+      if (undo) {
+        setUndoStatus(null)
+      } else {
+        const previous = file.status ?? { status: null, replacedBy: null }
+        setUndoStatus({ file: { ...file, status: { status, replacedBy: replaced ?? null } }, previous })
+        window.clearTimeout(undoTimer.current)
+        undoTimer.current = window.setTimeout(() => setUndoStatus(null), 10000)
+      }
     },
+    onError: () => showToast(t.common.saveError, 'error'),
   })
 
   async function previewOrder(id: string) {
@@ -165,7 +224,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       const { data } = await api.get(`/email-orders/${id}/pdf`, { responseType: 'blob' })
       window.open(URL.createObjectURL(data), '_blank')
     } catch {
-      showToast(t.documents.orderPdfMissing)
+      showToast(t.documents.orderPdfMissing, 'error')
     }
   }
 
@@ -184,107 +243,97 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
       return
     }
 
-    navigator.clipboard.writeText(url.toString()).then(() => showToast(t.documents.linkCopied))
+    navigator.clipboard
+      .writeText(url.toString())
+      .then(() => showToast(t.documents.linkCopied))
+      .catch(() => showToast(t.documents.copyFailed, 'error'))
   }
 
   const shortDate = (iso: string) => new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'numeric' })
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <Link
-          to="/papeleo"
-          className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t.documents.back}
-        </Link>
+      <PageHeader
+        title={t.papeleo[titleKey].label}
+        subtitle={t.papeleo[titleKey].description}
+        actions={
+          <label className={`${pillClass} ${pillIdleClass} relative cursor-pointer`}>
+            <CalendarDays className="h-4 w-4" />
+            <span className="text-ink dark:text-cream">{year}</span>
+            <ChevronDown className="h-4 w-4" />
+            <select
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              aria-label={t.documents.year}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </label>
+        }
+      />
 
-        <label className={`${pillClass} ${pillIdleClass} relative cursor-pointer`}>
-          <CalendarDays className="h-4 w-4" />
-          <span className="text-ink dark:text-cream">{year}</span>
-          <ChevronDown className="h-4 w-4" />
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            aria-label={t.documents.year}
-            className="absolute inset-0 cursor-pointer opacity-0"
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <h1 className="mt-4 font-display text-3xl font-semibold tracking-wide text-ink dark:text-cream">
-        {t.papeleo[titleKey].label}
-      </h1>
-      <p className="mt-0.5 text-sm text-graphite dark:text-graphite-dark">{t.papeleo[titleKey].description}</p>
-
-      <div className="relative mt-4">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
+      <div className="relative mt-5">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite dark:text-graphite-dark" />
         <input
           ref={searchRef}
-          type="text"
+          type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={isQuote ? t.documents.searchQuotePlaceholder : t.documents.searchPlaceholder}
-          className="h-12 w-full rounded-2xl border border-line bg-surface pl-11 pr-20 text-sm text-ink shadow-sm outline-none transition focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-surface-dark dark:text-cream"
+          aria-label={isQuote ? t.documents.searchQuotePlaceholder : t.documents.searchPlaceholder}
+          aria-keyshortcuts="Control+K"
+          className={`${searchInputClass} sm:pr-20`}
         />
-        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-line px-1.5 py-0.5 font-mono text-[11px] text-graphite sm:block dark:border-line-dark dark:text-graphite-dark">
+        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-line px-1.5 py-0.5 font-mono text-xs text-graphite sm:block dark:border-line-dark dark:text-graphite-dark">
           Ctrl K
         </kbd>
       </div>
 
-      {isQuote && (
-        <div className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-          {(['all', 'noOrder', 'notSent'] as const).map((f) => {
-            const Icon = f === 'all' ? List : f === 'noOrder' ? FileText : Send
-            const active = quoteFilter === f
-            return (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setQuoteFilter(f)}
-                className={`${pillClass} shrink-0 ${active ? pillActiveClass : pillIdleClass}`}
-              >
-                <Icon className="h-4 w-4" />
-                {t.documents.quoteFilters[f]}
-                <span
-                  className={`rounded-full px-1.5 py-px font-mono text-[11px] ${
-                    active ? 'bg-ink/15 text-ink' : 'bg-ink/5 text-ink dark:bg-cream/10 dark:text-cream'
-                  }`}
-                >
-                  {counts[f]}
-                </span>
-              </button>
-            )
-          })}
-          {clientOptions.length > 1 && (
-            <label className={`${pillClass} relative shrink-0 cursor-pointer ${clientFilter ? pillActiveClass : pillIdleClass}`}>
-              <Users className="h-4 w-4" />
-              <span className="max-w-48 truncate">{clientFilter || t.documents.allClients}</span>
-              <ChevronDown className="h-4 w-4" />
-              <select
-                value={clientFilter}
-                onChange={(e) => setClientFilter(e.target.value)}
-                aria-label={t.documents.allClients}
-                className="absolute inset-0 cursor-pointer opacity-0"
-              >
-                <option value="">{t.documents.allClients}</option>
-                {clientOptions.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-      )}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {(isQuote
+          ? (['all', 'noOrder', 'notSent'] as const)
+          : tracksLinks
+            ? (['all', 'unlinked', 'notSent'] as const)
+            : (['all', 'notSent'] as const)
+        ).map((f) => {
+          const Icon = f === 'all' ? List : f === 'noOrder' || f === 'unlinked' ? FileText : Send
+          return (
+            <FilterChip
+              key={f}
+              active={quoteFilter === f}
+              onClick={() => setQuoteFilter(f)}
+              icon={<Icon className="h-4 w-4" />}
+              label={t.documents.quoteFilters[f]}
+              count={counts[f]}
+            />
+          )
+        })}
+        {clientOptions.length > 1 && (
+          <label className={`${pillClass} relative shrink-0 cursor-pointer ${clientFilter ? pillActiveClass : pillIdleClass}`}>
+            <Users className="h-4 w-4" />
+            <span className="max-w-48 truncate">{clientFilter || t.documents.allClients}</span>
+            <ChevronDown className="h-4 w-4" />
+            <select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              aria-label={t.documents.allClients}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            >
+              <option value="">{t.documents.allClients}</option>
+              {clientOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
 
       {!isLoading && !isError && files.length > 0 && (
         <div className="mt-4 flex items-center justify-between text-xs text-graphite dark:text-graphite-dark">
@@ -292,7 +341,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
           <button
             type="button"
             onClick={() => setNewestFirst((v) => !v)}
-            className="inline-flex items-center gap-1.5 font-semibold hover:text-ink dark:hover:text-cream"
+            className="-my-2 inline-flex min-h-10 items-center gap-1.5 py-2 font-semibold hover:text-ink dark:hover:text-cream"
           >
             <ArrowDownUp className="h-3.5 w-3.5" />
             {newestFirst ? t.documents.newestFirst : t.documents.oldestFirst}
@@ -308,13 +357,42 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
         </div>
       )}
 
-      <div className="mt-2 space-y-2">
+      <ul className="mt-2 space-y-2">
         {!isLoading &&
           filteredFiles.map((f, i) => {
             const orderCount = f.orderNumbers?.length ?? 0
             const pendingCount = f.orders?.filter((o) => !o.linked).length ?? 0
             const state = f.status?.status
-            const orderChip = state ? (
+            const stateChip = state ? (
+              <span
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                  state === 'STANDBY'
+                    ? 'border-yellow/70 text-ink dark:text-yellow'
+                    : 'border-line text-graphite line-through decoration-graphite/50 dark:border-line-dark dark:text-graphite-dark'
+                }`}
+              >
+                {state === 'SUSTITUIDO'
+                  ? t.documents.quoteStates.replacedBy.replace('{n}', f.status?.replacedBy ?? '?')
+                  : t.documents.quoteStates[state === 'ANULADO' ? 'cancelled' : 'standby']}
+              </span>
+            ) : null
+            const linkedOrder = f.linkedFrom?.orders[0]
+            const linkChip = stateChip ?? (
+              linkedOrder || f.linkedFrom?.quotes.length ? (
+                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-line px-2.5 py-1 font-mono text-xs font-semibold text-ink dark:border-line-dark dark:text-cream">
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                  {linkedOrder
+                    ? t.documents.linkedOrder.replace('{n}', linkedOrder.orderNumber ?? '')
+                    : `${t.papeleo.presupuesto.tab} ${f.linkedFrom!.quotes[0].number}`}
+                </span>
+              ) : (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-yellow bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                  <span className="h-1.5 w-1.5 rounded-full bg-yellow-ink dark:bg-yellow" />
+                  {t.documents.unlinkedChip}
+                </span>
+              )
+            )
+            const orderChip = !isQuote ? (tracksLinks ? linkChip : stateChip) : state ? (
               <span
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
                   state === 'STANDBY'
@@ -328,7 +406,7 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
               </span>
             ) :
               orderCount > 0 ? (
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-yellow/70 bg-yellow/15 px-2.5 py-1 text-xs font-semibold text-ink dark:text-yellow">
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-semibold text-ink dark:border-line-dark dark:text-cream">
                   <ShoppingCart className="h-3.5 w-3.5" />
                   {orderCount === 1 ? t.documents.order : t.documents.orders.replace('{count}', String(orderCount))}
                 </span>
@@ -354,60 +432,47 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 {t.documents.notSent}
               </span>
             )
+            const openDetail = () => {
+              setReplacedBy(f.status?.replacedBy ?? '')
+              setDetail(f)
+            }
             const actions = (
               <>
                 {f.hasPdf && (
-                  <button type="button" title={t.documents.viewPdf} onClick={() => openFile(f.number, 'pdf', f.name)} className={iconButtonClass}>
+                  <button
+                    type="button"
+                    title={t.documents.viewPdf}
+                    aria-label={t.documents.viewPdf}
+                    onClick={() => openFile(f.number, 'pdf', f.name)}
+                    className={`${iconButtonClass} relative z-10`}
+                  >
                     <Eye className="h-4 w-4" />
                   </button>
                 )}
-                {isQuote ? (
-                  <button
-                    type="button"
-                    title={t.documents.details}
-                    onClick={() => {
-                      setReplacedBy(f.status?.replacedBy ?? '')
-                      setDetail(f)
-                    }}
-                    className={iconButtonClass}
-                  >
-                    <Info className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <>
-                    {f.hasPdf && (
-                      <button type="button" title={t.documents.share} onClick={() => shareFile(f)} className={iconButtonClass}>
-                        <Share2 className="h-4 w-4" />
-                      </button>
-                    )}
-                    {f.hasDocx && (
-                      <button type="button" title={t.documents.downloadWord} onClick={() => openFile(f.number, 'docx', f.name)} className={iconButtonClass}>
-                        <Download className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button type="button" title={t.docNotes.title} onClick={() => setDetail(f)} className={iconButtonClass}>
-                      <StickyNote className="h-4 w-4" />
-                    </button>
-                  </>
-                )}
+                <button
+                  type="button"
+                  title={t.documents.details}
+                  aria-label={`${t.documents.details} ${f.number}`}
+                  onClick={openDetail}
+                  className={`${iconButtonClass} relative z-10`}
+                >
+                  <Info className="h-4 w-4" />
+                </button>
               </>
             )
             const heading = (
               <div className="flex min-w-0 items-start gap-3 lg:items-center">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow/15 text-ink dark:text-yellow">
-                  <FileText className="h-5 w-5" />
-                </div>
                 <div className="min-w-0">
                   <p
                     title={`${f.number} · ${f.title}`}
-                    className="line-clamp-2 font-display text-[15px] font-semibold leading-snug tracking-wide text-ink lg:line-clamp-1 dark:text-cream"
+                    className="line-clamp-2 font-display text-base font-semibold leading-snug tracking-wide text-ink lg:line-clamp-1 dark:text-cream"
                   >
-                    <span className="font-mono text-[13px] text-yellow">{f.number}</span> {f.title}
+                    <span className="mr-1 font-mono text-sm text-yellow-ink dark:text-yellow">{f.number}</span> {f.title}
                   </p>
                   {!!f.noteCount && (
-                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-ink dark:text-yellow">
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-yellow-ink dark:text-yellow">
                       <StickyNote className="h-3.5 w-3.5 shrink-0" />
-                      {t.docNotes.count.replace('{count}', String(f.noteCount))}
+                      {f.noteCount === 1 ? t.docNotes.countOne : t.docNotes.count.replace('{count}', String(f.noteCount))}
                     </p>
                   )}
                   {f.client && (
@@ -421,33 +486,23 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
             )
 
             return (
-              <div key={docKey(f)} className={`${rowClass} animate-fade-up`} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}>
-                <div className="hidden items-center gap-4 lg:flex">
-                  <div className="min-w-0 flex-1">{heading}</div>
-                  {isQuote && <div className="w-32 shrink-0">{orderChip}</div>}
-                  {isQuote && <div className="w-32 shrink-0">{sentChip}</div>}
-                  <div className="flex shrink-0 items-center justify-end gap-2">{actions}</div>
-                </div>
-
-                <div className="lg:hidden">
-                  <div className="flex items-start justify-between gap-2">
-                    {heading}
-                    {!isQuote && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
-                  </div>
-                  {isQuote && (
-                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3 dark:border-line-dark">
-                      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-                        {orderChip}
-                        {sentChip}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <ListRow
+                key={docKey(f)}
+                style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                onOpen={openDetail}
+                openLabel={`${t.documents.details} ${f.number}`}
+                heading={heading}
+                chips={
+                  <>
+                    {orderChip && <span className="lg:w-44 lg:shrink-0">{orderChip}</span>}
+                    <span className="lg:w-32 lg:shrink-0">{sentChip}</span>
+                  </>
+                }
+                actions={actions}
+              />
             )
           })}
-      </div>
+      </ul>
 
       {isError && <p className="mt-6 text-center text-sm text-rust dark:text-rust-dark">{t.documents.unreachable}</p>}
       {!isLoading && !isError && files.length === 0 && (
@@ -457,207 +512,221 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
         <p className="mt-6 text-center text-sm text-graphite dark:text-graphite-dark">{t.documents.noResults}</p>
       )}
 
-      {detail &&
-        createPortal(
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 sm:items-center sm:p-4" onClick={() => setDetail(null)}>
-            <div
-              className="max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-xl animate-scale-in sm:max-w-md sm:rounded-2xl dark:bg-surface-dark"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-display text-lg font-semibold leading-snug tracking-wide text-ink dark:text-cream">
-                    <span className="font-mono text-base text-yellow">{detail.number}</span> {detail.title}
-                  </p>
-                  {detail.client && (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-graphite dark:text-graphite-dark">
-                      <Building2 className="h-3.5 w-3.5 shrink-0" />
-                      {detail.client}
-                    </p>
-                  )}
-                </div>
-                <button type="button" onClick={() => setDetail(null)} className={iconButtonClass}>
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {isQuote && (
-                <>
-              <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
-                {t.documents.quoteStates.title}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {([null, 'STANDBY', 'ANULADO', 'SUSTITUIDO'] as const).map((st) => {
-                  const active = (detail.status?.status ?? null) === st
-                  const label =
-                    st === null
-                      ? t.documents.quoteStates.active
-                      : st === 'STANDBY'
-                        ? t.documents.quoteStates.standby
-                        : st === 'ANULADO'
-                          ? t.documents.quoteStates.cancelled
-                          : t.documents.quoteStates.replaced
-                  return (
-                    <button
-                      key={st ?? 'active'}
-                      type="button"
-                      disabled={statusMutation.isPending}
-                      onClick={() =>
-                        st === 'SUSTITUIDO'
-                          ? setDetail({ ...detail, status: { status: 'SUSTITUIDO', replacedBy: detail.status?.replacedBy ?? null } })
-                          : statusMutation.mutate({ file: detail, status: st })
-                      }
-                      className={`h-8 rounded-full border px-3 text-xs font-semibold transition ${
-                        active ? pillActiveClass : pillIdleClass
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-              {detail.status?.status === 'SUSTITUIDO' && (
-                <form
-                  className="mt-2 flex items-center gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    statusMutation.mutate({ file: detail, status: 'SUSTITUIDO', replaced: replacedBy.trim() })
-                  }}
-                >
-                  <input
-                    value={replacedBy}
-                    onChange={(e) => setReplacedBy(e.target.value)}
-                    placeholder={t.documents.quoteStates.replacedPlaceholder}
-                    className="h-9 flex-1 rounded-xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
-                  />
-                  <button type="submit" className="h-9 rounded-xl bg-ink px-3 text-xs font-semibold text-cream dark:bg-cream dark:text-ink">
-                    {t.docNotes.save}
-                  </button>
-                </form>
+      <Modal
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        closeLabel={t.common.close}
+        title={
+          detail && (
+            <span className="block">
+              <span className="mr-1 font-mono text-yellow-ink dark:text-yellow">{detail.number}</span> {detail.title}
+              {detail.client && (
+                <span className="mt-1 flex items-center gap-1 font-sans text-xs font-normal text-graphite dark:text-graphite-dark">
+                  <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  {detail.client}
+                </span>
               )}
+            </span>
+          )
+        }
+      >
+        {detail && (
+          <>
+          <>
+          <h3 id="doc-state-label" className={sectionLabelClass}>
+            {t.documents.quoteStates.title}
+          </h3>
+          <div role="radiogroup" aria-labelledby="doc-state-label" className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            {([null, 'STANDBY', 'ANULADO', 'SUSTITUIDO'] as const).map((st) => {
+              const active = (detail.status?.status ?? null) === st
+              const label =
+                st === null
+                  ? t.documents.quoteStates.active
+                  : st === 'STANDBY'
+                    ? t.documents.quoteStates.standby
+                    : st === 'ANULADO'
+                      ? t.documents.quoteStates.cancelled
+                      : t.documents.quoteStates.replaced
+              return (
+                <button
+                  key={st ?? 'active'}
+                  type="button"
+                  disabled={statusMutation.isPending}
+                  onClick={() =>
+                    st === 'SUSTITUIDO'
+                      ? setDetail({ ...detail, status: { status: 'SUSTITUIDO', replacedBy: detail.status?.replacedBy ?? null } })
+                      : statusMutation.mutate({ file: detail, status: st })
+                  }
+                  role="radio"
+                  aria-checked={active}
+                  className={(active) ? segmentOnClass : segmentOffClass}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          {undoStatus && undoStatus.file.name === detail.name && (
+            <button
+              type="button"
+              disabled={statusMutation.isPending}
+              onClick={() =>
+                statusMutation.mutate({
+                  file: undoStatus.file,
+                  status: undoStatus.previous.status,
+                  replaced: undoStatus.previous.replacedBy ?? undefined,
+                  undo: true,
+                })
+              }
+              className={`${smallButtonClass} mt-2`}
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              {t.common.undo}
+            </button>
+          )}
+          {detail.status?.status === 'SUSTITUIDO' && (
+            <form
+              className="mt-2 flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                statusMutation.mutate({ file: detail, status: 'SUSTITUIDO', replaced: replacedBy.trim() })
+              }}
+            >
+              <input
+                value={replacedBy}
+                onChange={(e) => setReplacedBy(e.target.value)}
+                placeholder={t.documents.quoteStates.replacedPlaceholder}
+                aria-label={t.documents.quoteStates.replacedPlaceholder}
+                    className={inputClass}
+              />
+              <button type="submit" className={`${primaryButtonClass} shrink-0`}>
+                {t.docNotes.save}
+              </button>
+            </form>
+          )}
 
-              <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
-                {t.documents.columnOrder}
-              </p>
-              {detail.orders?.length ? (
-                <div className="mt-2 space-y-2">
-                  {detail.orders.map((o) =>
-                    o.linked ? (
+          {isQuote && (
+            <>
+          <h3 className={`mt-5 ${sectionLabelClass}`}>
+            {t.documents.columnOrder}
+          </h3>
+          {detail.orders?.length ? (
+            <div className="mt-2 space-y-2">
+              <div className="divide-y divide-line rounded-xl border border-line dark:divide-line-dark dark:border-line-dark">
+                {detail.orders.map((o) => (
+                  <div key={o.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <span className="flex min-w-0 items-center gap-2 text-sm text-ink dark:text-cream">
+                      <ShoppingCart className="h-4 w-4 shrink-0" />
+                      <span className="font-mono font-semibold">{o.orderNumber}</span>
+                      {!o.linked && <span className="text-xs text-graphite dark:text-graphite-dark">{t.documents.toLink}</span>}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1.5">
                       <button
-                        key={o.id}
                         type="button"
                         onClick={() => previewOrder(o.id)}
-                        className="flex w-full items-center justify-between gap-2 rounded-xl border border-yellow/60 bg-yellow/10 px-3 py-2.5 text-left text-sm font-semibold text-ink transition hover:bg-yellow/20 dark:text-cream"
+                        title={t.documents.previewOrder}
+                        aria-label={`${t.documents.previewOrder} ${o.orderNumber}`}
+                        className={iconButtonClass}
                       >
-                        <span className="flex items-center gap-2">
-                          <ShoppingCart className="h-4 w-4 text-ink dark:text-yellow" />
-                          <span className="font-mono">{o.orderNumber}</span>
-                        </span>
-                        <span className="flex items-center gap-1 text-xs text-graphite dark:text-graphite-dark">
-                          <Eye className="h-3.5 w-3.5" />
-                          {t.documents.previewOrder}
-                        </span>
+                        <Eye className="h-4 w-4" />
                       </button>
-                    ) : (
-                      <div
-                        key={o.id}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-dashed border-yellow/70 px-3 py-2 text-sm"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => previewOrder(o.id)}
-                          className="flex min-w-0 items-center gap-2 font-semibold text-ink dark:text-cream"
-                        >
-                          <ShoppingCart className="h-4 w-4 shrink-0 text-ink dark:text-yellow" />
-                          <span className="font-mono">{o.orderNumber}</span>
-                          <Eye className="h-3.5 w-3.5 shrink-0 text-graphite dark:text-graphite-dark" />
-                        </button>
-                        <Link
-                          to={`/papeleo/pedidos/${o.id}/reconcile`}
-                          className="shrink-0 rounded-lg bg-yellow px-2.5 py-1 text-xs font-semibold text-ink transition hover:bg-yellow/90"
-                        >
+                      {!o.linked && (
+                        <Link to={`/papeleo/pedidos/${o.id}/reconcile`} className={smallButtonClass}>
                           {t.documents.link}
                         </Link>
-                      </div>
-                    ),
-                  )}
-                  {detail.orders.some((o) => !o.linked) && (
-                    <p className="text-xs text-graphite dark:text-graphite-dark">{t.documents.toLinkHint}</p>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{t.documents.noOrder}</p>
-              )}
-
-              <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
-                {t.documents.columnSent}
-              </p>
-              {detail.sent ? (
-                <div className="mt-2 rounded-xl border border-line px-3 py-2.5 text-sm dark:border-line-dark">
-                  <p className="flex items-center gap-2 font-semibold text-ink dark:text-cream">
-                    <Send className="h-4 w-4" />
-                    {new Date(detail.sent.at).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                  <p className="mt-1 break-all text-xs text-graphite dark:text-graphite-dark">
-                    {detail.sent.viaClient ? t.documents.viaClient : `${t.documents.to} ${detail.sent.to}`}
-                  </p>
-                </div>
-              ) : (
-                <p className="mt-2 text-sm font-semibold text-rust dark:text-rust-dark">{t.documents.notSent}</p>
-              )}
-
-                </>
-              )}
-
-              {detail.name && (
-                <div className="mt-5">
-                  <DocumentNotes category={category} year={year} name={detail.name} />
-                </div>
-              )}
-
-              <div className="mt-6 grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  disabled={!detail.hasPdf}
-                  onClick={() => openFile(detail.number, 'pdf', detail.name)}
-                  className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
-                >
-                  <Eye className="h-4 w-4" />
-                  {t.documents.viewPdf}
-                </button>
-                <button
-                  type="button"
-                  disabled={!detail.hasPdf}
-                  onClick={() => shareFile(detail)}
-                  className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
-                >
-                  <Share2 className="h-4 w-4" />
-                  {t.documents.share}
-                </button>
-                <button
-                  type="button"
-                  disabled={!detail.hasDocx}
-                  onClick={() => openFile(detail.number, 'docx', detail.name)}
-                  className="flex flex-col items-center gap-1 rounded-xl border border-line py-2.5 text-xs font-semibold text-ink transition hover:border-yellow disabled:opacity-40 dark:border-line-dark dark:text-cream"
-                >
-                  <Download className="h-4 w-4" />
-                  {t.documents.downloadWord}
-                </button>
+                      )}
+                    </span>
+                  </div>
+                ))}
               </div>
+              {detail.orders.some((o) => !o.linked) && (
+                <p className="text-xs text-graphite dark:text-graphite-dark">{t.documents.toLinkHint}</p>
+              )}
             </div>
-          </div>,
-          document.body,
-        )}
+          ) : (
+            <p className="mt-2 text-sm text-graphite dark:text-graphite-dark">{t.documents.noOrder}</p>
+          )}
 
-      {toast &&
-        createPortal(
-          <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
-            <div className="rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cream shadow-lg dark:bg-cream dark:text-ink">
-              {toast}
+          {detail.name && (
+            <QuoteLinks
+              quote={{ name: detail.name }}
+              year={year}
+              orders={detail.orders ?? []}
+              links={detail.links ?? []}
+              onChange={(links) => {
+                setDetail((cur) => cur && { ...cur, links })
+                queryClient.invalidateQueries({ queryKey: ['documents'] })
+              }}
+            />
+          )}
+            </>
+          )}
+
+          {detail.linkedFrom && (detail.linkedFrom.orders.length > 0 || detail.linkedFrom.quotes.length > 0) ? (
+            <DocumentOrigin origin={detail.linkedFrom} onPreviewOrder={previewOrder} />
+          ) : (
+            tracksLinks && (
+              <OrderFinder category={category as 'albaran' | 'factura'} year={year} docName={detail.name ?? detail.number} />
+            )
+          )}
+
+          <h3 className={`mt-5 ${sectionLabelClass}`}>
+            {t.documents.columnSent}
+          </h3>
+          {detail.sent ? (
+            <div className="mt-2 rounded-xl border border-line px-3 py-2.5 text-sm dark:border-line-dark">
+              <p className="flex items-center gap-2 font-semibold text-ink dark:text-cream">
+                <Send className="h-4 w-4" />
+                {new Date(detail.sent.at).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+              <p className="mt-1 break-all text-xs text-graphite dark:text-graphite-dark">
+                {detail.sent.viaClient ? t.documents.viaClient : `${t.documents.to} ${detail.sent.to}`}
+              </p>
             </div>
-          </div>,
-          document.body,
+          ) : (
+            <p className="mt-2 text-sm font-semibold text-rust dark:text-rust-dark">{t.documents.notSent}</p>
+          )}
+          </>
+
+          {detail.name && (
+            <div className="mt-5">
+              <DocumentNotes category={category} year={year} name={detail.name} />
+            </div>
+          )}
+
+          <div className={dialogFooterClass}>
+            <button
+              type="button"
+              disabled={!detail.hasPdf}
+              onClick={() => openFile(detail.number, 'pdf', detail.name)}
+              className={`${secondaryButtonClass} flex-1 whitespace-nowrap px-3`}
+            >
+              <Eye className="h-4 w-4" />
+              {t.documents.viewPdf}
+            </button>
+            <button
+              type="button"
+              disabled={!detail.hasPdf}
+              onClick={() => shareFile(detail)}
+              className={`${secondaryButtonClass} flex-1 whitespace-nowrap px-3`}
+            >
+              <Share2 className="h-4 w-4" />
+              {t.documents.share}
+            </button>
+            <button
+              type="button"
+              disabled={!detail.hasDocx}
+              onClick={() => openFile(detail.number, 'docx', detail.name)}
+              className={`${secondaryButtonClass} flex-1 whitespace-nowrap px-3`}
+            >
+              <Download className="h-4 w-4" />
+              {t.documents.downloadWord}
+            </button>
+          </div>
+          </>
         )}
+      </Modal>
+
     </div>
   )
 }

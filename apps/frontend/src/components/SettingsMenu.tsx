@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Settings, Check, Bell, Info } from 'lucide-react'
+import { Settings, Check, Bell, Info, LogOut } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { pushSupported, isSubscribed, enablePush, disablePush } from '../lib/push'
@@ -9,6 +10,7 @@ export function SettingsMenu() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const { theme, setTheme } = useTheme()
+  const { logout } = useAuth()
   const { language, setLanguage, t } = useLanguage()
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
@@ -39,8 +41,15 @@ export function SettingsMenu() {
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
     document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      document.removeEventListener('keydown', onKeyDown)
+    }
   }, [open])
 
   const themeOptions: { value: typeof theme; label: string }[] = [
@@ -55,8 +64,9 @@ export function SettingsMenu() {
         type="button"
         data-testid="settings-trigger"
         onClick={() => setOpen((v) => !v)}
-        aria-label={t.settings.theme}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-graphite hover:bg-ink/5 hover:text-ink dark:text-graphite-dark dark:hover:bg-cream/10 dark:hover:text-cream"
+        aria-label={t.settings.title}
+        aria-expanded={open}
+        className="flex h-10 w-10 items-center justify-center rounded-full text-graphite hover:bg-ink/5 hover:text-ink dark:text-graphite-dark dark:hover:bg-cream/10 dark:hover:text-cream"
       >
         <Settings className="h-4.5 w-4.5" />
       </button>
@@ -70,11 +80,12 @@ export function SettingsMenu() {
                 key={opt.value}
                 type="button"
                 data-testid={`theme-${opt.value}`}
+                aria-pressed={theme === opt.value}
                 onClick={() => setTheme(opt.value)}
                 className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10"
               >
                 {opt.label}
-                {theme === opt.value && <Check className="h-4 w-4 text-yellow" />}
+                {theme === opt.value && <Check className="h-4 w-4 text-yellow-ink dark:text-yellow" />}
               </button>
             ))}
           </div>
@@ -86,18 +97,20 @@ export function SettingsMenu() {
             <button
               type="button"
               onClick={() => setLanguage('en')}
+              aria-pressed={language === 'en'}
               className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10"
             >
               English
-              {language === 'en' && <Check className="h-4 w-4 text-yellow" />}
+              {language === 'en' && <Check className="h-4 w-4 text-yellow-ink dark:text-yellow" />}
             </button>
             <button
               type="button"
               onClick={() => setLanguage('es')}
+              aria-pressed={language === 'es'}
               className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10"
             >
               Español
-              {language === 'es' && <Check className="h-4 w-4 text-yellow" />}
+              {language === 'es' && <Check className="h-4 w-4 text-yellow-ink dark:text-yellow" />}
             </button>
           </div>
 
@@ -117,7 +130,7 @@ export function SettingsMenu() {
                     <Bell className="h-4 w-4" />
                     {pushEnabled ? t.settings.notificationsOn : t.settings.notificationsOff}
                   </span>
-                  {pushEnabled && <Check className="h-4 w-4 text-yellow" />}
+                  {pushEnabled && <Check className="h-4 w-4 text-yellow-ink dark:text-yellow" />}
                 </button>
               </div>
             </>
@@ -132,6 +145,14 @@ export function SettingsMenu() {
               <Info className="h-4 w-4" />
               {t.settings.about}
             </Link>
+            <button
+              type="button"
+              onClick={logout}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-ink/5 dark:text-cream dark:hover:bg-cream/10"
+            >
+              <LogOut className="h-4 w-4" />
+              {t.nav.signOut}
+            </button>
           </div>
         </div>
       )}

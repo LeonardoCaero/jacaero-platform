@@ -7,6 +7,7 @@ import {
   syncQuerySchema,
   reconcileQuerySchema,
   linkDocumentSchema,
+  suggestionsQuerySchema,
 } from "./email-orders.schema.js";
 import * as emailOrdersService from "./email-orders.service.js";
 
@@ -35,8 +36,8 @@ export async function getPdfHandler(req: Request<{ id: string }>, res: Response)
 }
 
 export async function setMilestoneHandler(req: Request<{ id: string }>, res: Response) {
-  const { field, done } = setMilestoneSchema.parse(req.body);
-  res.json(await emailOrdersService.setMilestone(req.params.id, field, done));
+  const { field } = setMilestoneSchema.parse(req.body);
+  res.json(await emailOrdersService.unlinkMilestone(req.params.id, field));
 }
 
 export async function setQuoteStatusHandler(req: Request<{ id: string }>, res: Response) {
@@ -52,6 +53,11 @@ export async function setFavoriteHandler(req: Request<{ id: string }>, res: Resp
 export async function linkDocumentHandler(req: Request<{ id: string }>, res: Response) {
   const { category, number } = linkDocumentSchema.parse(req.body);
   res.json(await emailOrdersService.linkDocument(req.params.id, category, number));
+}
+
+export async function suggestionsHandler(req: Request<{ id: string }>, res: Response) {
+  const { category } = suggestionsQuerySchema.parse(req.query);
+  res.json(await emailOrdersService.suggestDocuments(req.params.id, category));
 }
 
 export async function listResourcesHandler(_req: Request, res: Response) {

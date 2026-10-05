@@ -14,21 +14,70 @@
   --color-surface: #ffffff;
   --color-surface-dark: #1b1b1e;
   --color-yellow: #e9bd27;
-  --color-graphite: #6b7280;
+  --color-yellow-ink: #8a6a00;
+  --color-graphite: #61666f;
   --color-graphite-dark: #a1a1aa;
   --color-line: #e4e4e7;
   --color-line-dark: #2c2c30;
-  --color-rust: #dc2626;
+  --color-rust: #b91c1c;
   --color-rust-dark: #f87171;
 }
 
+/* Native controls follow the app theme, not the OS. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+.dark option {
+  background-color: var(--color-surface-dark);
+  color: var(--color-cream);
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-yellow) 45%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.dark :focus-visible {
+  outline-color: var(--color-yellow);
+}
+
+::placeholder {
+  color: var(--color-graphite);
+  opacity: 1;
+}
+
+.dark ::placeholder {
+  color: var(--color-graphite-dark);
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+.dark dialog::backdrop {
+  background: rgb(0 0 0 / 0.75);
+}
+
+dialog[open] {
+  animation: scale-in 0.15s ease-out both;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 @keyframes fade-up {
@@ -83,6 +132,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-scale-in,
+  dialog[open],
   .skeleton {
     animation: none;
   }

@@ -1,21 +1,109 @@
-import { useEffect, useRef } from 'react'
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, MoreHorizontal } from 'lucide-react'
+import { Outlet, Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { Logo } from './Logo'
 import { SettingsMenu } from './SettingsMenu'
 import { Avatar } from './Avatar'
 import { api } from '../lib/axios'
+import { papeleoSections } from '../lib/modules'
+
+const tabClass = (active: boolean) =>
+  `flex min-w-0 items-center justify-center rounded-lg font-semibold transition ${
+    active ? 'bg-ink text-cream dark:bg-yellow dark:text-ink' : 'text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream'
+  }`
+
+function PapeleoNav() {
+  const { t } = useLanguage()
+  const location = useLocation()
+  const primary = papeleoSections.slice(0, 4)
+  const secondary = papeleoSections.slice(4)
+  const activeSecondary = secondary.find((s) => location.pathname === s.path)
+  const more = useRef<HTMLDetailsElement>(null)
+
+  const [moreOpen, setMoreOpen] = useState(false)
+
+  useEffect(() => {
+    if (more.current) more.current.open = false
+  }, [location.pathname])
+
+  useEffect(() => {
+    function close(e: Event) {
+      const menu = more.current
+      if (!menu?.open) return
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menu.contains(e.target as Node)) menu.open = false
+    }
+    document.addEventListener('keydown', close)
+    document.addEventListener('pointerdown', close)
+    return () => {
+      document.removeEventListener('keydown', close)
+      document.removeEventListener('pointerdown', close)
+    }
+  }, [])
+
+  return (
+    <nav aria-label={t.modules.papeleo.label} className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
+      <Link
+        to="/"
+        className="-my-2 inline-flex min-h-10 w-fit shrink-0 items-center gap-1.5 rounded-md py-2 pr-2 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        {t.comingSoon.back}
+      </Link>
+
+      <div className="grid grid-cols-5 gap-1 rounded-xl border border-line bg-surface p-1 lg:hidden dark:border-line-dark dark:bg-surface-dark">
+        {primary.map((s) => (
+          <NavLink key={s.path} to={s.path} className={({ isActive }) => `${tabClass(isActive)} min-h-12 flex-col gap-0.5 px-1 text-xs`}>
+            <s.icon className="h-4 w-4 shrink-0" />
+            <span className="max-w-full truncate">{t.papeleo[s.key].short}</span>
+          </NavLink>
+        ))}
+        <details ref={more} onToggle={(e) => setMoreOpen(e.currentTarget.open)} className="relative">
+          <summary
+            role="button"
+            aria-expanded={moreOpen}
+            aria-haspopup="menu"
+            className={`${tabClass(!!activeSecondary)} min-h-12 cursor-pointer list-none flex-col gap-0.5 px-1 text-xs [&::-webkit-details-marker]:hidden`}
+          >
+            {activeSecondary ? <activeSecondary.icon className="h-4 w-4 shrink-0" /> : <MoreHorizontal className="h-4 w-4 shrink-0" />}
+            <span className="max-w-full truncate">{activeSecondary ? t.papeleo[activeSecondary.key].short : t.common.more}</span>
+          </summary>
+          <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-line bg-surface p-1 shadow-lg dark:border-line-dark dark:bg-surface-dark">
+            {secondary.map((s) => (
+              <NavLink
+                key={s.path}
+                to={s.path}
+                className={({ isActive }) => `${tabClass(isActive)} min-h-11 justify-start gap-2 px-3 text-sm`}
+              >
+                <s.icon className="h-4 w-4 shrink-0" />
+                {t.papeleo[s.key].tab}
+              </NavLink>
+            ))}
+          </div>
+        </details>
+      </div>
+
+      <div className="hidden w-max gap-1 rounded-xl border border-line bg-surface p-1 lg:flex dark:border-line-dark dark:bg-surface-dark">
+        {papeleoSections.map((s) => (
+          <NavLink key={s.path} to={s.path} className={({ isActive }) => `${tabClass(isActive)} h-8 gap-1.5 px-3 text-sm whitespace-nowrap`}>
+            <s.icon className="h-3.5 w-3.5 shrink-0" />
+            {t.papeleo[s.key].tab}
+          </NavLink>
+        ))}
+      </div>
+    </nav>
+  )
+}
 
 export function AppLayout() {
-  const { user, logout } = useAuth()
-  const { t } = useLanguage()
+  const { user } = useAuth()
   const location = useLocation()
   const knownVersion = useRef<string | null>(null)
 
-  const isWide =
-    location.pathname.endsWith('/reconcile') ||
-    /^\/papeleo\/(presupuestos|albaranes|pedidos-material|facturas|horas)$/.test(location.pathname)
+  const inPapeleo = location.pathname.startsWith('/papeleo/')
+  const isReconcile = location.pathname.endsWith('/reconcile')
+  const isWide = inPapeleo || location.pathname === '/time-tracker' || location.pathname === '/calendar'
 
   // Reload automatically when a new version has been deployed, checked on each navigation.
   useEffect(() => {
@@ -41,16 +129,9 @@ export function AppLayout() {
           </span>
         </Link>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={logout}
-            className="hidden px-2 text-sm text-graphite hover:text-ink sm:inline dark:text-graphite-dark dark:hover:text-cream"
-          >
-            {t.nav.signOut}
-          </button>
+        <div className="flex items-center gap-2 sm:gap-3">
           <SettingsMenu />
-          <Link to="/profile" className="flex items-center gap-2 rounded-full hover:opacity-80">
+          <Link to="/profile" className="flex min-h-10 items-center gap-2 rounded-full p-1 transition hover:opacity-80">
             <span className="hidden text-sm text-graphite sm:inline dark:text-graphite-dark">
               {user?.fullName}
             </span>
@@ -59,7 +140,8 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className={`mx-auto px-4 py-4 sm:px-6 ${isWide ? 'max-w-7xl' : 'max-w-3xl'}`}>
+      <main className={`mx-auto px-4 py-4 sm:px-6 ${isWide ? 'max-w-6xl' : 'max-w-3xl'}`}>
+        {inPapeleo && !isReconcile && <PapeleoNav />}
         <div key={location.pathname} className="animate-fade-up">
           <Outlet />
         </div>

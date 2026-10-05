@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { StickyNote, Trash2 } from 'lucide-react'
 import { api } from '../lib/axios'
 import { useAuth } from '../contexts/AuthContext'
+import { useFeedback } from './feedback'
+import { primaryButtonClass } from './ui'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type Note = {
@@ -14,6 +16,7 @@ type Note = {
 
 export function DocumentNotes({ category, year, name }: { category: string; year: number; name: string }) {
   const { t, language } = useLanguage()
+  const { confirm } = useFeedback()
   const { user } = useAuth()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const queryClient = useQueryClient()
@@ -45,10 +48,10 @@ export function DocumentNotes({ category, year, name }: { category: string; year
 
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
+      <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-graphite dark:text-graphite-dark">
         <StickyNote className="h-3.5 w-3.5" />
         {t.docNotes.title}
-      </p>
+      </h3>
       <div className="mt-2 space-y-2">
         {notes.length === 0 && <p className="text-sm text-graphite dark:text-graphite-dark">{t.docNotes.empty}</p>}
         {notes.map((n) => (
@@ -59,7 +62,8 @@ export function DocumentNotes({ category, year, name }: { category: string; year
                 <button
                   type="button"
                   title={t.docNotes.delete}
-                  onClick={() => confirm(t.docNotes.confirmDelete) && deleteMutation.mutate(n.id)}
+                  aria-label={t.docNotes.delete}
+                  onClick={async () => (await confirm({ message: t.docNotes.confirmDelete, danger: true, confirmLabel: t.common.delete })) && deleteMutation.mutate(n.id)}
                   className="shrink-0 text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -84,12 +88,12 @@ export function DocumentNotes({ category, year, name }: { category: string; year
           onChange={(e) => setText(e.target.value)}
           rows={2}
           placeholder={t.docNotes.placeholder}
-          className="min-h-11 flex-1 resize-y rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+          className="min-h-11 flex-1 resize-y rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-ink dark:focus:border-yellow dark:border-line-dark dark:bg-paper-dark dark:text-cream"
         />
         <button
           type="submit"
           disabled={!text.trim() || addMutation.isPending}
-          className="h-11 shrink-0 rounded-xl bg-ink px-3 text-sm font-semibold text-cream disabled:opacity-50 dark:bg-cream dark:text-ink"
+          className={`${primaryButtonClass} h-11 shrink-0`}
         >
           {t.docNotes.add}
         </button>

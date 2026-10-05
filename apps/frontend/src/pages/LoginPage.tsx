@@ -63,7 +63,7 @@ export function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+              className="mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream"
             />
           </div>
 
@@ -78,7 +78,7 @@ export function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream"
+              className="mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream"
             />
           </div>
 
@@ -87,7 +87,7 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="h-11 w-full rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
+            className="h-11 w-full rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-yellow dark:text-ink dark:hover:bg-yellow/90"
           >
             {isSubmitting ? t.login.signingIn : t.login.signIn}
           </button>

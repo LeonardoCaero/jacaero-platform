@@ -358,19 +358,40 @@ enum QuoteState {
   SUSTITUIDO
 }
 
-model QuoteStatus {
+// Manual state of any NAS document (quotes, delivery notes, invoices, hours, material orders).
+model DocumentStatus {
   id         String     @id @default(cuid())
+  category   String     @default("presupuesto")
   year       Int
   docName    String
   status     QuoteState
   replacedBy String?
   updatedAt  DateTime   @updatedAt
 
-  @@unique([year, docName])
+  @@unique([category, year, docName])
+  @@map("QuoteStatus")
 }
 
-model PresupuestoSent {
+// Manual link from a quote to its albarán / factura, for clients whose work has no purchase order.
+model DocumentLink {
+  id           String   @id @default(cuid())
+  fromCategory String
+  fromYear     Int
+  fromName     String
+  toCategory   String
+  toYear       Int
+  toNumber     String
+  toName       String
+  createdAt    DateTime @default(now())
+
+  @@unique([fromCategory, fromYear, fromName, toCategory, toName], map: "DocumentLink_from_to_key")
+  @@index([toCategory, toYear])
+}
+
+// When a NAS document left the orders mailbox as an attachment, and to whom.
+model DocumentSent {
   id         String   @id @default(cuid())
+  category   String   @default("presupuesto")
   year       Int
   number     Int
   name       String
@@ -378,7 +399,8 @@ model PresupuestoSent {
   recipients String
   viaClient  Boolean  @default(false)
 
-  @@unique([year, name])
+  @@unique([category, year, name])
+  @@map("PresupuestoSent")
 }
 
 enum MonthlyDocKind {

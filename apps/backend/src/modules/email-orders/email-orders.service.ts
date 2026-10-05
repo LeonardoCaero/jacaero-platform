@@ -8,7 +8,7 @@ import { ApiError } from "../../common/errors/api-error.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../common/services/logger.js";
 import { notifyPermission } from "../push-subscriptions/push-subscriptions.service.js";
-import { parsePurchaseOrderText, extractOrderNumber, extractDocumentTotal, extractDeclaredNumber, documentNumberFromFilename } from "./po-parser.js";
+import { parsePurchaseOrderText, extractOrderNumber, extractDocumentTotal, extractDeclaredNumber, documentNumberFromFilename, documentFromFilename } from "./po-parser.js";
 import { listCategory, getCategoryFile, type DocCategory } from "../../common/services/nas-documents.service.js";
 
 function allowedSenders() {
@@ -49,19 +49,20 @@ export async function syncFacturarOk() {
   return withTimeout(syncFacturarOkInner(), 120_000, "FACTURAR OK labels");
 }
 
-// Albaranes go out from this same mailbox as attachments named "<number> ALBARÁN ...", so the
-// Sent folder tells us when each one was sent. Two days after that, if there's still no factura,
-// the order's email gets the Gmail label FACTURAR OK. Once the factura is linked, it swaps
-// Albarán / FACTURAR OK for Factura.
-export async function recordSentPresupuestos(client: ImapFlow, allPath: string) {
+// FACTURAR OK: albarán sent two days ago and still no factura. Linking the factura swaps it for Factura.
+export async function recordSentDocuments(client: ImapFlow, allPath: string) {
   const own = env.ORDERS_EMAIL_ADDRESS!.toLowerCase();
   const domainOf = (address: string) => address.toLowerCase().split("@")[1] ?? "";
-  const last = await prisma.presupuestoSent.findFirst({ orderBy: { sentAt: "desc" }, select: { sentAt: true } });
-  const since = last
-    ? new Date(last.sentAt.getTime() - 24 * 60 * 60 * 1000)
-    : new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+  const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+  // The first run with every category backfills the whole year.
+  const tracksAll = await prisma.documentSent.findFirst({ where: { category: { not: "presupuesto" } }, select: { id: true } });
+  const last = tracksAll
+    ? await prisma.documentSent.findFirst({ orderBy: { sentAt: "desc" }, select: { sentAt: true } })
+    : null;
+  const since = last ? new Date(last.sentAt.getTime() - 24 * 60 * 60 * 1000) : yearStart;
 
   type Found = {
+    category: string;
     year: number;
     number: number;
     name: string;
@@ -73,7 +74,10 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
   const found: Found[] = [];
   const lock = await client.getMailboxLock(allPath);
   try {
-    const uids = await client.search({ since, gmraw: "has:attachment presupuesto" }, { uid: true });
+    const uids = await client.search(
+      { since, gmraw: 'has:attachment (presupuesto OR albaran OR albarán OR factura OR horas OR "pedido material")' },
+      { uid: true },
+    );
     if (uids && uids.length > 0) {
       for await (const msg of client.fetch(uids, { envelope: true, bodyStructure: true }, { uid: true })) {
         const date = msg.envelope?.date;
@@ -81,10 +85,18 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
         if (!date || !msg.bodyStructure || !from) continue;
         const recipients = (msg.envelope?.to ?? []).map((a) => a.address).filter(Boolean).join(", ");
         for (const name of attachmentNames(msg.bodyStructure)) {
-          const number = documentNumberFromFilename(name, "presupuesto");
-          if (number === undefined) continue;
+          const doc = documentFromFilename(name);
+          if (!doc) continue;
           const fileName = name.replace(/\.[^.]+$/, "");
-          found.push({ year: date.getFullYear(), number, name: fileName, sentAt: date, recipients, viaClient: from !== own, from });
+          found.push({
+            ...doc,
+            year: date.getFullYear(),
+            name: fileName,
+            sentAt: date,
+            recipients,
+            viaClient: from !== own,
+            from,
+          });
         }
       }
     }
@@ -92,7 +104,7 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
     lock.release();
   }
 
-  const previous = await prisma.presupuestoSent.findMany({ where: { viaClient: false }, select: { recipients: true } });
+  const previous = await prisma.documentSent.findMany({ where: { viaClient: false }, select: { recipients: true } });
   const clientDomains = new Set(
     [...previous.map((p) => p.recipients), ...found.filter((f) => !f.viaClient).map((f) => f.recipients)]
       .flatMap((r) => r.split(","))
@@ -103,11 +115,11 @@ export async function recordSentPresupuestos(client: ImapFlow, allPath: string) 
   for (const { from, ...sent } of found) {
     if (sent.viaClient && !clientDomains.has(domainOf(from))) continue;
     const data = sent.viaClient ? { ...sent, recipients: "" } : sent;
-    const existing = await prisma.presupuestoSent.findUnique({
-      where: { year_name: { year: sent.year, name: sent.name } },
+    const existing = await prisma.documentSent.findUnique({
+      where: { category_year_name: { category: sent.category, year: sent.year, name: sent.name } },
     });
-    if (!existing) await prisma.presupuestoSent.create({ data });
-    else if (sent.sentAt < existing.sentAt) await prisma.presupuestoSent.update({ where: { id: existing.id }, data });
+    if (!existing) await prisma.documentSent.create({ data });
+    else if (sent.sentAt < existing.sentAt) await prisma.documentSent.update({ where: { id: existing.id }, data });
   }
 }
 
@@ -135,7 +147,7 @@ async function syncFacturarOkInner() {
     const allPath = boxes.find((b) => b.specialUse === "\\All")?.path;
     if (!sentPath || !allPath) throw new Error("Gmail Sent / All Mail folders not found");
 
-    await recordSentPresupuestos(client, allPath);
+    await recordSentDocuments(client, allPath);
 
     if (needsSentDate.length > 0) {
       const since = new Date(Math.min(...needsSentDate.map((o) => o.receivedAt.getTime())));
@@ -570,9 +582,11 @@ export async function getPdf(id: string) {
 
 type MilestoneField = "deliveryNoteAt" | "invoicedAt";
 
-export async function setMilestone(id: string, field: MilestoneField, done: boolean) {
+const MILESTONE_NUMBER_FIELD = { deliveryNoteAt: "albaranNumber", invoicedAt: "facturaNumber" } as const;
+
+export async function unlinkMilestone(id: string, field: MilestoneField) {
   await get(id);
-  return prisma.emailOrder.update({ where: { id }, data: { [field]: done ? new Date() : null } });
+  return prisma.emailOrder.update({ where: { id }, data: { [field]: null, [MILESTONE_NUMBER_FIELD[field]]: null } });
 }
 
 const UI_TO_QUOTE_CATEGORY = {
@@ -648,6 +662,90 @@ const DOC_CATEGORY_TO_QUOTE_CATEGORY = {
   horasTrabajo: "HORAS",
   pedidoMaterial: "MATERIAL",
 } as const satisfies Partial<Record<DocCategory, QuoteCategory>>;
+
+const pdfInfoCache = new Map<string, { mtimeMs: number; orderNumber?: string; total?: number }>();
+
+async function pdfInfo(filePath: string) {
+  const { mtimeMs } = await fs.stat(filePath);
+  const cached = pdfInfoCache.get(filePath);
+  if (cached && cached.mtimeMs === mtimeMs) return cached;
+  const text = await extractPdfText(await fs.readFile(filePath));
+  const info = { mtimeMs, orderNumber: extractOrderNumber(text), total: extractDocumentTotal(text) };
+  pdfInfoCache.set(filePath, info);
+  return info;
+}
+
+const SUGGESTION_RANK = { order: 0, quote: 1, amount: 2 } as const;
+
+// Ranked by PO number in the PDF, then quote number, then same total.
+export async function suggestDocuments(id: string, category: DocCategory) {
+  const order = await get(id);
+  const year = orderYear(order);
+  const amount = order.totalAmount != null ? Number(order.totalAmount) : null;
+  const quoteNumber = order.quoteRef ? Number(order.quoteRef.replace(/\D/g, "")) : null;
+  const isOrigin = (ORIGIN_CATEGORIES as readonly string[]).includes(category);
+
+  type Candidate = {
+    number: string;
+    name: string;
+    title: string;
+    total: number | null;
+    poNumber: string | null;
+    linkedTo: string | null;
+    reason?: keyof typeof SUGGESTION_RANK;
+  };
+  const numberField = category === "albaran" ? "albaranNumber" : category === "factura" ? "facturaNumber" : null;
+  const holders = new Map<number, string>();
+  if (numberField) {
+    const yearStart = new Date(Date.UTC(year, 0, 1));
+    const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
+    const others = await prisma.emailOrder.findMany({
+      where: {
+        id: { not: id },
+        [numberField]: { not: null },
+        OR: [
+          { orderDate: { gte: yearStart, lt: yearEnd } },
+          { orderDate: null, receivedAt: { gte: yearStart, lt: yearEnd } },
+        ],
+      },
+      select: { orderNumber: true, albaranNumber: true, facturaNumber: true },
+    });
+    for (const o of others) holders.set(Number(o[numberField]), o.orderNumber ?? "?");
+  }
+  const documents: Candidate[] = [];
+  for (const f of await listCategory(category, year)) {
+    if (!f.hasPdf) continue;
+    const doc: Candidate = {
+      number: f.number,
+      name: f.name,
+      title: f.title,
+      total: null,
+      poNumber: null,
+      linkedTo: holders.get(Number(f.number)) ?? null,
+    };
+    try {
+      const info = await pdfInfo(await getCategoryFile(category, year, f.number, "pdf", f.name));
+      doc.total = info.total ?? null;
+      doc.poNumber = info.orderNumber ?? null;
+      doc.reason =
+        isOrigin && quoteNumber && Number(f.number) === quoteNumber
+          ? "quote"
+          : order.orderNumber && info.orderNumber === order.orderNumber
+            ? "order"
+            : amount != null && info.total != null && Math.abs(info.total - amount) < 0.01
+              ? "amount"
+              : undefined;
+    } catch (err) {
+      logger.error(`[email-orders] failed reading ${category} ${f.number}:`, (err as Error).message);
+    }
+    documents.push(doc);
+  }
+  const suggestions = documents
+    .filter((d) => d.reason && !d.linkedTo)
+    .sort((a, b) => SUGGESTION_RANK[a.reason!] - SUGGESTION_RANK[b.reason!])
+    .slice(0, 5);
+  return { suggestions, documents };
+}
 
 export async function linkDocument(id: string, category: DocCategory, number: string) {
   await get(id);

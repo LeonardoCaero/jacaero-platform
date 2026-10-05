@@ -8,7 +8,7 @@ import { Logo } from '../components/Logo'
 import { SettingsMenu } from '../components/SettingsMenu'
 
 const inputClass =
-  'mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
+  'mt-1.5 h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15 dark:focus:border-yellow dark:focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
 
 export function AcceptInvitePage() {
   const { t } = useLanguage()
@@ -130,7 +130,7 @@ export function AcceptInvitePage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-11 w-full rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90"
+              className="h-11 w-full rounded-xl bg-ink text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-yellow dark:text-ink dark:hover:bg-yellow/90"
             >
               {isSubmitting ? t.acceptInvite.submitting : t.acceptInvite.submit}
             </button>

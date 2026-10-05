@@ -9,7 +9,7 @@ import { rolesRoutes } from "./modules/roles/roles.routes.js";
 import { usersRoutes } from "./modules/users/users.routes.js";
 import { invitationsRoutes } from "./modules/invitations/invitations.routes.js";
 import { emailOrdersRoutes } from "./modules/email-orders/email-orders.routes.js";
-import { syncOrders, startImapIdleListener, syncFacturarOk } from "./modules/email-orders/email-orders.service.js";
+import { syncOrders, startImapIdleListener, syncFacturarOk, reconcileDocuments } from "./modules/email-orders/email-orders.service.js";
 import { documentsRoutes } from "./modules/documents/documents.routes.js";
 import { pushSubscriptionsRoutes } from "./modules/push-subscriptions/push-subscriptions.routes.js";
 import { clientsRoutes } from "./modules/clients/clients.routes.js";
@@ -60,8 +60,15 @@ if (env.ORDERS_EMAIL_ADDRESS && env.ORDERS_EMAIL_APP_PASSWORD) {
   setInterval(runSyncOrders, 60 * 60 * 1000);
   startImapIdleListener();
   // Time-based (2 days after the albarán went out), so it needs a clock rather than a mail event.
-  const runFacturarOk = () =>
-    syncFacturarOk().catch((err) => logger.error("[email-orders] FACTURAR OK sync failed:", err));
+  // Link new NAS documents before the Gmail labels run.
+  const runFacturarOk = async () => {
+    const now = new Date();
+    const years = now.getMonth() === 0 ? [now.getFullYear() - 1, now.getFullYear()] : [now.getFullYear()];
+    for (const year of years) {
+      await reconcileDocuments(year).catch((err) => logger.error("[email-orders] document linking failed:", err));
+    }
+    await syncFacturarOk().catch((err) => logger.error("[email-orders] FACTURAR OK sync failed:", err));
+  };
   runFacturarOk();
   setInterval(runFacturarOk, 60 * 60 * 1000);
 }

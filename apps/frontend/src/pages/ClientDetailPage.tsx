@@ -1,9 +1,20 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Pencil, Trash2, UserCheck, UserX } from 'lucide-react'
+import { Archive, ArchiveRestore, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../lib/axios'
+import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
+
+import {
+  PageHeader,
+  cardClass,
+  dangerIconButtonClass,
+  iconButtonClass,
+  inputClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../components/ui'
 
 type Location = { id: string; name: string; address: string | null; city: string | null; postalCode: string | null }
 type Contact = { id: string; fullName: string; email: string; phone: string | null; jobTitle: string | null }
@@ -28,18 +39,6 @@ type ClientDetail = {
   contracts: Contract[]
 }
 
-const inputClass =
-  'h-11 w-full rounded-xl border border-line bg-paper px-3.5 text-base text-ink outline-none focus:border-yellow focus:ring-2 focus:ring-yellow/30 dark:border-line-dark dark:bg-paper-dark dark:text-cream'
-
-const cardClass =
-  'rounded-2xl border border-line bg-surface p-5 shadow-sm dark:border-line-dark dark:bg-surface-dark'
-
-const primaryButtonClass =
-  'h-10 rounded-xl bg-ink px-4 text-sm font-semibold text-cream transition hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50 dark:bg-cream dark:text-ink dark:hover:bg-cream/90'
-
-const secondaryButtonClass =
-  'h-10 rounded-xl border border-line px-4 text-sm font-semibold text-graphite hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
-
 function toDateInput(iso: string) {
   return iso.slice(0, 10)
 }
@@ -47,6 +46,7 @@ function toDateInput(iso: string) {
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t } = useLanguage()
+  const { confirm, toast } = useFeedback()
   const queryClient = useQueryClient()
 
   const { data: client } = useQuery({
@@ -86,35 +86,50 @@ export function ClientDetailPage() {
   })
 
   const toggleStatusMutation = useMutation({
-    mutationFn: () => api.patch(`/clients/${id}`, { status: client?.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }),
-    onSuccess: invalidate,
+    mutationFn: (status: 'ACTIVE' | 'INACTIVE') => api.patch(`/clients/${id}`, { status }),
+    onSuccess: (_d, status) => {
+      invalidate()
+      toast(status === 'ACTIVE' ? t.clients.activated : t.clients.deactivated)
+    },
+    onError: () => toast(t.common.saveError, 'error'),
   })
+
+  async function toggleStatus() {
+    if (!client) return
+    if (client.status === 'ACTIVE') {
+      const ok = await confirm({ message: t.clients.confirmDeactivate, danger: true, confirmLabel: t.team.deactivate })
+      if (!ok) return
+      toggleStatusMutation.mutate('INACTIVE')
+    } else {
+      toggleStatusMutation.mutate('ACTIVE')
+    }
+  }
 
   if (!client) return null
 
   return (
     <div>
-      <Link
-        to="/clients"
-        className="inline-flex items-center gap-1 text-sm text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t.clients.back}
-      </Link>
-
       {editingClient ? (
         <form
           onSubmit={(e) => {
             e.preventDefault()
             updateClientMutation.mutate()
           }}
-          className={`${cardClass} mt-4 space-y-3`}
+          className={`${cardClass} space-y-3`}
         >
-          <input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+          <input
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t.clients.name}
+            aria-label={t.clients.name}
+            className={inputClass}
+          />
           <input
             value={taxId}
             onChange={(e) => setTaxId(e.target.value)}
             placeholder={t.clients.taxId}
+            aria-label={t.clients.taxId}
             className={inputClass}
           />
           <input
@@ -122,9 +137,10 @@ export function ClientDetailPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder={t.team.email}
+            aria-label={t.team.email}
             className={inputClass}
           />
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Tel." className={inputClass} />
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.clients.phone} aria-label={t.clients.phone} className={inputClass} />
           <div className="flex gap-2">
             <button type="submit" disabled={updateClientMutation.isPending} className={`flex-1 ${primaryButtonClass}`}>
               {t.team.save}
@@ -135,44 +151,40 @@ export function ClientDetailPage() {
           </div>
         </form>
       ) : (
-        <div className="mt-4 flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-2xl font-semibold tracking-wide text-ink dark:text-cream">
-              {client.name}
-            </h1>
-            <p className="text-sm text-graphite dark:text-graphite-dark">
-              {[client.taxId, client.email, client.phone].filter(Boolean).join(' · ') || '—'}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                client.status === 'ACTIVE'
-                  ? 'bg-yellow/15 text-ink dark:text-cream'
-                  : 'bg-graphite/15 text-graphite dark:text-graphite-dark'
-              }`}
-            >
-              {client.status === 'ACTIVE' ? t.team.active : t.team.inactive}
-            </span>
-            <button
-              type="button"
-              title={t.team.edit}
-              onClick={startEditClient}
-              className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              title={client.status === 'ACTIVE' ? t.team.deactivate : t.team.activate}
-              disabled={toggleStatusMutation.isPending}
-              onClick={() => toggleStatusMutation.mutate()}
-              className="text-graphite hover:text-ink disabled:opacity-50 dark:text-graphite-dark dark:hover:text-cream"
-            >
-              {client.status === 'ACTIVE' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          backTo="/clients"
+          backLabel={t.clients.back}
+          title={client.name}
+          subtitle={[client.taxId, client.email, client.phone].filter(Boolean).join(' · ') || undefined}
+          actions={
+            <>
+              {client.status !== 'ACTIVE' && (
+                <span className="rounded-full border border-line px-2.5 py-0.5 text-xs font-semibold text-graphite dark:border-line-dark dark:text-graphite-dark">
+                  {t.team.inactive}
+                </span>
+              )}
+              <button
+                type="button"
+                title={t.team.edit}
+                aria-label={t.team.edit}
+                onClick={startEditClient}
+                className={iconButtonClass}
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title={client.status === 'ACTIVE' ? t.team.deactivate : t.team.activate}
+                aria-label={client.status === 'ACTIVE' ? t.team.deactivate : t.team.activate}
+                disabled={toggleStatusMutation.isPending}
+                onClick={toggleStatus}
+                className={iconButtonClass}
+              >
+                {client.status === 'ACTIVE' ? <Archive className="h-4 w-4" /> : <ArchiveRestore className="h-4 w-4" />}
+              </button>
+            </>
+          }
+        />
       )}
 
       <div className="mt-6 space-y-6">
@@ -187,13 +199,15 @@ export function ClientDetailPage() {
 function SectionHeader({ label, showForm, onToggle, addLabel }: { label: string; showForm: boolean; onToggle: () => void; addLabel: string }) {
   return (
     <div className="flex items-center justify-between">
-      <h2 className="text-sm font-semibold text-ink dark:text-cream">{label}</h2>
+      <h2 className="font-display text-lg font-semibold tracking-wide text-ink dark:text-cream">{label}</h2>
       <button
         type="button"
         onClick={onToggle}
-        className="text-sm font-semibold text-yellow hover:underline"
+        aria-expanded={showForm}
+        className="-my-2 inline-flex min-h-10 items-center gap-1 rounded-md py-2 text-sm font-semibold text-yellow-ink hover:underline dark:text-yellow"
       >
-        {showForm ? '×' : '+'} {addLabel}
+        {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+        {addLabel}
       </button>
     </div>
   )
@@ -209,6 +223,7 @@ function LocationsSection({
   onChange: () => void
 }) {
   const { t } = useLanguage()
+  const { confirm } = useFeedback()
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
@@ -242,8 +257,8 @@ function LocationsSection({
     onSuccess: onChange,
   })
 
-  function handleRemove(locationId: string) {
-    if (confirm(t.clients.confirmDeleteLocation)) removeMutation.mutate(locationId)
+  async function handleRemove(locationId: string) {
+    if (await confirm({ message: t.clients.confirmDeleteLocation, danger: true, confirmLabel: t.common.delete })) removeMutation.mutate(locationId)
   }
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -296,12 +311,14 @@ function LocationsSection({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t.clients.locationName}
+            aria-label={t.clients.locationName}
             className={inputClass}
           />
           <input
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder={t.clients.address}
+            aria-label={t.clients.address}
             className={inputClass}
           />
           <div className="flex gap-2">
@@ -309,12 +326,14 @@ function LocationsSection({
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder={t.clients.city}
+              aria-label={t.clients.city}
               className={inputClass}
             />
             <input
               value={postalCode}
               onChange={(e) => setPostalCode(e.target.value)}
               placeholder={t.clients.postalCode}
+              aria-label={t.clients.postalCode}
               className={inputClass}
             />
           </div>
@@ -343,6 +362,7 @@ function LocationsSection({
                 value={editAddress}
                 onChange={(e) => setEditAddress(e.target.value)}
                 placeholder={t.clients.address}
+                aria-label={t.clients.address}
                 className={inputClass}
               />
               <div className="flex gap-2">
@@ -350,12 +370,14 @@ function LocationsSection({
                   value={editCity}
                   onChange={(e) => setEditCity(e.target.value)}
                   placeholder={t.clients.city}
+                  aria-label={t.clients.city}
                   className={inputClass}
                 />
                 <input
                   value={editPostalCode}
                   onChange={(e) => setEditPostalCode(e.target.value)}
                   placeholder={t.clients.postalCode}
+                  aria-label={t.clients.postalCode}
                   className={inputClass}
                 />
               </div>
@@ -378,14 +400,18 @@ function LocationsSection({
                 <button
                   type="button"
                   onClick={() => startEdit(loc)}
-                  className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                  title={t.team.edit}
+                  aria-label={t.team.edit}
+                  className={iconButtonClass}
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => handleRemove(loc.id)}
-                  className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                  title={t.clients.delete}
+                  aria-label={t.clients.delete}
+                  className={dangerIconButtonClass}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -408,6 +434,7 @@ function ContactsSection({
   onChange: () => void
 }) {
   const { t } = useLanguage()
+  const { confirm } = useFeedback()
   const [showForm, setShowForm] = useState(false)
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -441,8 +468,8 @@ function ContactsSection({
     onSuccess: onChange,
   })
 
-  function handleRemove(contactId: string) {
-    if (confirm(t.clients.confirmDeleteContact)) removeMutation.mutate(contactId)
+  async function handleRemove(contactId: string) {
+    if (await confirm({ message: t.clients.confirmDeleteContact, danger: true, confirmLabel: t.common.delete })) removeMutation.mutate(contactId)
   }
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -495,6 +522,7 @@ function ContactsSection({
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder={t.clients.contactName}
+            aria-label={t.clients.contactName}
             className={inputClass}
           />
           <input
@@ -503,14 +531,16 @@ function ContactsSection({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder={t.team.email}
+            aria-label={t.team.email}
             className={inputClass}
           />
           <div className="flex gap-2">
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Tel." className={inputClass} />
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.clients.phone} aria-label={t.clients.phone} className={inputClass} />
             <input
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
               placeholder={t.profile.jobTitle}
+              aria-label={t.profile.jobTitle}
               className={inputClass}
             />
           </div>
@@ -551,13 +581,15 @@ function ContactsSection({
                 <input
                   value={editPhone}
                   onChange={(e) => setEditPhone(e.target.value)}
-                  placeholder="Tel."
+                  placeholder={t.clients.phone}
+                  aria-label={t.clients.phone}
                   className={inputClass}
                 />
                 <input
                   value={editJobTitle}
                   onChange={(e) => setEditJobTitle(e.target.value)}
                   placeholder={t.profile.jobTitle}
+                  aria-label={t.profile.jobTitle}
                   className={inputClass}
                 />
               </div>
@@ -583,14 +615,18 @@ function ContactsSection({
                 <button
                   type="button"
                   onClick={() => startEdit(c)}
-                  className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                  title={t.team.edit}
+                  aria-label={t.team.edit}
+                  className={iconButtonClass}
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => handleRemove(c.id)}
-                  className="text-graphite hover:text-rust dark:text-graphite-dark dark:hover:text-rust-dark"
+                  title={t.clients.delete}
+                  aria-label={t.clients.delete}
+                  className={dangerIconButtonClass}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -612,7 +648,8 @@ function ContractsSection({
   contracts: Contract[]
   onChange: () => void
 }) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const locale = language === 'es' ? 'es-ES' : 'en-GB'
   const [showForm, setShowForm] = useState(false)
   const [label, setLabel] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -694,6 +731,7 @@ function ContractsSection({
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder={t.clients.contractLabel}
+            aria-label={t.clients.contractLabel}
             className={inputClass}
           />
           <div className="flex gap-2">
@@ -721,6 +759,7 @@ function ContractsSection({
               value={hourlyRate}
               onChange={(e) => setHourlyRate(e.target.value)}
               placeholder={t.clients.hourlyRate}
+              aria-label={t.clients.hourlyRate}
               className={inputClass}
             />
             <input
@@ -731,6 +770,7 @@ function ContractsSection({
               value={overtimeRate}
               onChange={(e) => setOvertimeRate(e.target.value)}
               placeholder={t.clients.overtimeRate}
+              aria-label={t.clients.overtimeRate}
               className={inputClass}
             />
           </div>
@@ -780,6 +820,7 @@ function ContractsSection({
                   value={editHourly}
                   onChange={(e) => setEditHourly(e.target.value)}
                   placeholder={t.clients.hourlyRate}
+                  aria-label={t.clients.hourlyRate}
                   className={inputClass}
                 />
                 <input
@@ -790,6 +831,7 @@ function ContractsSection({
                   value={editOvertime}
                   onChange={(e) => setEditOvertime(e.target.value)}
                   placeholder={t.clients.overtimeRate}
+                  aria-label={t.clients.overtimeRate}
                   className={inputClass}
                 />
               </div>
@@ -814,8 +856,8 @@ function ContractsSection({
             <div key={c.id} className="flex items-center justify-between">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-ink dark:text-cream">{c.label}</p>
-                <p className="truncate text-sm text-graphite dark:text-graphite-dark">
-                  {toDateInput(c.startDate)} – {toDateInput(c.endDate)} · {c.hourlyRate}€/h · {c.overtimeRate}€/h extra
+                <p className="text-sm text-graphite dark:text-graphite-dark">
+                  {new Date(c.startDate).toLocaleDateString(locale)} – {new Date(c.endDate).toLocaleDateString(locale)} · {c.hourlyRate}€/h · {c.overtimeRate}€/h extra
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3">
@@ -831,7 +873,9 @@ function ContractsSection({
                 <button
                   type="button"
                   onClick={() => startEdit(c)}
-                  className="text-graphite hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                  title={t.team.edit}
+                  aria-label={t.team.edit}
+                  className={iconButtonClass}
                 >
                   <Pencil className="h-4 w-4" />
                 </button>

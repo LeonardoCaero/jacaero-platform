@@ -23,20 +23,21 @@ export async function remove(id: string, userId: string) {
   await prisma.documentNote.delete({ where: { id } });
 }
 
-export async function setQuoteStatus(data: {
+export async function setDocumentStatus(data: {
+  category: string;
   year: number;
   name: string;
   status: "ANULADO" | "STANDBY" | "SUSTITUIDO" | null;
   replacedBy?: string;
 }) {
   if (!data.status) {
-    await prisma.quoteStatus.deleteMany({ where: { year: data.year, docName: data.name } });
+    await prisma.documentStatus.deleteMany({ where: { category: data.category, year: data.year, docName: data.name } });
     return null;
   }
   const replacedBy = data.status === "SUSTITUIDO" ? data.replacedBy || null : null;
-  return prisma.quoteStatus.upsert({
-    where: { year_docName: { year: data.year, docName: data.name } },
-    create: { year: data.year, docName: data.name, status: data.status, replacedBy },
+  return prisma.documentStatus.upsert({
+    where: { category_year_docName: { category: data.category, year: data.year, docName: data.name } },
+    create: { category: data.category, year: data.year, docName: data.name, status: data.status, replacedBy },
     update: { status: data.status, replacedBy },
   });
 }

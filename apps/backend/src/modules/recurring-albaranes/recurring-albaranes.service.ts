@@ -219,7 +219,7 @@ async function loadSource(order: Order, kind: DocKind) {
   const doc = await templateDocument(order, kind);
   if (!doc) {
     const doc = kind === "albaran" ? "albarán" : "factura";
-    throw new ApiError(404, `No hay ningún ${doc} anterior de este recurso. Pulsa "Sincronizar" para leerlos del NAS.`);
+    throw new ApiError(404, `No hay ningún ${doc} anterior de este recurso. Pulsa "Leer del NAS" para cargarlos.`);
   }
   const docx = await fs.readFile(path.join(docsRoot(), doc.path));
   const xml = documentXml(docx);
