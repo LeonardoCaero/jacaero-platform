@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownUp, CalendarDays, CalendarSearch, ChevronDown, Circle, MoreHorizontal, RefreshCw, FileText, Check, Link2, Eye, Info, Sparkles, Star, Search, Repeat, Undo2 } from 'lucide-react'
+import { ArrowDownUp, ArrowUpRight, CalendarDays, CalendarSearch, ChevronDown, Circle, MoreHorizontal, RefreshCw, FileText, Check, Link2, Eye, Info, Sparkles, Star, Search, Repeat, Undo2 } from 'lucide-react'
 import { api } from '../lib/axios'
 import { formatEuro } from '../lib/format'
 import { Skeleton } from '../components/Skeleton'
@@ -33,6 +33,14 @@ import { useFeedback } from '../components/feedback'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type DocCategory = 'presupuesto' | 'albaran' | 'factura' | 'pedidoMaterial' | 'horasTrabajo'
+
+const DOC_ROUTE: Record<DocCategory, string> = {
+  presupuesto: 'presupuestos',
+  albaran: 'albaranes',
+  factura: 'facturas',
+  pedidoMaterial: 'pedidos-material',
+  horasTrabajo: 'horas',
+}
 
 const QUOTE_CATEGORY_TO_DOC: Record<'PRESUPUESTO' | 'HORAS' | 'MATERIAL', DocCategory> = {
   PRESUPUESTO: 'presupuesto',
@@ -66,6 +74,20 @@ function orderSearchText(order: EmailOrder): string {
 async function openPdf(path: string, params?: Record<string, unknown>) {
   const { data } = await api.get(path, { params, responseType: 'blob' })
   window.open(URL.createObjectURL(data), '_blank')
+}
+
+function GoToDocument({ category, year, number }: { category: DocCategory; year: number; number: string }) {
+  const { t } = useLanguage()
+  return (
+    <Link
+      to={`/papeleo/${DOC_ROUTE[category]}?year=${year}&detail=${encodeURIComponent(number)}`}
+      aria-label={t.docLinks.go}
+      title={t.docLinks.go}
+      className={iconButtonClass}
+    >
+      <ArrowUpRight className="h-4 w-4" />
+    </Link>
+  )
 }
 
 function PreviewButton({ onClick, label }: { onClick: (e: MouseEvent) => void; label: string }) {
@@ -834,13 +856,20 @@ function OrderDetail({
       label: t.emailOrders.quoteRef,
       value: order.quoteRef,
       preview: quoteDocCategory && year ? () => previewDocument(quoteDocCategory, year, order.quoteRef!) : null,
+      go: quoteDocCategory && year ? { category: quoteDocCategory, year, number: order.quoteRef } : null,
     },
     order.albaranSentAt && {
       label: t.emailOrders.albaranSent,
       value: new Date(order.albaranSentAt).toLocaleDateString(locale),
       preview: null,
+      go: null,
     },
-  ].filter(Boolean) as { label: string; value: string; preview: (() => void) | null }[]
+  ].filter(Boolean) as {
+    label: string
+    value: string
+    preview: (() => void) | null
+    go: { category: DocCategory; year: number; number: string } | null
+  }[]
 
   return (
     <div className="space-y-5 text-sm">
@@ -891,7 +920,10 @@ function OrderDetail({
                 </span>
                 <span className="flex shrink-0 items-center gap-1.5">
                   {number && year && (
-                    <PreviewButton label={t.emailOrders.previewPdf} onClick={() => previewDocument(docCategory, year, number)} />
+                    <>
+                      <PreviewButton label={t.emailOrders.previewPdf} onClick={() => previewDocument(docCategory, year, number)} />
+                      <GoToDocument category={docCategory} year={year} number={number} />
+                    </>
                   )}
                   {!number && (
                     <Link
@@ -944,6 +976,7 @@ function OrderDetail({
               <dd className="flex items-center gap-1 font-mono text-ink dark:text-cream">
                 {ref.value}
                 {ref.preview && <PreviewButton label={t.emailOrders.previewPdf} onClick={ref.preview} />}
+                {ref.go && <GoToDocument {...ref.go} />}
               </dd>
             </div>
           ))}
