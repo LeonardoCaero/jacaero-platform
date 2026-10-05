@@ -2,12 +2,10 @@ import { useEffect, useState } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { changelog } from '../lib/changelog'
 import { api } from '../lib/axios'
-import { PageHeader, secondaryButtonClass, sectionLabelClass } from '../components/ui'
-import { useFeedback } from '../components/feedback'
+import { PageHeader, sectionLabelClass } from '../components/ui'
 
 export function AboutPage() {
   const { t } = useLanguage()
-  const { toast, confirm } = useFeedback()
   const [version, setVersion] = useState('…')
 
   useEffect(() => {
@@ -25,70 +23,6 @@ export function AboutPage() {
         title={t.about.title}
         subtitle={<span className="font-mono">{`${t.about.version}: ${version}`}</span>}
       />
-
-      {import.meta.env.DEV && (
-        <div className="mt-6 flex flex-wrap gap-2">
-          <button type="button" className={secondaryButtonClass} onClick={() => toast('Cambios guardados')}>
-            Toast OK
-          </button>
-          <button type="button" className={secondaryButtonClass} onClick={() => toast('No se ha podido conectar', 'error')}>
-            Toast error
-          </button>
-          <button type="button" className={secondaryButtonClass} onClick={() => toast('Enlace copiado', 'info')}>
-            Toast info
-          </button>
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            onClick={() => toast(t.emailOrders.markedOn.replace('{order}', '4500000000').replace('{label}', t.emailOrders.invoiced))}
-          >
-            Facturado
-          </button>
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            onClick={() => toast(t.emailOrders.markedOff.replace('{order}', '4500000000').replace('{label}', t.emailOrders.invoiced))}
-          >
-            Desmarcar facturado
-          </button>
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            onClick={() =>
-              toast(t.documents.quoteStates.changed.replace('{n}', '000').replace('{state}', t.documents.quoteStates.standby.toLowerCase()))
-            }
-          >
-            Estado presupuesto
-          </button>
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            onClick={async () => {
-              if (!(await confirm({ message: t.emailOrders.confirmUninvoice }))) return
-              toast(t.emailOrders.markedOff.replace('{order}', '4500000000').replace('{label}', t.emailOrders.invoiced))
-            }}
-          >
-            Confirm desmarcar facturado
-          </button>
-          <button type="button" className={secondaryButtonClass} onClick={() => toast(t.common.saveError, 'error')}>
-            Error al guardar
-          </button>
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            onClick={async () =>
-              toast(
-                (await confirm({ message: '¿Eliminar esta nota?', danger: true, confirmLabel: t.common.delete }))
-                  ? 'Confirmado'
-                  : 'Cancelado',
-                'info',
-              )
-            }
-          >
-            Confirm
-          </button>
-        </div>
-      )}
 
       <h2 className={`mt-6 ${sectionLabelClass}`}>{t.about.changelog}</h2>
       <div className="mt-2 divide-y divide-line rounded-2xl border border-line bg-surface dark:divide-line-dark dark:border-line-dark dark:bg-surface-dark">
