@@ -169,7 +169,6 @@ function quoteCategoryOf(order: EmailOrder): QuoteCategory {
   return 'pending'
 }
 
-// Read-only in the list: changing state happens explicitly in the order detail.
 function StatusChip({ done, label }: { done: boolean; label: string }) {
   const { t } = useLanguage()
   return (
@@ -224,7 +223,6 @@ export function EmailOrdersPage() {
   const moreRef = useRef<HTMLDetailsElement>(null)
   const [moreOpen, setMoreOpen] = useState(false)
 
-  // <details> has no light dismiss of its own: close the "Más" menu on Escape or a tap elsewhere.
   useEffect(() => {
     function close(e: Event) {
       const menu = moreRef.current
@@ -344,8 +342,6 @@ export function EmailOrdersPage() {
     onError: () => toast(t.common.saveError, 'error'),
   })
 
-// Elements outside a modal <dialog> are inert, so a toast's button can't be pressed while the
-// detail is open: the undo for changes made inside a dialog lives next to the control instead.
   const [undoQuote, setUndoQuote] = useState<{ id: string; previous: QuoteCategory } | null>(null)
   const undoTimer = useRef<number | undefined>(undefined)
   const quoteStatusMutation = useMutation({

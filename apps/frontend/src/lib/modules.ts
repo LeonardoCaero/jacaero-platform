@@ -46,7 +46,6 @@ export type PapeleoKey =
 
 export type PapeleoSection = { key: PapeleoKey; path: string; icon: LucideIcon }
 
-// Pipeline order: order -> quote -> delivery note -> invoice, then the supporting sections.
 export const papeleoSections: PapeleoSection[] = [
   { key: 'pedidosCorreo', path: '/papeleo/pedidos', icon: Mail },
   { key: 'presupuesto', path: '/papeleo/presupuestos', icon: FileSignature },

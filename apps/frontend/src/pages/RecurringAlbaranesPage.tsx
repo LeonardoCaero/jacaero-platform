@@ -114,7 +114,6 @@ export function RecurringAlbaranesPage() {
   const monthLabel = new Date(`${period}-01T12:00:00`).toLocaleDateString(locale, { month: 'long' })
   const year = period.slice(0, 4)
 
-  // Resources without an order this year: pick the order here instead of hunting for it in Pedidos.
   const [assigning, setAssigning] = useState<{ id: string; name: string } | null>(null)
   const [orderSearch, setOrderSearch] = useState('')
   const { data: allOrders = [] } = useQuery({

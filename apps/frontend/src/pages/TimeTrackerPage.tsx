@@ -154,7 +154,6 @@ export function TimeTrackerPage() {
   function selectDay(key: string) {
     setSelectedDate(key)
     resetEntryForm(key)
-    // On phones the day form sits under the calendar; bring it into view so "Guardar" is reachable.
     if (window.matchMedia('(max-width: 1023px)').matches) {
       requestAnimationFrame(() => dayPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     }

@@ -151,7 +151,6 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
     else window.open(url, '_blank')
   }
 
-  // "Go to document" from another tab lands here with ?detail=<name>: open it once the list is in.
   useEffect(() => {
     const wanted = searchParams.get('detail')
     if (!wanted || files.length === 0) return
@@ -179,8 +178,6 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
 
   const queryClient = useQueryClient()
   const [replacedBy, setReplacedBy] = useState('')
-// Elements outside a modal <dialog> are inert, so a toast's button can't be pressed while the
-// detail is open: the undo for changes made inside a dialog lives next to the control instead.
   const [undoStatus, setUndoStatus] = useState<{
     file: DocFile
     previous: { status: QuoteState | null; replacedBy: string | null }

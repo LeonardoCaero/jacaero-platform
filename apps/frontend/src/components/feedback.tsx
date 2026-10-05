@@ -38,8 +38,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const nextId = useRef(0)
   const stack = useRef<HTMLDivElement>(null)
 
-  // Open <dialog>s live in the browser top layer, above any z-index. A manual popover joins that layer;
-  // re-showing it on every new toast puts it above whatever dialog is open at that moment.
+  // Re-showing the popover puts it above any open modal <dialog>.
   useEffect(() => {
     const el = stack.current
     if (!el) return
@@ -53,7 +52,6 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     (message: string, tone: Tone = 'success', action?: ToastAction) => {
       const id = nextId.current++
       setToasts((list) => [...list.slice(-2), { id, message, tone, action }])
-      // Errors stay until dismissed so they can't be missed; undo-able ones get more time.
       if (tone !== 'error') window.setTimeout(() => dismiss(id), action ? TOAST_MS * 2 : TOAST_MS)
     },
     [dismiss],
@@ -66,7 +64,6 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // "¿Desmarcar? Las etiquetas…" -> the question is the title, the rest explains it.
   const splitAt = pending && !pending.title ? pending.message.indexOf('?') + 1 : 0
   const question = splitAt > 0 ? pending!.message.slice(0, splitAt) : (pending?.message ?? '')
   const detail = pending?.title ? pending.message : pending?.message.slice(splitAt).trim()

@@ -38,7 +38,6 @@ export const searchInputClass =
 export const statusClass =
   'rounded-xl border border-yellow/40 bg-yellow/10 px-3 py-2 text-sm text-ink dark:text-cream'
 
-// Pinned to the bottom of a dialog's scroll area so file actions never scroll away.
 export const dialogFooterClass =
   'sticky -bottom-4 -mx-5 -mb-4 mt-6 flex flex-wrap gap-2 border-t border-line bg-surface px-5 py-3 dark:border-line-dark dark:bg-surface-dark'
 
@@ -58,13 +57,11 @@ export const filterIdleClass =
 export const filterActiveClass =
   'border-ink bg-ink/[0.07] text-ink dark:border-yellow dark:bg-yellow/15 dark:text-yellow'
 
-// One-of-N choice inside detail dialogs (quote type, document state).
 export const segmentOnClass =
   'h-9 rounded-lg border border-ink bg-ink px-2 text-xs font-semibold text-cream transition dark:border-yellow dark:bg-yellow dark:text-ink'
 export const segmentOffClass =
   'h-9 rounded-lg border border-line px-2 text-xs font-semibold text-graphite transition hover:text-ink dark:border-line-dark dark:text-graphite-dark dark:hover:text-cream'
 
-// Filter pill shared by every Papeleo list: optional icon, label and a count badge.
 export function FilterChip({
   active,
   onClick,
@@ -144,7 +141,6 @@ export function PageHeader({
   )
 }
 
-// Native <dialog> gives us Escape, focus trapping and an inert background for free.
 export function Modal({
   open,
   onClose,
@@ -170,7 +166,6 @@ export function Modal({
     if (!dialog) return
     if (open && !dialog.open) {
       dialog.showModal()
-      // showModal focuses the first control (the close button); honour an explicit choice instead.
       dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus()
     }
     if (!open && dialog.open) dialog.close()

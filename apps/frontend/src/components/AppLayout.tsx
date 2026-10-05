@@ -52,7 +52,6 @@ function PapeleoNav() {
         {t.comingSoon.back}
       </Link>
 
-      {/* Phones: the four pipeline tabs plus "Más" for the rest, one row, no horizontal scroll. */}
       <div className="grid grid-cols-5 gap-1 rounded-xl border border-line bg-surface p-1 lg:hidden dark:border-line-dark dark:bg-surface-dark">
         {primary.map((s) => (
           <NavLink key={s.path} to={s.path} className={({ isActive }) => `${tabClass(isActive)} min-h-12 flex-col gap-0.5 px-1 text-xs`}>

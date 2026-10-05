@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Albarán / Factura are only marked by linking the document (linkDocument / reconcile); this only unlinks.
+// Marking only happens by linking a document; this only unlinks.
 export const setMilestoneSchema = z.object({
   field: z.enum(["deliveryNoteAt", "invoicedAt"]),
   done: z.literal(false),

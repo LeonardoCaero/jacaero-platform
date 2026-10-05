@@ -23,7 +23,7 @@
   --color-rust-dark: #f87171;
 }
 
-/* Follow the app theme, not the OS: native dropdowns, date pickers and scrollbars read this. */
+/* Native controls follow the app theme, not the OS. */
 :root {
   color-scheme: light;
 }

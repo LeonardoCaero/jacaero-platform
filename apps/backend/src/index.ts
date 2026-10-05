@@ -60,7 +60,7 @@ if (env.ORDERS_EMAIL_ADDRESS && env.ORDERS_EMAIL_APP_PASSWORD) {
   setInterval(runSyncOrders, 60 * 60 * 1000);
   startImapIdleListener();
   // Time-based (2 days after the albarán went out), so it needs a clock rather than a mail event.
-  // Linking albaranes / facturas from the NAS first means a new factura is picked up before the labels run.
+  // Link new NAS documents before the Gmail labels run.
   const runFacturarOk = async () => {
     const now = new Date();
     const years = now.getMonth() === 0 ? [now.getFullYear() - 1, now.getFullYear()] : [now.getFullYear()];

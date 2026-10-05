@@ -89,7 +89,7 @@ export function QuoteLinks({
   const navigate = useNavigate()
   const [picking, setPicking] = useState<'albaran' | 'factura' | null>(null)
   const [search, setSearch] = useState('')
-  // Toasts are inert behind the dialog, so the undo for a new link sits right here.
+  // Toasts can't be clicked behind a modal, so the undo lives here.
   const [justLinked, setJustLinked] = useState<LinkedDoc | null>(null)
   const undoTimer = useRef<number | undefined>(undefined)
   const docLabel = { albaran: t.emailOrders.deliveryNote, factura: t.docLinks.invoice }
@@ -206,7 +206,6 @@ export function QuoteLinks({
               type="search"
               autoFocus
               onKeyDown={(e) => {
-                // Escape here closes the picker, not the whole dialog.
                 if (e.key === 'Escape') {
                   e.preventDefault()
                   setPicking(null)
@@ -317,8 +316,6 @@ type OrderCandidate = {
   client: { name: string } | null
 }
 
-// An unlinked albarán / factura can start the linking itself: pick the order and land on the
-// reconcile page with this document already selected for comparison.
 export function OrderFinder({ category, year, docName }: { category: 'albaran' | 'factura'; year: number; docName: string }) {
   const { t, language } = useLanguage()
   const locale = language === 'es' ? 'es-ES' : 'en-GB'

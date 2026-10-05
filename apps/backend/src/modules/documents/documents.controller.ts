@@ -105,7 +105,6 @@ async function withSentAndStatus<T extends DocFile>(files: T[], category: string
   });
 }
 
-// Quotes get their direct links; albaranes / facturas get where they come from (quote links and orders).
 async function withLinks<T extends DocFile>(files: T[], category: string, year: number) {
   if (category === "presupuesto") {
     const links = await prisma.documentLink.findMany({ where: { fromCategory: category, fromYear: year } });

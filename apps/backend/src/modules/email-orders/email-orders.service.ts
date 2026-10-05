@@ -49,15 +49,12 @@ export async function syncFacturarOk() {
   return withTimeout(syncFacturarOkInner(), 120_000, "FACTURAR OK labels");
 }
 
-// Albaranes go out from this same mailbox as attachments named "<number> ALBARÁN ...", so the
-// Sent folder tells us when each one was sent. Two days after that, if there's still no factura,
-// the order's email gets the Gmail label FACTURAR OK. Once the factura is linked, it swaps
-// Albarán / FACTURAR OK for Factura.
+// FACTURAR OK: albarán sent two days ago and still no factura. Linking the factura swaps it for Factura.
 export async function recordSentDocuments(client: ImapFlow, allPath: string) {
   const own = env.ORDERS_EMAIL_ADDRESS!.toLowerCase();
   const domainOf = (address: string) => address.toLowerCase().split("@")[1] ?? "";
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
-  // Only quotes were tracked before; the first run with every category backfills the whole year.
+  // The first run with every category backfills the whole year.
   const tracksAll = await prisma.documentSent.findFirst({ where: { category: { not: "presupuesto" } }, select: { id: true } });
   const last = tracksAll
     ? await prisma.documentSent.findFirst({ orderBy: { sentAt: "desc" }, select: { sentAt: true } })
@@ -680,8 +677,7 @@ async function pdfInfo(filePath: string) {
 
 const SUGGESTION_RANK = { order: 0, quote: 1, amount: 2 } as const;
 
-// Documents of a category that look like this order's: its PO number inside the PDF, its quote
-// number, or the same total. Ranked in that order so the first one is the likely match.
+// Ranked by PO number in the PDF, then quote number, then same total.
 export async function suggestDocuments(id: string, category: DocCategory) {
   const order = await get(id);
   const year = orderYear(order);
@@ -698,7 +694,6 @@ export async function suggestDocuments(id: string, category: DocCategory) {
     linkedTo: string | null;
     reason?: keyof typeof SUGGESTION_RANK;
   };
-  // Who already holds each albarán / factura number this year, so the picker can warn before re-linking.
   const numberField = category === "albaran" ? "albaranNumber" : category === "factura" ? "facturaNumber" : null;
   const holders = new Map<number, string>();
   if (numberField) {

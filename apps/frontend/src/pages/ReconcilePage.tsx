@@ -84,7 +84,6 @@ export function ReconcilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  // Arriving from an albarán / factura ("Buscar pedido") or from the order's "Buscar": preselect.
   const wantedTarget = searchParams.get('target')
   const [targetKey, setTargetKey] = useState<TargetKey | null>(
     wantedTarget === 'albaran' ? 'missingAlbaran' : wantedTarget === 'factura' ? 'missingFactura' : null,
@@ -106,7 +105,6 @@ export function ReconcilePage() {
   const target = targets.find((x) => x.key === targetKey) ?? targets[0] ?? null
   const activeCategory = category && target?.categories.includes(category) ? category : (target?.categories[0] ?? null)
 
-  // One call: likely matches plus every candidate with the total read from its PDF.
   const { data: candidates, isFetching: suggesting } = useQuery({
     queryKey: ['email-orders', id, 'suggestions', activeCategory],
     queryFn: async () =>
@@ -137,7 +135,6 @@ export function ReconcilePage() {
     mutationFn: (doc: { category: DocCategory; number: string }) =>
       api.patch(`/email-orders/${id}/link`, { category: doc.category, number: doc.number }),
     onSuccess: (_d, doc) => {
-      // This page is not a modal, so the toast's undo button is reachable here.
       const field = doc.category === 'albaran' ? 'deliveryNoteAt' : doc.category === 'factura' ? 'invoicedAt' : null
       toast(t.docLinks.linked.replace('{doc}', `${categoryLabel[doc.category]} ${doc.number}`), 'success', {
         label: t.common.undo,
@@ -160,7 +157,6 @@ export function ReconcilePage() {
 
   function selectDoc(cat: DocCategory, number: string, name: string) {
     setSelected({ category: cat, number, name })
-    // On phones the preview sits under the long list; take the user to it.
     if (window.matchMedia('(max-width: 1023px)').matches) {
       requestAnimationFrame(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     }
@@ -207,9 +203,7 @@ export function ReconcilePage() {
         </p>
       ) : (
         <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:overflow-hidden">
-          {/* Picker: what is missing, likely matches first, then the full searchable list */}
           <section className={`${cardClass} flex flex-col lg:w-[380px] lg:shrink-0 lg:overflow-hidden`}>
-            {/* The subtitle is hidden on phones; keep the order in view here. */}
             <p className="mb-3 font-mono text-sm font-semibold text-ink sm:hidden dark:text-cream">
               {[order.orderNumber, order.totalAmount && formatEuro(order.totalAmount, locale)].filter(Boolean).join(' · ')}
             </p>
@@ -348,7 +342,6 @@ export function ReconcilePage() {
             </div>
           </section>
 
-          {/* Selected document, to check it before linking */}
           <section ref={previewRef} className={`${cardClass} flex min-h-80 scroll-mt-4 flex-col lg:flex-1 lg:overflow-hidden`}>
             <h2 className={sectionLabelClass}>{selected ? `${categoryLabel[selected.category]} ${selected.number}` : r.preview}</h2>
             {[
@@ -411,7 +404,6 @@ export function ReconcilePage() {
             )}
           </section>
 
-          {/* The order itself, for comparison */}
           <section className={`${cardClass} flex min-h-80 flex-col lg:flex-1 lg:overflow-hidden`}>
             <h2 className={sectionLabelClass}>{r.orderPreview}</h2>
             <div className="mt-2 h-96 overflow-hidden rounded-xl border border-line lg:h-auto lg:flex-1 dark:border-line-dark">

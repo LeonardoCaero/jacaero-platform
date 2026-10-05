@@ -137,7 +137,6 @@ const SENT_KEYWORDS: [RegExp, "presupuesto" | "albaran" | "factura" | "horasTrab
   [/^pedido\s*material/i, "pedidoMaterial"],
 ];
 
-// "<number> <KIND> ..." -> which NAS category the attachment belongs to.
 export function documentFromFilename(name: string) {
   const plain = name.normalize("NFD").replace(/\p{Diacritic}/gu, "");
   const match = plain.match(/^(\d+)\s*(.*)$/);

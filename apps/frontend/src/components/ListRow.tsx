@@ -1,7 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
 
-// One layout for every list in Papeleo (orders and documents):
-// desktop -> a single line; mobile -> heading on top, then a divider with status chips and actions.
 export function ListRow({
   onOpen,
   openLabel,
