@@ -16,6 +16,7 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
   selectClass,
+  textareaClass,
 } from '../components/ui'
 import { FullPhoto, PendingPhotoThumbnail, PhotoGallery, PhotoThumbnail } from '../components/Photos'
 import { buildMonthGrid, formatDate, isWeekendKey, toDateKey, toMonthKey, weekdayLabels as getWeekdayLabels } from '../lib/dates'
@@ -25,6 +26,7 @@ type TimeEntry = {
   date: string
   hours: string
   description: string | null
+  notes: string | null
   isOvertime: boolean
   photos: string[]
 }
@@ -77,6 +79,7 @@ export function TimeTrackerPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [hours, setHours] = useState('8')
   const [description, setDescription] = useState('')
+  const [notes, setNotes] = useState('')
   const [isOvertime, setIsOvertime] = useState(isWeekendKey(todayKey))
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([])
   const [previewEntry, setPreviewEntry] = useState<TimeEntry | null>(null)
@@ -135,6 +138,7 @@ export function TimeTrackerPage() {
     setEditingId(null)
     setHours('8')
     setDescription('')
+    setNotes('')
     setIsOvertime(forKey ? isWeekendKey(forKey) : false)
     setPendingPhotos([])
   }
@@ -173,6 +177,7 @@ export function TimeTrackerPage() {
         date: selectedDate,
         hours: Number(hours),
         description: description.trim() || undefined,
+        notes: notes.trim(),
         isOvertime,
       }
       const entry = editingId
@@ -214,6 +219,7 @@ export function TimeTrackerPage() {
     setEditingId(entry.id)
     setHours(entry.hours)
     setDescription(entry.description ?? '')
+    setNotes(entry.notes ?? '')
     setIsOvertime(entry.isOvertime)
     setPendingPhotos([])
   }
@@ -402,13 +408,16 @@ export function TimeTrackerPage() {
               {teamDayEntries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-center justify-between rounded-xl border border-line px-3.5 py-2.5 dark:border-line-dark"
+                  className="flex items-start justify-between gap-3 rounded-xl border border-line px-3.5 py-2.5 dark:border-line-dark"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 self-center">
                     <p className="truncate text-sm font-semibold text-ink dark:text-cream">{entry.fullName}</p>
-                    <p className="truncate text-sm text-graphite dark:text-graphite-dark">
+                    <p className="break-words text-sm text-graphite dark:text-graphite-dark">
                       {entry.description || '—'}
                     </p>
+                    {entry.notes && (
+                      <p className="mt-1 whitespace-pre-line break-words text-xs text-graphite dark:text-graphite-dark">{entry.notes}</p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="font-mono text-sm font-semibold tabular text-ink dark:text-cream">
@@ -455,14 +464,17 @@ export function TimeTrackerPage() {
               {selectedEntries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-center justify-between rounded-xl border border-line px-3.5 py-2.5 dark:border-line-dark"
+                  className="flex items-start justify-between gap-3 rounded-xl border border-line px-3.5 py-2.5 dark:border-line-dark"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 self-center">
                     {entry.description && (
-                      <p className="truncate text-sm text-ink dark:text-cream">{entry.description}</p>
+                      <p className="break-words text-sm text-ink dark:text-cream">{entry.description}</p>
                     )}
                     {!entry.description && (
                       <p className="text-sm text-graphite dark:text-graphite-dark">—</p>
+                    )}
+                    {entry.notes && (
+                      <p className="mt-1 whitespace-pre-line break-words text-xs text-graphite dark:text-graphite-dark">{entry.notes}</p>
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -546,12 +558,23 @@ export function TimeTrackerPage() {
               <input
                 type="text"
                 value={description}
+                maxLength={500}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t.timeTracker.descriptionPlaceholder}
                 aria-label={t.timeTracker.descriptionPlaceholder}
                 className={inputClass}
               />
             </div>
+
+            <textarea
+              rows={3}
+              maxLength={2000}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t.timeTracker.notesPlaceholder}
+              aria-label={t.timeTracker.notesPlaceholder}
+              className={textareaClass}
+            />
 
             <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm text-graphite dark:text-graphite-dark">
               <input
@@ -632,7 +655,7 @@ export function TimeTrackerPage() {
         <p className="mt-4 text-center text-sm text-graphite dark:text-graphite-dark">{t.timeTracker.empty}</p>
       )}
 
-      <Modal open={!!previewEntry} onClose={() => setPreviewEntry(null)} title={t.timeTracker.photos} closeLabel={t.common.close} size="sm">
+      <Modal open={!!previewEntry} onClose={() => setPreviewEntry(null)} title={t.timeTracker.photos} closeLabel={t.common.close} size="lg">
         {previewEntry &&
           (previewEntry.photos.length === 1 ? (
             <FullPhoto url={`/time-entries/${previewEntry.id}/photos/${previewEntry.photos[0]}`} />

@@ -4,6 +4,7 @@ export const createTimeEntrySchema = z.object({
   date: z.coerce.date(),
   hours: z.coerce.number().positive().max(24),
   description: z.string().trim().max(500).optional(),
+  notes: z.string().trim().max(2000).optional(),
   isOvertime: z.boolean().optional().default(false),
 });
 
