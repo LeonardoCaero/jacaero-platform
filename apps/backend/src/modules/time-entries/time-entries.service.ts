@@ -58,7 +58,7 @@ export async function teamSummary(month: string) {
 
 export async function create(userId: string, data: CreateInput, actingEndpoint?: string) {
   const entry = await prisma.timeEntry.create({
-    data: { userId, createdBy: userId, ...data, description: data.description || null },
+    data: { userId, createdBy: userId, ...data, description: data.description || null, notes: data.notes || null },
     include: { user: { select: { fullName: true } } },
   });
 
@@ -101,7 +101,11 @@ export async function update(id: string, requesterId: string, data: UpdateInput)
   await findAccessible(id, requesterId);
   return prisma.timeEntry.update({
     where: { id },
-    data: { ...data, description: data.description === undefined ? undefined : data.description || null },
+    data: {
+      ...data,
+      description: data.description === undefined ? undefined : data.description || null,
+      notes: data.notes === undefined ? undefined : data.notes || null,
+    },
   });
 }
 

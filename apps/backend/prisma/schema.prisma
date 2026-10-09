@@ -225,6 +225,7 @@ model TimeEntry {
   date        DateTime
   hours       Decimal  @db.Decimal(5, 2)
   description String?
+  notes       String?
   isOvertime  Boolean  @default(false)
   photos      String[] @default([])
 

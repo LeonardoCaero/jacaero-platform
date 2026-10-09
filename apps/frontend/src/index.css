@@ -73,7 +73,7 @@ dialog::backdrop {
 }
 
 dialog[open] {
-  animation: scale-in 0.15s ease-out both;
+  animation: scale-in 0.15s ease-out backwards;
 }
 
 .tabular {
