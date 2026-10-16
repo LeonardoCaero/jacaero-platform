@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { isAxiosError } from 'axios'
 import { api } from '../lib/axios'
 import { tokenStorage } from '../lib/token-storage'
 
@@ -34,8 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data } = await api.get<User>('/auth/me')
         setUser(data)
-      } catch {
-        tokenStorage.clear()
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.status === 401) tokenStorage.clear()
       } finally {
         setIsLoading(false)
       }
