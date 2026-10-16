@@ -28,7 +28,9 @@ async function refreshAccessToken(): Promise<string | null> {
     const { data } = await axios.post(`${import.meta.env.VITE_API_URL}/auth/refresh`, { refreshToken })
     tokenStorage.setTokens(data.accessToken, data.refreshToken)
     return data.accessToken
-  } catch {
+  } catch (error) {
+    // server unreachable or down (outage, deploy): keep the session
+    if (!axios.isAxiosError(error) || !error.response || error.response.status >= 500) throw error
     tokenStorage.clear()
     return null
   }
@@ -38,7 +40,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/login') {
       originalRequest._retry = true
 
       refreshPromise ??= refreshAccessToken().finally(() => {
