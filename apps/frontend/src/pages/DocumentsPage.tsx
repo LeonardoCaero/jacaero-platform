@@ -177,6 +177,16 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
   }, [])
 
   const queryClient = useQueryClient()
+  const sentMutation = useMutation({
+    mutationFn: async ({ file, sent }: { file: DocFile; sent: boolean }) => {
+      const body = { category, year, number: file.number, name: file.name }
+      return sent ? api.post('/documents/sent', body) : api.delete('/documents/sent', { data: body })
+    },
+    onSuccess: (_d, { sent }) => {
+      setDetail((cur) => cur && { ...cur, sent: sent ? { at: new Date().toISOString(), to: '', viaClient: false } : null })
+      queryClient.invalidateQueries({ queryKey: ['documents', category, year] })
+    },
+  })
   const [replacedBy, setReplacedBy] = useState('')
   const [undoStatus, setUndoStatus] = useState<{
     file: DocFile
@@ -680,11 +690,38 @@ export function DocumentsPage({ category, titleKey }: { category: DocCategory; t
                 {new Date(detail.sent.at).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
               <p className="mt-1 break-all text-xs text-graphite dark:text-graphite-dark">
-                {detail.sent.viaClient ? t.documents.viaClient : `${t.documents.to} ${detail.sent.to}`}
+                {detail.sent.viaClient
+                  ? t.documents.viaClient
+                  : detail.sent.to
+                    ? `${t.documents.to} ${detail.sent.to}`
+                    : t.documents.markedManually}
               </p>
+              {!detail.sent.viaClient && !detail.sent.to && (
+                <button
+                  type="button"
+                  disabled={sentMutation.isPending}
+                  onClick={() => sentMutation.mutate({ file: detail, sent: false })}
+                  className="mt-1.5 text-xs font-medium text-graphite underline hover:text-ink dark:text-graphite-dark dark:hover:text-cream"
+                >
+                  {t.documents.unmarkSent}
+                </button>
+              )}
             </div>
           ) : (
-            <p className="mt-2 text-sm font-semibold text-rust dark:text-rust-dark">{t.documents.notSent}</p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-rust dark:text-rust-dark">{t.documents.notSent}</p>
+              {detail.name && (
+                <button
+                  type="button"
+                  disabled={sentMutation.isPending}
+                  onClick={() => sentMutation.mutate({ file: detail, sent: true })}
+                  className={secondaryButtonClass}
+                >
+                  <Send className="h-4 w-4" />
+                  {t.documents.markSent}
+                </button>
+              )}
+            </div>
           )}
           </>
 
