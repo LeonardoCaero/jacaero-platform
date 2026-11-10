@@ -28,3 +28,10 @@ export const createLinkSchema = z.object({
 });
 
 export const linkIdSchema = z.object({ id: z.string().min(1) });
+
+export const markSentSchema = z.object({
+  category: docCategory,
+  year: z.number().int().min(2000).max(2100),
+  number: z.string().regex(/^\d+$/),
+  name: z.string().min(1).max(300),
+});

@@ -72,12 +72,18 @@ export async function recordSentDocuments(client: ImapFlow, allPath: string) {
     from: string;
   };
   const found: Found[] = [];
+
+  const plainName = (n: string) => n.normalize("NFD").replace(/\p{Diacritic}/gu, "").trim().toLowerCase();
+  const nasDocs = new Map<string, { category: DocCategory; number: number }>();
+  for (const category of ["presupuesto", "albaran", "factura", "pedidoMaterial", "horasTrabajo"] as const) {
+    for (const f of await listCategory(category, yearStart.getUTCFullYear())) {
+      nasDocs.set(plainName(f.name), { category, number: Number(f.number) });
+    }
+  }
+
   const lock = await client.getMailboxLock(allPath);
   try {
-    const uids = await client.search(
-      { since, gmraw: 'has:attachment (presupuesto OR albaran OR albarán OR factura OR horas OR "pedido material")' },
-      { uid: true },
-    );
+    const uids = await client.search({ since, gmraw: "has:attachment" }, { uid: true });
     if (uids && uids.length > 0) {
       for await (const msg of client.fetch(uids, { envelope: true, bodyStructure: true }, { uid: true })) {
         const date = msg.envelope?.date;
@@ -85,9 +91,9 @@ export async function recordSentDocuments(client: ImapFlow, allPath: string) {
         if (!date || !msg.bodyStructure || !from) continue;
         const recipients = (msg.envelope?.to ?? []).map((a) => a.address).filter(Boolean).join(", ");
         for (const name of attachmentNames(msg.bodyStructure)) {
-          const doc = documentFromFilename(name);
-          if (!doc) continue;
           const fileName = name.replace(/\.[^.]+$/, "");
+          const doc = documentFromFilename(name) ?? nasDocs.get(plainName(fileName));
+          if (!doc) continue;
           found.push({
             ...doc,
             year: date.getFullYear(),

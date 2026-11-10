@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Request, Response } from "express";
 import PizZip from "pizzip";
-import { categorySchema, listDocumentsSchema, getDocumentFileSchema, createLinkSchema, linkIdSchema } from "./documents.schema.js";
+import { categorySchema, listDocumentsSchema, getDocumentFileSchema, createLinkSchema, linkIdSchema, markSentSchema } from "./documents.schema.js";
 import {
   listCategory,
   getCategoryFile,
@@ -242,4 +242,21 @@ export async function getFileHandler(req: Request<{ category: string }>, res: Re
   const buffer = await fs.readFile(filePath);
   res.setHeader("Content-Type", CONTENT_TYPES[ext]);
   res.send(buffer);
+}
+
+export async function markSentHandler(req: Request, res: Response) {
+  const { category, year, number, name } = markSentSchema.parse(req.body);
+  res.json(
+    await prisma.documentSent.upsert({
+      where: { category_year_name: { category, year, name } },
+      create: { category, year, number: Number(number), name, sentAt: new Date(), recipients: "" },
+      update: {},
+    }),
+  );
+}
+
+export async function unmarkSentHandler(req: Request, res: Response) {
+  const { category, year, name } = markSentSchema.omit({ number: true }).parse(req.body);
+  await prisma.documentSent.deleteMany({ where: { category, year, name, recipients: "", viaClient: false } });
+  res.status(204).end();
 }
