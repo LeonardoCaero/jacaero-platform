@@ -87,7 +87,7 @@ export function parsePurchaseOrderText(fullText: string): ParsedPurchaseOrder {
   const notes = field(/Facturar a:\n\S+@\S+\n([\s\S]+?)\nLínea\n/);
   const quoteRef =
     field(
-      /(?:N[ºo°]\s*(?:de\s*)?(?:presupuesto|oferta)|Según\s*(?:presupuesto|prespuesto|oferta|referencia|ref\.?)|OFERTA)\s*(?:n[ºo°]\s*)?:?\s*(\d+)/i,
+      /(?:N[ºo°]\s*(?:de\s*)?(?:presu?pue?sto?|oferta)|Según\s*(?:presu?pue?sto?|oferta|referencia|ref\.?)|OFERTA)\s*(?:n[ºo°]\s*)?:?\s*(\d+)/i,
     ) ?? notes?.match(/[Aa]djunta\s+(\d+)\s/)?.[1];
 
   const lineItemRe =
