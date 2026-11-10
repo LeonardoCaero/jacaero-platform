@@ -517,6 +517,15 @@ async function reconcileDocumentsInner(year: number) {
   const yearStart = new Date(Date.UTC(year, 0, 1));
   const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
 
+  const withoutRef = await prisma.emailOrder.findMany({
+    where: { orderDate: { gte: yearStart, lt: yearEnd }, quotedAt: null, quoteRef: null },
+    select: { id: true, rawContent: true },
+  });
+  for (const order of withoutRef) {
+    const quoteRef = parsePurchaseOrderText(order.rawContent).quoteRef;
+    if (quoteRef) await prisma.emailOrder.update({ where: { id: order.id }, data: { quoteRef } });
+  }
+
   const pendingQuote = await prisma.emailOrder.findMany({
     where: { orderDate: { gte: yearStart, lt: yearEnd }, quotedAt: null, quoteRef: { not: null } },
     select: { id: true, quoteRef: true, totalAmount: true },

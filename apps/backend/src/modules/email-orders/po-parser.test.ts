@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { esNumber, extractOrderNumber, extractDeclaredNumber, extractDocumentTotal, documentNumberFromFilename, documentFromFilename } from "./po-parser.js";
+import { esNumber, extractOrderNumber, extractDeclaredNumber, extractDocumentTotal, documentNumberFromFilename, documentFromFilename, parsePurchaseOrderText } from "./po-parser.js";
 
 describe("esNumber", () => {
   it("parses Spanish thousand/decimal separators", () => {
@@ -63,5 +63,13 @@ describe("documentFromFilename", () => {
     expect(documentFromFilename("007 PEDIDO MATERIAL EJEMPLO.pdf")).toEqual({ category: "pedidoMaterial", number: 7 });
     expect(documentFromFilename("image001.png")).toBeUndefined();
     expect(documentFromFilename("008 OFERTA EJEMPLO.pdf")).toBeUndefined();
+  });
+});
+
+describe("parsePurchaseOrderText quoteRef", () => {
+  it("reads the quote number despite typos in 'presupuesto'", () => {
+    expect(parsePurchaseOrderText("Según presupuesto 012\n").quoteRef).toBe("012");
+    expect(parsePurchaseOrderText("Según prespuesto 034\n").quoteRef).toBe("034");
+    expect(parsePurchaseOrderText("Según presupuest 087\n").quoteRef).toBe("087");
   });
 });
